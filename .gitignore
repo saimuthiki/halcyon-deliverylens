@@ -19,3 +19,4 @@ htmlcov/
 infra/config.env
 infra/.state/
 app.env
+deck/node_modules/
