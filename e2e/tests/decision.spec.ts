@@ -4,7 +4,7 @@ import { evidenceShot, expectLiveData, trackConsoleErrors } from './helpers';
 test.describe('The decision pages', () => {
   test('overview shows 71.0% today, 90.2% realistic, the 99.0% ceiling and $14.2M at risk', async ({ page }, testInfo) => {
     const errors = trackConsoleErrors(page);
-    await page.goto('/');
+    await page.goto('/overview');
 
     await expect(page.getByRole('heading', { level: 1, name: /On-time delivery is 71%\. The benchmark is 94%\./ })).toBeVisible();
     const track = page.getByRole('figure', {

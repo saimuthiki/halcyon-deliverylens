@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 import { expectLiveData, trackConsoleErrors } from './helpers';
 
 const PAGES: { path: string; heading: RegExp }[] = [
-  { path: '/', heading: /On-time delivery is 71%/ },
+  { path: '/how-it-works', heading: /How an order travels/ },
+  { path: '/overview', heading: /On-time delivery is 71%/ },
+  { path: '/order-desk', heading: /Order desk/ },
   { path: '/why-late', heading: /Five causes account for 28 of the 29 points lost/ },
   { path: '/vendor', heading: /The routing vendor fixes the wrong problem/ },
   { path: '/what-if', heading: /What if we fix part of the problem\?/ },
@@ -23,6 +25,14 @@ for (const p of PAGES) {
     await expect(page.getByRole('main').getByRole('status')).toHaveCount(0);
     await expect(page.getByText('This section could not load.')).toHaveCount(0);
     await expectLiveData(page);
+    // Every page has the "What am I looking at?" panel, closed by default.
+    await expect(page.getByRole('button', { name: /What am I looking at\?/ })).toHaveAttribute('aria-expanded', 'false');
     expect(errors).toEqual([]);
   });
 }
+
+test('smoke: "/" lands on How it works', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/how-it-works$/);
+  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link').first()).toHaveText('How it works');
+});

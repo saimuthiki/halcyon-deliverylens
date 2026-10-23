@@ -37,7 +37,10 @@ npm run typecheck
 
 | Route | Page |
 |---|---|
-| `/` | Overview: on-time 71% vs 94% benchmark. Headline is the realistic case (90.2%); the delivery track shows today 71.0%, routing vendor only 80.2%, process fixes only 86.7%, all five realistic 90.2%, the ceiling 99.0% ("if every cause were fully removed") and the benchmark. Cost KPIs, monthly trend |
+| `/` | Redirects to `/how-it-works` (the landing page) |
+| `/how-it-works` | How it works: the problem in one sentence with 71% / 94% / $14.2M; a 10-step map of the client's order journey with a **Today / With DeliveryLens** switch (badges link to the page that shows each agent or rule), the five causes with points lost at the step they hit, the $680K routing tool bracket on the road only; legend (AI agent / Rule / Data lookup / Guardrail) and a numbered "Start here" path |
+| `/order-desk` | Order desk (live): inbox of 12 sample client emails (`/desk/inbox`), selected email with attachments, **Run DeliveryLens on this email** / **Run all 12**, a 10-step pipeline trace (actor colour, status, summary, friendly details, duration), decision card with "matches expected", the drafted reply (DRAFT — needs approval), the **WMS orders** table (`/desk/wms-orders`) and **Reset demo**. Shows which LLM is answering. Offline it shows the sample inbox and pre-computed traces from `src/api/deskFixtures.ts`, labelled **Sample — API offline** |
+| `/overview` | Overview: on-time 71% vs 94% benchmark. Headline is the realistic case (90.2%); the delivery track shows today 71.0%, routing vendor only 80.2%, process fixes only 86.7%, all five realistic 90.2%, the ceiling 99.0% ("if every cause were fully removed") and the benchmark. Cost KPIs, monthly trend |
 | `/why-late` | Waterfall 71% → 99.0% ceiling (bars = points each cause costs today; realistic 90.2% stated below), cause table, sample late deliveries, delivery drawer with timeline, explanation and **Draft delay alert** with forecast delay, date and basis (`?cause=` deep-links a cause) |
 | `/vendor` | Today / vendor only / process fixes / realistic / ceiling against the benchmark; "each fix must work ~84% of the time"; what the vendor really adds (route deviation ~3 pts; carrier switching needs no software); **Business case** table from `/roi`; recommendation |
 | `/what-if` | Slider per cause (starts at the realistic plan), projected on-time gauge computed with the same cause-combination model as the API, points per cause, late deliveries and penalties avoided |
@@ -47,6 +50,8 @@ npm run typecheck
 | `/order-intake` | Order intake agent: extracted order, address check with missing fields highlighted, same-day cutoff warning, drafted follow-up |
 | `/ask` | Ask DeliveryLens chat with suggested questions |
 | `/activity` | Agent run log |
+
+Every page has a **What am I looking at?** panel under the title (closed by default, open state remembered per page in `localStorage`); the text is in `src/lib/help.ts`. The sidebar shows which AI provider the API is using, from `/api/health` (`AI: Mock (canned)`, `AI: Gemini <model>`, `AI: Bedrock`); when `llm_ready` is false the badge turns amber with a tooltip telling you to add `GEMINI_API_KEY` to `backend/.env`.
 
 ## Aligning with the backend
 
@@ -73,10 +78,10 @@ Fallback rules: for analytics, network errors, timeouts, 404 and 5xx fall back t
 
 ```
 src/
-  api/        types.ts, client.ts, mockData.ts (fallback logic), mockSnapshot.ts (generated data)
+  api/        types.ts, client.ts, mockData.ts (fallback logic), mockSnapshot.ts (generated data), deskFixtures.ts (offline Order desk, loaded on demand)
   lib/calc.ts also holds the cause-combination model (simulateExact) used by the simulator and its offline fallback
   components/ Layout, DeliveryTrack, Waterfall, Gauge, KpiStrip, Drawer, States, ...
   lib/        calc.ts (waterfall + simulator maths), causes.ts, format.ts, useApi.ts
-  pages/      one file per route (lazy-loaded except Overview)
+  pages/      one file per route (lazy-loaded except HowItWorks, the landing page)
   __tests__/  vitest tests
 ```
