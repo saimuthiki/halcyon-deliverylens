@@ -34,8 +34,12 @@ Details: [docs/03-what-the-data-says.md](docs/03-what-the-data-says.md).
 
 ## Read the documents in this order
 
+**New here? Start with [docs/00-START-HERE.md](docs/00-START-HERE.md)**, then the screen-by-screen
+[user guide](docs/08-user-guide.md) (annotated screenshots of every page).
+
 | # | Document | What it covers |
 |---|---|---|
+| 0 | [Start here](docs/00-START-HERE.md) | The problem, the five causes, where the AI is, how to run it with Gemini |
 | 1 | [What the judges want](docs/01-what-the-judges-want.md) | Deadlines, the pass/fail checklist, how the 100 points are split |
 | 2 | [The problem](docs/02-the-problem.md) | Halcyon's story, how an order travels, what the stakeholder said, our questions |
 | 3 | [What the data says](docs/03-what-the-data-says.md) | The five causes, carrier lanes, the 08:00 cutoff, money, data quality |
@@ -43,6 +47,7 @@ Details: [docs/03-what-the-data-says.md](docs/03-what-the-data-says.md).
 | 5 | [The plan to 29 Oct](docs/05-five-day-plan.md) | Gantt chart, who does what, day-by-day tasks |
 | 6 | [AWS setup guide](docs/06-aws-setup-guide.md) | Step-by-step scripts for Monday; placeholders to fill |
 | 7 | [How we work with AI agents](docs/07-how-we-work-with-ai-agents.md) | The agent pipeline across roles, and where the proof lives |
+| 8 | [User guide](docs/08-user-guide.md) | Every screen, every button, every number, the 12 sample emails, blockers |
 
 Word versions of every document are in [`docs/downloads/`](docs/downloads/).
 
@@ -54,7 +59,7 @@ flowchart LR
   R --> AN["analysis/<br/>root-cause script + findings"]
   R --> DOC["docs/<br/>7 guides + reference files"]
   R --> BE["backend/<br/>FastAPI: analytics + AI agents"]
-  R --> FE["frontend/<br/>React dashboard (9 screens)"]
+  R --> FE["frontend/<br/>React app (13 screens)"]
   R --> IN["infra/<br/>AWS scripts, Caddy, compose"]
   R --> GH[".github/workflows/<br/>CI + deploy"]
   R --> AI["ai-logs/<br/>AI usage evidence"]
@@ -72,7 +77,10 @@ flowchart LR
 ## Run it on a laptop
 
 Python 3.11+, Node 20 and Docker are needed for the full stack. The app works without AWS:
-the AI agents run in **mock mode** until Bedrock is connected.
+the AI agents run in **mock mode** (canned answers) by default. For real, dynamic AI answers on a
+laptop, put a Google Gemini key in `backend/.env` (`LLM_PROVIDER=gemini`, `GEMINI_API_KEY=...`);
+see [docs/00-START-HERE.md](docs/00-START-HERE.md#4-run-it-on-your-laptop-with-gemini-real-ai-answers).
+On AWS the same agents use Claude on Amazon Bedrock.
 
 ```bash
 # 1. Re-run the analysis (needs only pandas)
@@ -81,7 +89,7 @@ python analysis/root_cause_analysis.py
 # 2. Backend
 cd backend && python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -m app.loader            # loads data/halcyon-dataset into the database
+python -m app.loader            # loads the dataset + 12 sample emails into SQLite
 uvicorn app.main:app --reload   # http://localhost:8000/api/docs
 
 # 3. Frontend (new terminal)
@@ -99,7 +107,7 @@ PostgreSQL, CloudWatch, Amplify, EC2**. See [docs/06-aws-setup-guide.md](docs/06
 
 - [x] Discovery questions asked (round 2 sent 23 Oct); [ ] answers recorded and applied (due Mon 26 Oct)
 - [x] Agent pipeline across roles ([ai-logs/](ai-logs/INDEX.md))
-- [x] AI inside the product (Order Intake, Delay Alert, Ask DeliveryLens agents), mock mode until Bedrock is connected Monday
-- [x] Usable UI and working backend; tests: backend 48, frontend 12, browser E2E 19 ([evidence/](evidence/README.md))
+- [x] AI inside the product (Order Intake, Client Reply, Delay Alert, Ask DeliveryLens agents; live Order desk); mock or Gemini locally, Bedrock from Monday
+- [x] Usable UI and working backend; tests: backend 148, frontend 27, browser E2E 30 ([evidence/](evidence/README.md))
 - [ ] Deployed on AWS (Monday 26 Oct, once access arrives)
 - [ ] Evidence pack and final AI logs (Wed 28 Oct)
