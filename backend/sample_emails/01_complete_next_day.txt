@@ -1,0 +1,22 @@
+From: purchasing@client-042.example
+Sent: 2026-10-23 07:15
+Subject: New order - Client 042
+
+Hello Halcyon team,
+
+Please ship the following for Client 042:
+- SKU HX-1001 x 12
+- SKU HX-2040 x 5
+
+Ship to:
+Name: Client 042 Receiving Dock
+Street: 1200 Commerce Way
+City: Columbus
+State: OH
+Postcode: 43215
+Country: US
+
+Requested delivery: 2026-10-24 (next day please)
+
+Thanks,
+Dana, Purchasing, Client 042

@@ -1,0 +1,21 @@
+From: urgent@client-205.example
+Sent: 2026-10-23 09:40
+Subject: URGENT same day - Client 205
+
+Team,
+
+We need this SAME DAY please, it is for a store opening.
+- SKU HX-7777 x 3
+
+Ship to:
+Name: Client 205 Flagship Store
+Street: 88 Harbor Street
+City: Savannah
+State: GA
+Postcode: 31401
+Country: US
+
+Requested delivery: 2026-10-23
+
+Thanks,
+Client 205

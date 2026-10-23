@@ -1,0 +1,13 @@
+From: logistics@client-150.example
+Sent: 2026-10-23 11:20
+Subject: Order for Client 150
+
+Hello,
+
+Please send 6 x SKU HX-9001 and 2 x SKU HX-9002 to:
+Deliver to: Client 150 Receiving, 77 Pine Avenue, Denver, CO 80202, US
+
+Needed by 2026-10-27, standard shipping.
+
+Kind regards,
+Client 150 logistics (call 303-555-0142 with questions)

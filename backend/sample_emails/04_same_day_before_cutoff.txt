@@ -1,0 +1,21 @@
+From: buyer@client-066.example
+Sent: 2026-10-23 07:05
+Subject: Same day order - Client 066
+
+Good morning,
+
+Same-day delivery please for Client 066:
+- SKU HX-5120 x 20
+
+Ship to:
+Name: Client 066 Distribution Center
+Street: 450 Lakeshore Drive
+City: Chicago
+State: IL
+Postcode: 60611
+Country: US
+
+Requested delivery: 2026-10-23
+
+Best,
+Client 066 buying team

@@ -1,0 +1,8 @@
+# BuildKit uses this file for `docker build -f backend/Dockerfile .` (context = repo root)
+**
+!backend/requirements.txt
+!backend/app/**
+!backend/sample_emails/**
+!data/halcyon-dataset/**
+**/__pycache__
+**/*.pyc

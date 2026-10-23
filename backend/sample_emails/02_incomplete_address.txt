@@ -1,0 +1,19 @@
+From: orders@client-117.example
+Sent: 2026-10-23 06:50
+Subject: PO for Client 117
+
+Hi,
+
+Client 117 needs these sent out:
+- SKU HX-3300 x 40
+- SKU HX-0450 x 8
+
+Ship to:
+Name: Client 117 Warehouse
+City: Atlanta
+State: GA
+
+Standard delivery is fine, by 2026-10-28.
+
+Regards,
+Client 117 ops
