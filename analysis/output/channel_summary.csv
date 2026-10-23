@@ -1,0 +1,4 @@
+order_channel,deliveries,incomplete_address_rate,on_time_rate
+API,17628,0.053,0.708
+EDI,15398,0.052,0.715
+Email,15314,0.278,0.707

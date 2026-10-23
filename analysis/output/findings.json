@@ -1,0 +1,95 @@
+{
+  "deliveries": 48340,
+  "period": [
+    "2026-04-01",
+    "2026-09-25"
+  ],
+  "on_time_rate_today": 0.71,
+  "on_time_rate_with_no_problem": 0.9663,
+  "deliveries_with_no_problem": 24380,
+  "on_time_if_all_fixed": 0.9663,
+  "on_time_if_only_routing_fixed": 0.7862,
+  "on_time_if_only_process_fixed": 0.8672,
+  "causes": [
+    {
+      "cause": "incomplete_address",
+      "label": "Address incomplete when the order came in",
+      "deliveries": 5994,
+      "on_time_rate": 0.354,
+      "share_of_late_deliveries": 0.2762,
+      "points_gained_if_fixed_alone": 6.0,
+      "fair_share_points": 6.8,
+      "sla_penalties_usd": 287280
+    },
+    {
+      "cause": "same_day_after_cutoff",
+      "label": "Same-day order received after the 08:00 pick-list cutoff",
+      "deliveries": 4826,
+      "on_time_rate": 0.39,
+      "share_of_late_deliveries": 0.21,
+      "points_gained_if_fixed_alone": 4.6,
+      "fair_share_points": 5.3,
+      "sla_penalties_usd": 171900
+    },
+    {
+      "cause": "stock_not_at_nearest",
+      "label": "Nearest warehouse had no stock, shipped from further away",
+      "deliveries": 6009,
+      "on_time_rate": 0.4999,
+      "share_of_late_deliveries": 0.2144,
+      "points_gained_if_fixed_alone": 4.0,
+      "fair_share_points": 4.8,
+      "sla_penalties_usd": 184500
+    },
+    {
+      "cause": "weak_carrier_lane",
+      "label": "Carrier is weak in that destination region",
+      "deliveries": 7895,
+      "on_time_rate": 0.5415,
+      "share_of_late_deliveries": 0.2582,
+      "points_gained_if_fixed_alone": 4.8,
+      "fair_share_points": 5.7,
+      "sla_penalties_usd": 213120
+    },
+    {
+      "cause": "route_deviation",
+      "label": "Driver went more than 20% beyond the planned route",
+      "deliveries": 2880,
+      "on_time_rate": 0.3736,
+      "share_of_late_deliveries": 0.1287,
+      "points_gained_if_fixed_alone": 2.6,
+      "fair_share_points": 3.0,
+      "sla_penalties_usd": 102960
+    }
+  ],
+  "money": {
+    "sla_penalties_6_months_usd": 872460,
+    "redelivery_cost_6_months_usd": 476646,
+    "at_risk_clients": 9,
+    "at_risk_annual_revenue_usd": 14200000,
+    "at_risk_on_time_rate": 0.707,
+    "routing_vendor_budget_usd": 680000
+  },
+  "complaints": {
+    "total": 34,
+    "by_category": {
+      "Delivery late": 14,
+      "Not told about the delay": 12,
+      "Redelivery needed": 6,
+      "Penalty dispute": 2
+    },
+    "from_at_risk_clients": 24
+  },
+  "customer_success_week": {
+    "hours_total": 720.0,
+    "hours_on_complaints": 460.8,
+    "hours_keying_email_orders": 44.4,
+    "hours_proactive": 179.5
+  },
+  "data_quality": {
+    "missing_actual_route_km": 1339,
+    "duplicate_order_ids": 21,
+    "late_deliveries_with_redelivery_cost": 14019,
+    "late_deliveries": 14019
+  }
+}
