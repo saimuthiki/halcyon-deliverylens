@@ -65,7 +65,7 @@ flowchart LR
 | 2 | `bash infra/scripts/01-iam.sh` | Creates the two IAM roles with least privilege | Prints the GitHub deploy role ARN; save it as GitHub secret `AWS_DEPLOY_ROLE_ARN` |
 | 3 | `bash infra/scripts/02-s3.sh` | Private, encrypted bucket; uploads `data/halcyon-dataset` to `raw/` | `aws s3 ls s3://deliverylens-data-<account>/raw/halcyon-dataset/` |
 | 4 | `bash infra/scripts/03-ecr.sh` | Image repository with scan-on-push | Prints the image URI |
-| 5 | `bash infra/scripts/04-network.sh` | API: 443/80 open, 22 from your IP only. DB: 5432 from the API only | IDs saved in `infra/.state/` |
+| 5 | `bash infra/scripts/04-network.sh` | API: 443/80 open, 22 from your IP only. DB: 5432 from the API only | Save the printed API security group ID as GitHub secret `EC2_SG_ID` (the deploy job opens SSH for itself only while it deploys, then closes it) |
 | 6 | `bash infra/scripts/05-secrets-rds.sh` | Creates PostgreSQL (private, encrypted) and stores the connection string, model IDs and a demo password in Secrets Manager | Prints the RDS endpoint |
 | 7 | Push to `main` (GitHub Actions builds and pushes), or build by hand, see below | The API image lands in ECR | `aws ecr list-images --repository-name deliverylens-api` |
 | 8 | `bash infra/scripts/06-ec2.sh` | Starts the server, installs Docker, attaches a fixed IP | Prints `https://<ip-with-dashes>.sslip.io` |
@@ -102,7 +102,8 @@ sequenceDiagram
 
 **What this shows:** after setup, a `git push` to `main` updates everything.
 1. GitHub Actions runs the tests, builds the API image and pushes it to ECR.
-2. GitHub Actions then tells the EC2 server to pull the new image and restart.
+2. GitHub Actions opens SSH for its own IP only, tells the EC2 server to pull the new image and
+   restart, then closes SSH again.
 3. Amplify rebuilds the website on its own.
 
 Nobody copies files by hand.

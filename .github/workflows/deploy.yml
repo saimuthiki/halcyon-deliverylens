@@ -2,7 +2,8 @@ name: Deploy API to AWS
 
 # Runs after CI passes on main. Does nothing until the AWS GitHub secrets are set
 # (see docs/06-aws-setup-guide.md): AWS_DEPLOY_ROLE_ARN, AWS_REGION, AWS_ACCOUNT_ID,
-# EC2_HOST (elastic IP), EC2_SSH_KEY (private key of the deliverylens key pair).
+# EC2_HOST (elastic IP), EC2_SSH_KEY (private key of the deliverylens key pair),
+# EC2_SG_ID (the deliverylens-api-sg security group id; SSH is opened to this runner only during the deploy).
 on:
   workflow_run:
     workflows: [CI]
@@ -49,6 +50,16 @@ jobs:
           docker build -f backend/Dockerfile -t "$REGISTRY/$ECR_REPO:$SHA" -t "$REGISTRY/$ECR_REPO:latest" .
           docker push "$REGISTRY/$ECR_REPO:$SHA"
           docker push "$REGISTRY/$ECR_REPO:latest"
+      - name: Open SSH to this runner only (closed again below)
+        if: steps.gate.outputs.ready == 'true'
+        id: ssh_open
+        env:
+          SG: ${{ secrets.EC2_SG_ID }}
+        run: |
+          IP=$(curl -fsS https://checkip.amazonaws.com)
+          echo "ip=$IP" >> "$GITHUB_OUTPUT"
+          aws ec2 authorize-security-group-ingress --group-id "$SG" \
+            --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=$IP/32,Description=github-deploy}]"
       - name: Restart the API on EC2 with the new image
         if: steps.gate.outputs.ready == 'true'
         env:
@@ -59,6 +70,14 @@ jobs:
           ssh -i key.pem -o StrictHostKeyChecking=accept-new "ec2-user@$HOST" \
             'cd /home/ec2-user && aws ecr get-login-password --region $(grep AWS_REGION .env | cut -d= -f2) | docker login --username AWS --password-stdin $(grep IMAGE .env | cut -d= -f2 | cut -d/ -f1) && docker compose -f docker-compose.prod.yml pull api && docker compose -f docker-compose.prod.yml up -d api'
           rm -f key.pem
+      - name: Close SSH again
+        if: always() && steps.ssh_open.outputs.ip != ''
+        env:
+          SG: ${{ secrets.EC2_SG_ID }}
+          IP: ${{ steps.ssh_open.outputs.ip }}
+        run: |
+          aws ec2 revoke-security-group-ingress --group-id "$SG" \
+            --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=$IP/32}]"
       - name: Smoke test
         if: steps.gate.outputs.ready == 'true'
         env:

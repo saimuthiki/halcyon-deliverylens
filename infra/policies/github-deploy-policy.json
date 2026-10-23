@@ -4,6 +4,10 @@
     {"Effect": "Allow", "Action": "ecr:GetAuthorizationToken", "Resource": "*"},
     {"Effect": "Allow",
      "Action": ["ecr:BatchCheckLayerAvailability", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload", "ecr:PutImage", "ecr:BatchGetImage"],
-     "Resource": "arn:aws:ecr:__REGION__:__ACCOUNT__:repository/__ECR_REPO__"}
+     "Resource": "arn:aws:ecr:__REGION__:__ACCOUNT__:repository/__ECR_REPO__"},
+    {"Sid": "TemporarySshForDeploy", "Effect": "Allow",
+     "Action": ["ec2:AuthorizeSecurityGroupIngress", "ec2:RevokeSecurityGroupIngress"],
+     "Resource": "arn:aws:ec2:__REGION__:__ACCOUNT__:security-group/*",
+     "Condition": {"StringEquals": {"aws:ResourceTag/project": "__PROJECT__"}}}
   ]
 }

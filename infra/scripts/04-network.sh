@@ -11,5 +11,6 @@ allow --group-id "$API_SG" --protocol tcp --port 443 --cidr 0.0.0.0/0
 allow --group-id "$API_SG" --protocol tcp --port 80 --cidr 0.0.0.0/0      # Caddy ACME challenge + redirect to HTTPS
 allow --group-id "$API_SG" --protocol tcp --port 22 --cidr "$ALLOWED_SSH_CIDR"
 allow --group-id "$DB_SG" --protocol tcp --port 5432 --source-group "$API_SG"
+aws ec2 create-tags --resources "$API_SG" "$DB_SG" --tags Key=project,Value="$PROJECT"
 echo "$API_SG" > "$STATE/api_sg"; echo "$DB_SG" > "$STATE/db_sg"
-log "API SG $API_SG, DB SG $DB_SG"
+log "API SG $API_SG, DB SG $DB_SG  (set GitHub secret EC2_SG_ID=$API_SG)"
