@@ -19,6 +19,11 @@ import type {
   CausesResponse,
   DataSource,
   DelayAlertResult,
+  DeskMessage,
+  DeskMessageDetail,
+  DeskProcessAll,
+  DeskProcessResult,
+  WmsOrder,
   DeliveryDetail,
   DeliverySummary,
   FixLevels,
@@ -120,15 +125,22 @@ export function friendlyMessage(status: number, detail: string): string {
  * Agent calls fall back only when the API cannot be reached at all: a server error from a live agent is
  * shown as an error, never replaced by a rule-based stand-in.
  */
-function shouldFallback(err: unknown, kind: 'analytics' | 'agent'): boolean {
-  if (err instanceof ApiError) return kind === 'analytics' && (err.status === 404 || err.status >= 500);
+function shouldFallback(err: unknown, kind: FallbackKind): boolean {
+  if (err instanceof ApiError) {
+    if (kind === 'analytics') return err.status === 404 || err.status >= 500;
+    // Order desk: the sample inbox stands in when the API is unreachable or the desk endpoints are not deployed yet.
+    if (kind === 'desk') return err.status === 404;
+    return false;
+  }
   return true; // network error, CORS, abort/timeout
 }
 
-async function withFallback<T>(call: () => Promise<T>, fallback: () => T, kind: 'analytics' | 'agent' = 'analytics'): Promise<Result<T>> {
+type FallbackKind = 'analytics' | 'agent' | 'desk';
+
+async function withFallback<T>(call: () => Promise<T>, fallback: () => T | Promise<T>, kind: FallbackKind = 'analytics'): Promise<Result<T>> {
   if (status === 'unknown') await probeApi();
   if (status === 'offline' && Date.now() - offlineSince < OFFLINE_RETRY_MS) {
-    return { data: fallback(), source: 'sample' };
+    return { data: await fallback(), source: 'sample' };
   }
   try {
     const data = await call();
@@ -137,7 +149,7 @@ async function withFallback<T>(call: () => Promise<T>, fallback: () => T, kind: 
   } catch (err) {
     if (!shouldFallback(err, kind)) throw err;
     if (!(err instanceof ApiError)) setStatus('offline');
-    return { data: fallback(), source: 'sample' };
+    return { data: await fallback(), source: 'sample' };
   }
 }
 
@@ -606,7 +618,173 @@ export const api = {
     withFallback(async () => normaliseAsk(await http<unknown>('/agents/ask', agentPost({ question }), AGENT_TIMEOUT_MS)), () => mock.mockAsk(question), 'agent'),
 
   runs: () => withFallback(async () => normaliseRuns(await http<unknown>('/agents/runs')), () => mock.mockRuns),
+
+  /* ---------- Order desk (offline fixtures load only when needed) ---------- */
+
+  deskInbox: () =>
+    withFallback(async () => list(await http<unknown>('/desk/inbox'), 'messages').map(normaliseDeskMessage), async () => (await deskFixtures()).sampleInbox().messages, 'desk'),
+
+  deskMessage: (id: string) =>
+    withFallback(
+      async () => normaliseDeskMessageDetail(await http<unknown>(`/desk/inbox/${encodeURIComponent(id)}`)),
+      async () => {
+        const m = (await deskFixtures()).sampleMessage(id);
+        if (!m) throw new ApiError(`Email ${id} is not in the sample inbox`, 404);
+        return m;
+      },
+      'desk',
+    ),
+
+  deskProcess: (id: string) =>
+    withFallback(
+      async () => normaliseDeskProcess(await http<unknown>(`/desk/process/${encodeURIComponent(id)}`, agentPost({}), AGENT_TIMEOUT_MS)),
+      async () => (await deskFixtures()).sampleProcess(id),
+      'desk',
+    ),
+
+  deskProcessAll: () =>
+    withFallback(
+      async () => normaliseDeskProcessAll(await http<unknown>('/desk/process-all', agentPost({}), AGENT_TIMEOUT_MS * 3)),
+      async () => (await deskFixtures()).sampleProcessAll(),
+      'desk',
+    ),
+
+  deskWmsOrders: () =>
+    withFallback(async () => list(await http<unknown>('/desk/wms-orders'), 'orders').map(normaliseWmsOrder), async () => (await deskFixtures()).sampleWmsOrders().orders, 'desk'),
+
+  deskReset: () => withFallback(async () => ({ ok: obj(await http<unknown>('/desk/reset', agentPost({}))).ok !== false }), async () => (await deskFixtures()).sampleReset(), 'desk'),
 };
+
+const deskFixtures = () => import('./deskFixtures');
+
+/* ---------- Order desk normalisers ---------- */
+
+const DECISIONS = ['accepted', 'on_hold', 'needs_review', 'blocked'] as const;
+const decisionOr = (x: unknown): DeskProcessResult['decision'] =>
+  (DECISIONS as readonly string[]).includes(x as string) ? (x as DeskProcessResult['decision']) : 'needs_review';
+const strOrNull = (x: unknown): string | null => (typeof x === 'string' && x !== '' ? x : null);
+
+export function normaliseDeskMessage(x: unknown): DeskMessage {
+  const o = obj(x);
+  return {
+    id: String(o.id ?? ''),
+    from_name: strOr(o.from_name, ''),
+    from_email: strOr(o.from_email, ''),
+    client_id: strOrNull(o.client_id),
+    subject: strOr(o.subject, '(no subject)'),
+    received_at: strOr(o.received_at, ''),
+    scenario: strOr(o.scenario, ''),
+    expected_decision: decisionOr(o.expected_decision),
+    what_it_demonstrates: strOr(o.what_it_demonstrates, ''),
+    has_attachment: o.has_attachment === true,
+    status: strOr(o.status, 'new'),
+    decision: o.decision ? decisionOr(o.decision) : null,
+  };
+}
+
+export function normaliseDeskMessageDetail(x: unknown): DeskMessageDetail {
+  const o = obj(x);
+  return {
+    ...normaliseDeskMessage(o),
+    body: strOr(o.body, ''),
+    attachments: list(o.attachments).map((a) => {
+      const r = obj(a);
+      return { filename: strOr(r.filename, 'attachment'), content_type: strOr(r.content_type, ''), text: strOr(r.text, '') };
+    }),
+  };
+}
+
+export function normaliseWmsOrder(x: unknown): WmsOrder {
+  const o = obj(x);
+  const st = obj(o.ship_to);
+  return {
+    wms_order_id: strOr(o.wms_order_id, ''),
+    message_id: String(o.message_id ?? ''),
+    client_id: strOrNull(o.client_id),
+    client_name: strOrNull(o.client_name),
+    ship_to: {
+      name: strOrNull(st.name),
+      street: strOrNull(st.street),
+      city: strOrNull(st.city),
+      state: strOrNull(st.state),
+      postcode: strOrNull(first(st, 'postcode', 'zip')),
+      country: strOrNull(st.country),
+    },
+    lines: list(o.lines).map((l) => {
+      const r = obj(l);
+      return { sku: strOr(r.sku, ''), qty: numOr(first(r, 'qty', 'quantity'), 0) };
+    }),
+    commitment_type: strOrNull(o.commitment_type),
+    requested_date: strOrNull(o.requested_date),
+    promised_date: strOrNull(o.promised_date),
+    destination_region: strOrNull(o.destination_region),
+    nearest_warehouse_id: strOrNull(o.nearest_warehouse_id),
+    fulfilment_warehouse_id: strOrNull(o.fulfilment_warehouse_id),
+    carrier_id: strOrNull(o.carrier_id),
+    carrier_reason: strOrNull(o.carrier_reason),
+    status: strOr(o.status, ''),
+    pick_list_date: strOrNull(o.pick_list_date),
+    created_at: strOr(o.created_at, ''),
+  };
+}
+
+export function normaliseDeskProcess(x: unknown): DeskProcessResult {
+  const o = obj(x);
+  return {
+    message_id: String(o.message_id ?? ''),
+    decision: decisionOr(o.decision),
+    decision_reason: strOr(o.decision_reason, ''),
+    steps: list(o.steps).map((s, i) => {
+      const r = obj(s);
+      const actor = strOr(r.actor, 'Rule');
+      return {
+        step: numOr(r.step, i + 1),
+        key: strOr(r.key, ''),
+        title: strOr(r.title, ''),
+        actor: (['AI agent', 'Rule', 'Data lookup', 'Guardrail'].includes(actor) ? actor : 'Rule') as DeskProcessResult['steps'][number]['actor'],
+        agent_name: strOr(r.agent_name, ''),
+        status: (['pass', 'warn', 'fail', 'skipped'].includes(r.status as string) ? r.status : 'pass') as DeskProcessResult['steps'][number]['status'],
+        summary: strOr(r.summary, ''),
+        details: obj(r.details),
+        duration_ms: numOr(r.duration_ms, 0),
+      };
+    }),
+    wms_order: o.wms_order ? normaliseWmsOrder(o.wms_order) : null,
+    client_email_draft: strOrNull(o.client_email_draft),
+    llm_provider: strOr(o.llm_provider, ''),
+    llm_model: strOr(o.llm_model, ''),
+    expected_decision: decisionOr(o.expected_decision),
+    matches_expected: o.matches_expected === true,
+  };
+}
+
+export function normaliseDeskProcessAll(x: unknown): DeskProcessAll {
+  const o = obj(x);
+  const results = list(o.results).map((r) => {
+    const q = obj(r);
+    return { message_id: String(q.message_id ?? ''), decision: decisionOr(q.decision), expected_decision: decisionOr(q.expected_decision), matches_expected: q.matches_expected === true };
+  });
+  return { processed: numOr(o.processed, results.length), matches_expected: numOr(o.matches_expected, results.filter((r) => r.matches_expected).length), results };
+}
+
+/* ---------- health (AI provider badge) ---------- */
+
+let health: Health | null = null;
+const healthListeners = new Set<() => void>();
+
+export function getHealth(): Health | null {
+  return health;
+}
+
+export function subscribeHealth(fn: () => void): () => void {
+  healthListeners.add(fn);
+  return () => healthListeners.delete(fn);
+}
+
+function setHealth(next: Health | null) {
+  health = next;
+  healthListeners.forEach((fn) => fn());
+}
 
 let probing: Promise<ApiStatus> | null = null;
 
@@ -614,8 +792,14 @@ let probing: Promise<ApiStatus> | null = null;
 export function probeApi(): Promise<ApiStatus> {
   if (!probing) {
     probing = http<Health>('/health', {}, 3000)
-      .then(() => setStatus('live'))
-      .catch((err: unknown) => setStatus(err instanceof ApiError ? 'live' : 'offline'))
+      .then((h) => {
+        setHealth(h && typeof h === 'object' ? h : null);
+        setStatus('live');
+      })
+      .catch((err: unknown) => {
+        setHealth(null);
+        setStatus(err instanceof ApiError ? 'live' : 'offline');
+      })
       .then(() => status)
       .finally(() => {
         probing = null;

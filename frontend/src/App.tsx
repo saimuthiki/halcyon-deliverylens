@@ -3,7 +3,10 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import { LoadingBlock } from './components/States';
 import { probeApi } from './api/client';
-import Overview from './pages/Overview';
+import HowItWorks from './pages/HowItWorks';
+
+const Overview = lazy(() => import('./pages/Overview'));
+const OrderDesk = lazy(() => import('./pages/OrderDesk'));
 
 const WhyLate = lazy(() => import('./pages/WhyLate'));
 const Vendor = lazy(() => import('./pages/Vendor'));
@@ -24,7 +27,10 @@ export default function App() {
     <Layout>
       <Suspense fallback={<LoadingBlock label="Loading page" />}>
         <Routes>
-          <Route path="/" element={<Overview />} />
+          <Route path="/" element={<Navigate to="/how-it-works" replace />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/overview" element={<Overview />} />
+          <Route path="/order-desk" element={<OrderDesk />} />
           <Route path="/why-late" element={<WhyLate />} />
           <Route path="/vendor" element={<Vendor />} />
           <Route path="/what-if" element={<Simulator />} />
@@ -34,7 +40,7 @@ export default function App() {
           <Route path="/order-intake" element={<OrderIntake />} />
           <Route path="/ask" element={<Ask />} />
           <Route path="/activity" element={<Activity />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/how-it-works" replace />} />
         </Routes>
       </Suspense>
     </Layout>

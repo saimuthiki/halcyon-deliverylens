@@ -6,6 +6,8 @@ import {
   Building2,
   Gauge,
   Inbox,
+  Mail,
+  Map as MapIcon,
   Menu,
   MessageSquareText,
   Scale,
@@ -17,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useApiStatus } from '../lib/useApi';
 import { API_BASE, probeApi } from '../api/client';
+import AiBadge from './AiBadge';
 
 interface NavItem {
   to: string;
@@ -26,9 +29,13 @@ interface NavItem {
 
 const NAV: { group: string; items: NavItem[] }[] = [
   {
+    group: 'Start here',
+    items: [{ to: '/how-it-works', label: 'How it works', icon: MapIcon }],
+  },
+  {
     group: 'The decision',
     items: [
-      { to: '/', label: 'Overview', icon: BarChart3 },
+      { to: '/overview', label: 'Overview', icon: BarChart3 },
       { to: '/why-late', label: 'Why deliveries are late', icon: SearchCheck },
       { to: '/vendor', label: 'Vendor decision', icon: Scale },
       { to: '/what-if', label: 'What-if simulator', icon: Gauge },
@@ -45,6 +52,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
   {
     group: 'AI agents',
     items: [
+      { to: '/order-desk', label: 'Order desk (live)', icon: Mail },
       { to: '/order-intake', label: 'Order intake agent', icon: Inbox },
       { to: '/ask', label: 'Ask DeliveryLens', icon: MessageSquareText },
       { to: '/activity', label: 'Agent activity', icon: Activity },
@@ -81,7 +89,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
               <li key={item.to}>
                 <NavLink
                   to={item.to}
-                  end={item.to === '/'}
+                  end
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     [
@@ -162,8 +170,9 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-line bg-surface px-3 py-5 lg:flex">
-        <div className="px-3 pb-7">
+        <div className="px-3 pb-6">
           <Brand />
+          <AiBadge className="mt-3" />
         </div>
         <div className="flex-1 overflow-y-auto">
           <NavLinks />
@@ -177,6 +186,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Tablet / mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface px-4 py-3 lg:hidden">
         <Brand />
+        <AiBadge className="ml-auto mr-3 hidden min-w-0 sm:inline-flex" />
         <button type="button" className="btn-secondary px-3" aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen(true)}>
           <Menu className="h-5 w-5" aria-hidden="true" />
           <span>Menu</span>
@@ -191,6 +201,9 @@ export default function Layout({ children }: { children: ReactNode }) {
               <button type="button" className="btn-quiet text-ink" onClick={() => setOpen(false)} aria-label="Close menu">
                 <X className="h-5 w-5" aria-hidden="true" />
               </button>
+            </div>
+            <div className="mb-4 px-3">
+              <AiBadge />
             </div>
             <div className="overflow-y-auto">
               <NavLinks onNavigate={() => setOpen(false)} />

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { getApiStatus, subscribeApiStatus, type Result } from '../api/client';
+import { getApiStatus, getHealth, subscribeApiStatus, subscribeHealth, type Result } from '../api/client';
 import type { DataSource } from '../api/types';
 
 export interface ApiState<T> {
@@ -74,4 +74,41 @@ export function useAction<A extends unknown[], T>(fn: (...args: A) => Promise<Re
   }, []);
 
   return { run, data, source, loading, error, reset };
+}
+
+/** The last /api/health answer (null until the first probe, or when the API is unreachable). */
+export function useHealth() {
+  return useSyncExternalStore(subscribeHealth, getHealth, getHealth);
+}
+
+/** A boolean remembered in localStorage (per viewer). Falls back to the default when storage is unavailable. */
+export function useStoredFlag(key: string, initial = false): [boolean, (v: boolean) => void] {
+  const [value, setValue] = useState<boolean>(() => {
+    try {
+      const raw = window.localStorage.getItem(key);
+      return raw == null ? initial : raw === '1';
+    } catch {
+      return initial;
+    }
+  });
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(key);
+      setValue(raw == null ? initial : raw === '1');
+    } catch {
+      setValue(initial);
+    }
+  }, [key, initial]);
+  const set = useCallback(
+    (v: boolean) => {
+      setValue(v);
+      try {
+        window.localStorage.setItem(key, v ? '1' : '0');
+      } catch {
+        /* storage blocked: keep it for this visit only */
+      }
+    },
+    [key],
+  );
+  return [value, set];
 }

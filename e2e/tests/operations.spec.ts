@@ -28,7 +28,7 @@ test('carriers heatmap renders with a recommended carrier per region', async ({ 
 test('stock & routes: stock-outs by warehouse, worst clients and route deviation by carrier and region', async ({ page }, testInfo) => {
   const stock = page.waitForResponse((r) => r.url().includes('/api/stock/placement'));
   const routes = page.waitForResponse((r) => r.url().includes('/api/routes/deviation'));
-  await page.goto('/');
+  await page.goto('/overview');
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Stock & routes' }).click();
   await expect(page).toHaveURL(/\/stock-routes$/);
   expect((await stock).status()).toBe(200);

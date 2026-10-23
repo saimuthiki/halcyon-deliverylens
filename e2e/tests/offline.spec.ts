@@ -5,7 +5,7 @@ test('API down: the "Showing sample data" banner appears and pages still work', 
   // Make the API unreachable for this browser only (the build points at it; every request fails).
   await page.route(`${API_URL}/**`, (route) => route.abort('connectionrefused'));
 
-  await page.goto('/');
+  await page.goto('/overview');
   const banner = page.getByRole('status').filter({ hasText: 'Showing sample data.' });
   await expect(banner).toBeVisible();
   await expect(banner.getByRole('button', { name: 'Try again' })).toBeVisible();
@@ -28,4 +28,17 @@ test('API down: the "Showing sample data" banner appears and pages still work', 
   // The new page works from the saved analysis too.
   await page.goto('/stock-routes');
   await expect(page.getByRole('table', { name: 'Stock-outs by warehouse' }).locator('tbody tr')).toHaveCount(5);
+
+  // The Order desk shows the sample inbox and a pre-computed trace, clearly labelled.
+  await page.goto('/order-desk');
+  await expect(page.getByTestId('desk-offline')).toContainText('Sample — API offline.');
+  await expect(page.getByRole('list', { name: 'Client emails' }).getByRole('button')).toHaveCount(12);
+  await expect(page.getByTestId('trace-step')).toHaveCount(10);
+  await expect(page.getByTestId('sample-response')).toContainText('Sample — API offline.');
+  await page.getByTestId('inbox-item-M02').click();
+  await page.getByRole('button', { name: 'Run DeliveryLens on this email' }).click();
+  await expect(page.getByTestId('decision-card')).toHaveAttribute('data-decision', 'on_hold');
+  await expect(page.getByRole('table', { name: 'WMS orders' }).locator('tbody tr')).toHaveCount(1);
+  await expect(page.getByTestId('ai-badge').filter({ visible: true })).toHaveText('AI: API offline');
+  await evidenceShot(page, testInfo, '13-order-desk-offline');
 });

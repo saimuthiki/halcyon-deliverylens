@@ -21,6 +21,13 @@ export type Region = 'Midwest' | 'Northeast' | 'Southeast' | 'West';
 /* ---------- /api/health ---------- */
 export interface Health {
   status: string;
+  db_ok?: boolean;
+  deliveries_loaded?: number;
+  /** 'mock' | 'gemini' | 'bedrock' (free text accepted). */
+  llm_provider?: string;
+  llm_model?: string;
+  /** false when the provider is configured but has no key (e.g. GEMINI_API_KEY missing). */
+  llm_ready?: boolean;
   [key: string]: unknown;
 }
 
@@ -329,3 +336,107 @@ export interface AgentRun {
 
 /* ---------- client meta ---------- */
 export type DataSource = 'live' | 'sample';
+
+/* ---------- /api/desk/* (Order desk) ---------- */
+export type DeskDecision = 'accepted' | 'on_hold' | 'needs_review' | 'blocked';
+export type DeskActor = 'AI agent' | 'Rule' | 'Data lookup' | 'Guardrail';
+export type DeskStepStatus = 'pass' | 'warn' | 'fail' | 'skipped';
+export type DeskStepKey =
+  | 'receive'
+  | 'guardrail'
+  | 'extract'
+  | 'identify_client'
+  | 'address_check'
+  | 'promise_check'
+  | 'stock_check'
+  | 'carrier_choice'
+  | 'decision'
+  | 'client_message';
+
+export interface DeskMessage {
+  id: string;
+  from_name: string;
+  from_email: string;
+  client_id: string | null;
+  subject: string;
+  received_at: string;
+  scenario: string;
+  expected_decision: DeskDecision;
+  what_it_demonstrates: string;
+  has_attachment: boolean;
+  /** e.g. 'new' | 'processed' */
+  status: string;
+  decision: DeskDecision | null;
+}
+
+export interface DeskAttachment {
+  filename: string;
+  content_type: string;
+  text: string;
+}
+
+export interface DeskMessageDetail extends DeskMessage {
+  body: string;
+  attachments: DeskAttachment[];
+}
+
+export interface DeskStep {
+  step: number;
+  key: DeskStepKey | string;
+  title: string;
+  actor: DeskActor;
+  agent_name: string;
+  status: DeskStepStatus;
+  summary: string;
+  details: Record<string, unknown>;
+  duration_ms: number;
+}
+
+export interface WmsAddress {
+  name: string | null;
+  street: string | null;
+  city: string | null;
+  state: string | null;
+  postcode: string | null;
+  country: string | null;
+}
+
+export interface WmsOrder {
+  wms_order_id: string;
+  message_id: string;
+  client_id: string | null;
+  client_name: string | null;
+  ship_to: WmsAddress;
+  lines: { sku: string; qty: number }[];
+  commitment_type: string | null;
+  requested_date: string | null;
+  promised_date: string | null;
+  destination_region: string | null;
+  nearest_warehouse_id: string | null;
+  fulfilment_warehouse_id: string | null;
+  carrier_id: string | null;
+  carrier_reason: string | null;
+  /** 'ready_for_pick_list' | 'on_hold' | 'needs_review' */
+  status: string;
+  pick_list_date: string | null;
+  created_at: string;
+}
+
+export interface DeskProcessResult {
+  message_id: string;
+  decision: DeskDecision;
+  decision_reason: string;
+  steps: DeskStep[];
+  wms_order: WmsOrder | null;
+  client_email_draft: string | null;
+  llm_provider: string;
+  llm_model: string;
+  expected_decision: DeskDecision;
+  matches_expected: boolean;
+}
+
+export interface DeskProcessAll {
+  processed: number;
+  matches_expected: number;
+  results: { message_id: string; decision: DeskDecision; expected_decision: DeskDecision; matches_expected: boolean }[];
+}
