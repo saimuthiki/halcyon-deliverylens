@@ -1,0 +1,17 @@
+From: "Pat Kim" <pat.kim@client-234.example>
+To: orders@halcyon-logistics.example
+Subject: usual order
+Date: Fri, 23 Oct 2026 07:30:00 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+hey, can you send a couple of pallets of the usual to Milwaukee? same as last time.
+
+Ship to:
+Name: Client 234 Milwaukee
+Street: 1500 Lakefront Ave
+City: Milwaukee
+State: WI
+Postcode: 53202
+
+cheers, Pat (Client 234)

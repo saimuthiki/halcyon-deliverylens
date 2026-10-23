@@ -1,0 +1,35 @@
+From: "Procurement" <procurement@client-209.example>
+To: orders@halcyon-logistics.example
+Subject: Purchase order PO-209-1147
+Date: Thu, 22 Oct 2026 16:20:00 -0500
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="po-boundary-1147"
+
+--po-boundary-1147
+Content-Type: text/plain; charset="utf-8"
+
+Hello,
+
+Please find our purchase order PO-209-1147 attached (CSV). Standard delivery.
+
+Ship to:
+Name: Client 209 Seattle Store
+Street: 600 Pine Street
+City: Seattle
+State: WA
+Postcode: 98101
+Country: US
+
+Regards,
+Client 209 Procurement
+
+--po-boundary-1147
+Content-Type: text/csv; charset="utf-8"; name="PO-209-1147.csv"
+Content-Disposition: attachment; filename="PO-209-1147.csv"
+
+line,sku,description,qty,uom
+1,HX-2040,Hinge pack,36,each
+2,HX-6200,Shelf unit,4,each
+3,HX-9001,Cable tray,12,each
+
+--po-boundary-1147--

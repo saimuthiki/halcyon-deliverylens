@@ -1,0 +1,26 @@
+From: "Client 190 Supply Chain" <supply@client-190.example>
+To: orders@halcyon-logistics.example
+Subject: Re: Atlanta restock - next day
+Date: Fri, 23 Oct 2026 06:30:00 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Hi team,
+
+Following our call, please book the Atlanta restock, next day:
+40 units of SKU HX-3300
+
+Ship to:
+Name: Client 190 Atlanta DC
+Street: 1800 Marietta Blvd NW
+City: Atlanta
+State: GA
+Postcode: 30318
+Country: US
+
+Last month two of our deliveries to Atlanta were late. Please make sure this one is not.
+
+Client 190 Supply Chain
+
+> On Thu, 22 Oct 2026, Halcyon Customer Success wrote:
+> Thanks for the call today. Send the restock order when ready.

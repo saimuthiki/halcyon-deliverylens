@@ -139,7 +139,7 @@ def run_delay_alert(ds, delivery_id: str, llm: LLMClient | None = None) -> dict:
     facts = delay_facts(ds, delivery_id)
     llm = llm or LLMClient()
     resp = llm.generate(agent=AGENT, system=SYSTEM, prompt=f"Facts:\n{json.dumps(facts, indent=2)}",
-                        mock=lambda: _mock_message(facts), tier="fast")
+                        mock=lambda: _mock_message(facts), tier="fast", json_output=True)
     flags = list(resp.flags)
     try:
         out = extract_json(resp.text)

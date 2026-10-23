@@ -124,6 +124,49 @@ class AgentRun(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
 
+class InboxMessage(Base):
+    """One email in the shared order inbox (data/sample-inbox). received_at is warehouse-local time."""
+    __tablename__ = "inbox_messages"
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    file: Mapped[str] = mapped_column(String(200))
+    from_name: Mapped[str] = mapped_column(String(200), default="")
+    from_email: Mapped[str] = mapped_column(String(200), default="")
+    client_id: Mapped[str | None] = mapped_column(String(10), nullable=True)  # from the manifest (for checking)
+    subject: Mapped[str] = mapped_column(String(300), default="")
+    received_at: Mapped[datetime] = mapped_column(DateTime)
+    body: Mapped[str] = mapped_column(Text, default="")
+    attachments_json: Mapped[list] = mapped_column(JSON, default=list)  # [{filename, content_type, text}]
+    scenario: Mapped[str] = mapped_column(String(200), default="")
+    expected_decision: Mapped[str] = mapped_column(String(20), default="")
+    what_it_demonstrates: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), default="new")  # new | processed
+    decision: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class WmsOrder(Base):
+    """The order as the warehouse system would receive it (one per processed, non-blocked email)."""
+    __tablename__ = "wms_orders"
+    wms_order_id: Mapped[str] = mapped_column(String(30), primary_key=True)
+    message_id: Mapped[str] = mapped_column(String(20), index=True)
+    client_id: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    client_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    ship_to_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    lines_json: Mapped[list] = mapped_column(JSON, default=list)
+    commitment_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    requested_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    promised_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    destination_region: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    nearest_warehouse_id: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    fulfilment_warehouse_id: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    carrier_id: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    carrier_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(30))  # ready_for_pick_list | on_hold_missing_address | needs_review
+    pick_list_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 # CSV file -> model, in foreign-key-safe insert order.
 CSV_TABLES = [
     ("clients.csv", Client),

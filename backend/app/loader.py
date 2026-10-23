@@ -2,7 +2,8 @@
 
 Usage:  python -m app.loader [--data-dir PATH] [--if-empty]
 
-Idempotent: each run replaces the data tables in one transaction (agent_runs is untouched).
+Idempotent: each run replaces the data tables in one transaction (agent_runs is untouched), then
+replaces the Order desk inbox with data/sample-inbox (clearing wms_orders).
 --if-empty skips the load when deliveries already has rows (used by infra/scripts/07-deploy.sh).
 """
 import argparse
@@ -67,7 +68,9 @@ def load_all(engine: Engine | None = None, data_dir: Path | None = None) -> dict
                 conn.execute(insert(model), rows[start:start + 5000])
             counts[model.__tablename__] = len(rows)
     from app.analytics.store import reset_cache
+    from app.desk.inbox import load_inbox
 
+    counts["inbox_messages"] = load_inbox(engine)
     reset_cache()
     return counts
 

@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     DATA_DIR=/app/data/halcyon-dataset \
+    INBOX_DIR=/app/data/sample-inbox \
     DATABASE_URL=sqlite:////app/var/deliverylens.db \
     LLM_PROVIDER=mock
 
@@ -16,6 +17,7 @@ RUN pip install -r requirements.txt
 COPY backend/app ./app
 COPY backend/sample_emails ./sample_emails
 COPY data/halcyon-dataset ./data/halcyon-dataset
+COPY data/sample-inbox ./data/sample-inbox
 
 RUN useradd --create-home --uid 10001 appuser && mkdir -p /app/var && chown -R appuser /app/var
 USER appuser

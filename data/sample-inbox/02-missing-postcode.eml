@@ -1,0 +1,23 @@
+From: "Plant 2 Ops" <ops@client-263.example>
+To: orders@halcyon-logistics.example
+Subject: PO for Client 263
+Date: Fri, 23 Oct 2026 06:45:00 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Hi,
+
+Client 263 needs these sent out:
+- SKU HX-3300 x 40
+- SKU HX-0450 x 8
+
+Ship to:
+Name: Client 263 Plant 2
+Street: 400 Foundry Road
+City: Dayton
+State: OH
+
+Standard delivery is fine.
+
+Regards,
+Client 263 plant operations

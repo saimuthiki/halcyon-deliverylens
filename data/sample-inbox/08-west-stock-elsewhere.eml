@@ -1,0 +1,22 @@
+From: "Sam Ortega" <sam.ortega@client-246.example>
+To: orders@halcyon-logistics.example
+Subject: Order - Phoenix site
+Date: Thu, 22 Oct 2026 13:05:00 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Hi Halcyon,
+
+Client 246 order, standard delivery:
+SKU HX-4410 x 30
+
+Ship to:
+Name: Client 246 Phoenix Warehouse
+Street: 310 Desert Sky Blvd
+City: Phoenix
+State: AZ
+Postcode: 85004
+
+Thanks,
+Sam Ortega
+Client 246

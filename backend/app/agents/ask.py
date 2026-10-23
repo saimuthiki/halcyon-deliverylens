@@ -145,7 +145,7 @@ def run_ask(ds, question: str, llm: LLMClient | None = None) -> dict:
     llm = llm or LLMClient()
     fallback = route_by_keywords(question)
     route = llm.generate(agent=f"{AGENT}.route", system=ROUTE_SYSTEM, prompt=f"Question: {question}",
-                         mock=lambda: json.dumps({"tools": fallback}), tier="fast")
+                         mock=lambda: json.dumps({"tools": fallback}), tier="fast", json_output=True)
     flags = list(route.flags)
     try:
         tools = [t for t in extract_json(route.text).get("tools", []) if t in TOOLS][:3]

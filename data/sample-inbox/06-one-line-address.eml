@@ -1,0 +1,16 @@
+From: "Logistics Desk" <logistics@client-101.example>
+To: orders@halcyon-logistics.example
+Subject: Order for Client 101
+Date: Fri, 23 Oct 2026 10:15:00 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Hello,
+
+Please send 6 x SKU HX-9001 and 2 x SKU HX-9002 to:
+Deliver to: Client 101 Receiving, 2200 Industrial Pkwy, Indianapolis, IN 46204
+
+Standard shipping is fine.
+
+Kind regards,
+Client 101 logistics (call 317-555-0142 with questions)

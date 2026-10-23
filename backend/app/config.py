@@ -10,6 +10,8 @@ DEFAULT_DATA_DIR = BACKEND_DIR.parent / "data" / "halcyon-dataset"
 # Placeholder only. Set BEDROCK_MODEL_FAST / BEDROCK_MODEL_SMART to real model or
 # inference-profile IDs enabled in your AWS account.
 PLACEHOLDER_MODEL_ID = "SET-ME-bedrock-model-id"
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_INBOX_DIR = BACKEND_DIR.parent / "data" / "sample-inbox"
 
 
 def _load_dotenv() -> None:
@@ -33,6 +35,9 @@ class Settings:
     warehouse_tz: str = "America/Chicago"
     agent_rate_limit_per_min: int = 30
     demo_token: str = ""
+    gemini_api_key: str = field(default="", repr=False)  # secret: never printed or logged
+    gemini_model: str = DEFAULT_GEMINI_MODEL
+    inbox_dir: Path = DEFAULT_INBOX_DIR
 
 
 @lru_cache
@@ -51,4 +56,7 @@ def get_settings() -> Settings:
         warehouse_tz=os.getenv("WAREHOUSE_TZ", "America/Chicago"),
         agent_rate_limit_per_min=int(os.getenv("AGENT_RATE_LIMIT_PER_MIN", "30")),
         demo_token=os.getenv("DEMO_TOKEN", ""),
+        gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+        gemini_model=os.getenv("GEMINI_MODEL", "").strip() or DEFAULT_GEMINI_MODEL,
+        inbox_dir=Path(os.getenv("INBOX_DIR", str(DEFAULT_INBOX_DIR))),
     )

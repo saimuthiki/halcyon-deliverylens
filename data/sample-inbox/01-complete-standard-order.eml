@@ -1,0 +1,26 @@
+From: "Maria Lopez" <purchasing@client-055.example>
+To: orders@halcyon-logistics.example
+Subject: New order - Client 055 - next day
+Date: Thu, 22 Oct 2026 07:20:00 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Hello Halcyon team,
+
+Please ship the following for Client 055:
+- SKU HX-1001 x 12
+- SKU HX-2040 x 5
+
+Ship to:
+Name: Client 055 Receiving Dock
+Street: 1200 Commerce Way
+City: Hartford
+State: CT
+Postcode: 06103
+Country: US
+
+Next day delivery please.
+
+Thanks,
+Maria Lopez
+Purchasing, Client 055

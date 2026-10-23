@@ -1,0 +1,24 @@
+From: "Replenishment" <replenishment@client-092.example>
+To: orders@halcyon-logistics.example
+Subject: Weekly replenishment order 44/2026
+Date: Thu, 22 Oct 2026 14:40:00 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Weekly replenishment for Client 092. Standard service.
+
+| SKU      | Description             | Qty |
+|----------|-------------------------|-----|
+| HX-1001  | Steel bracket, small    |  24 |
+| HX-2040  | Hinge pack              |  10 |
+| HX-3300  | Mounting rail 2m        |   6 |
+| HX-9002  | Fixings kit             |  48 |
+
+Recipient: Client 092 Store Support Centre
+Address line 1: 75 State Street
+City: Albany
+State: NY
+ZIP: 12207
+
+-- 
+Client 092 Replenishment | automated weekly order

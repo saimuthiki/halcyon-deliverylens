@@ -219,7 +219,7 @@ def run_order_intake(email_text: str, received_at: str | None = None, llm: LLMCl
     llm = llm or LLMClient()
     parsed = parse_email_mock(email_text)
     resp = llm.generate(agent=AGENT, system=SYSTEM, prompt=f"<email>\n{email_text}\n</email>",
-                        mock=lambda: parsed.model_dump_json(), tier="fast")
+                        mock=lambda: parsed.model_dump_json(), tier="fast", json_output=True)
     flags = list(resp.flags)
     try:
         ext = Extraction.model_validate(extract_json(resp.text))

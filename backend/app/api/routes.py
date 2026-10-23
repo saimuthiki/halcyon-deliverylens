@@ -4,7 +4,10 @@ from sqlalchemy import func, select, text
 
 from app.agents.ask import run_ask
 from app.agents.delay_alert import run_delay_alert
+from app.agents.llm_client import LLMClient
 from app.agents.order_intake import run_order_intake
+from app.desk.inbox import message_detail, message_summary
+from app.desk.pipeline import MessageNotFound, process_all, process_message, reset_desk, wms_order_dict
 from app.guardrails import redact_payload
 from app.storage import archive_json
 from app.analytics import views
@@ -18,10 +21,10 @@ from app.api.security import agent_guard
 from app.api.schemas import AskRequest, DelayAlertRequest, OrderIntakeRequest, SimulateRequest
 from app.config import get_settings
 from app.db import get_engine, get_session
-from app.models import AgentRun, Delivery
+from app.models import AgentRun, Delivery, InboxMessage, WmsOrder
 
 router = APIRouter(prefix="/api")
-AGENT_GUARD = [Depends(agent_guard)]  # rate limit + optional demo token on every /api/agents/* route
+AGENT_GUARD = [Depends(agent_guard)]  # rate limit + optional demo token on /api/agents/* and desk POSTs
 
 
 @router.get("/health", tags=["meta"])
@@ -33,9 +36,13 @@ def health():
             deliveries = conn.execute(select(func.count()).select_from(Delivery)).scalar_one()
     except Exception:
         db_ok = False
-    s = get_settings()
+    try:
+        llm = LLMClient()
+        provider, model, ready = llm.provider, llm.model_for("fast"), llm.ready()
+    except ValueError:  # unknown LLM_PROVIDER
+        provider, model, ready = get_settings().llm_provider, None, False
     return {"status": "ok" if db_ok else "degraded", "db_ok": db_ok, "deliveries_loaded": deliveries,
-            "llm_provider": s.llm_provider}
+            "llm_provider": provider, "llm_model": model, "llm_ready": ready}
 
 
 @router.get("/kpis", tags=["analytics"])
@@ -132,3 +139,45 @@ def agent_runs(limit: int = Query(50, ge=1, le=500)):
             "tokens": r.input_tokens + r.output_tokens, "guardrail_flags": r.guardrail_flags or [],
             "created_at": r.created_at.isoformat() if r.created_at else None,
         } for r in rows]}
+
+
+# ---------------------------------------------------------------- Order desk
+@router.get("/desk/inbox", tags=["desk"])
+def desk_inbox():
+    with get_session() as s:
+        rows = s.scalars(select(InboxMessage).order_by(InboxMessage.id)).all()
+        return {"messages": [message_summary(m) for m in rows]}
+
+
+@router.get("/desk/inbox/{message_id}", tags=["desk"])
+def desk_message(message_id: str):
+    with get_session() as s:
+        m = s.get(InboxMessage, message_id)
+        if m is None:
+            raise ApiError(404, f"Message {message_id!r} not found")
+        return message_detail(m)
+
+
+@router.post("/desk/process-all", tags=["desk"], dependencies=AGENT_GUARD)
+def desk_process_all():
+    return process_all()
+
+
+@router.post("/desk/process/{message_id}", tags=["desk"], dependencies=AGENT_GUARD)
+def desk_process(message_id: str):
+    try:
+        return process_message(message_id)
+    except MessageNotFound:
+        raise ApiError(404, f"Message {message_id!r} not found") from None
+
+
+@router.get("/desk/wms-orders", tags=["desk"])
+def desk_wms_orders():
+    with get_session() as s:
+        rows = s.scalars(select(WmsOrder).order_by(WmsOrder.message_id)).all()
+        return {"orders": [wms_order_dict(o) for o in rows]}
+
+
+@router.post("/desk/reset", tags=["desk"], dependencies=AGENT_GUARD)
+def desk_reset():
+    return reset_desk()

@@ -1,0 +1,22 @@
+From: "Buying Team" <buyer@client-003.example>
+To: orders@halcyon-logistics.example
+Subject: Same day order - Client 003
+Date: Fri, 23 Oct 2026 07:10:00 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Good morning,
+
+Same-day delivery please for Client 003:
+- SKU HX-6200 x 20
+
+Ship to:
+Name: Client 003 Distribution Center
+Street: 450 Lakeshore Drive
+City: Chicago
+State: IL
+Postcode: 60611
+Country: US
+
+Best,
+Client 003 buying team

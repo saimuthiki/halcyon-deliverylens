@@ -4,5 +4,6 @@
 !backend/app/**
 !backend/sample_emails/**
 !data/halcyon-dataset/**
+!data/sample-inbox/**
 **/__pycache__
 **/*.pyc
