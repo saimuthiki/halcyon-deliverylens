@@ -1,0 +1,34 @@
+# End-to-end browser tests: Playwright 1.56.1, Chromium, headless
+# Command: cd e2e && E2E_BASE_URL=http://localhost:4173 npx playwright test --reporter=list
+# App under test: frontend production build (vite preview :4173, VITE_API_URL=http://localhost:8000) + FastAPI backend (:8000, LLM_PROVIDER=mock, full dataset loaded)
+# Run: 2026-10-23 11:56 UTC
+
+Running 19 tests using 4 workers
+  ✓   2 [chromium] › tests/agents.spec.ts:47:7 › AI agents (mock provider) › ask: a suggested question returns an answer with a number (3.2s)
+  ✓   1 [chromium] › tests/agents.spec.ts:5:7 › AI agents (mock provider) › order intake: incomplete address is flagged and a follow-up is drafted (3.8s)
+  ✓   3 [chromium] › tests/agents.spec.ts:28:7 › AI agents (mock provider) › order intake: same-day order after the 08:00 cutoff shows a warning (3.6s)
+  ✓   4 [chromium] › tests/agents.spec.ts:62:7 › AI agents (mock provider) › agent activity lists the agent runs (4.3s)
+  ✓   5 [chromium] › tests/decision.spec.ts:5:7 › The decision pages › overview shows 71.0% today, 96.6% with all fixes and $14.2M at risk (2.8s)
+  ✓   7 [chromium] › tests/decision.spec.ts:69:7 › The decision pages › vendor decision shows the 78.6% routing-only ceiling and the recommendation (3.0s)
+  ✓   9 [chromium] › tests/offline.spec.ts:4:5 › API down: the "Showing sample data" banner appears and pages still work (2.0s)
+  ✓   6 [chromium] › tests/decision.spec.ts:23:7 › The decision pages › why-late: waterfall, cause drill-down, delivery drawer and delay alert (4.5s)
+  ✓   8 [chromium] › tests/decision.spec.ts:86:7 › The decision pages › simulator: moving a slider changes the projected on-time rate (3.9s)
+  ✓  11 [chromium] › tests/smoke.spec.ts:17:7 › smoke: / loads live data with no console errors (1.5s)
+  ✓  10 [chromium] › tests/operations.spec.ts:4:5 › carriers heatmap renders with a recommended carrier per region (3.1s)
+  ✓  13 [chromium] › tests/smoke.spec.ts:17:7 › smoke: /vendor loads live data with no console errors (2.0s)
+  ✓  12 [chromium] › tests/smoke.spec.ts:17:7 › smoke: /why-late loads live data with no console errors (2.1s)
+  ✓  15 [chromium] › tests/smoke.spec.ts:17:7 › smoke: /carriers loads live data with no console errors (2.0s)
+  ✓  14 [chromium] › tests/smoke.spec.ts:17:7 › smoke: /what-if loads live data with no console errors (2.3s)
+  ✓  17 [chromium] › tests/smoke.spec.ts:17:7 › smoke: /order-intake loads live data with no console errors (1.7s)
+  ✓  16 [chromium] › tests/smoke.spec.ts:17:7 › smoke: /clients loads live data with no console errors (2.2s)
+  ✓  18 [chromium] › tests/smoke.spec.ts:17:7 › smoke: /ask loads live data with no console errors (1.0s)
+  ✓  19 [chromium] › tests/smoke.spec.ts:17:7 › smoke: /activity loads live data with no console errors (1.1s)
+  19 passed (15.0s)
+
+# Flake check: every test run 10 times in a row
+# Command: npx playwright test --repeat-each=10 --reporter=dot
+Running 190 tests using 4 workers
+················································································
+················································································
+······························
+  190 passed (2.7m)

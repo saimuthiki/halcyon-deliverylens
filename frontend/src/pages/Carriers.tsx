@@ -51,13 +51,13 @@ function CarriersBody({ data }: { data: CarrierScorecard }) {
           <table className="w-full min-w-[720px] border-separate border-spacing-1.5 text-[15px]">
             <thead>
               <tr>
-                <th className="th pl-0">Region</th>
+                <th scope="col" className="th pl-0">Region</th>
                 {carriers.map((c) => (
-                  <th key={c.carrier_id} className="th text-center">
+                  <th key={c.carrier_id} scope="col" className="th text-center">
                     Carrier {c.carrier_id}
                   </th>
                 ))}
-                <th className="th">Recommended</th>
+                <th scope="col" className="th">Recommended</th>
               </tr>
             </thead>
             <tbody>

@@ -1,0 +1,16 @@
+{
+  "name": "halcyon-deliverylens-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "description": "End-to-end browser tests for the DeliveryLens dashboard (Playwright)",
+  "scripts": {
+    "test": "playwright test",
+    "test:repeat": "playwright test --repeat-each=3",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/node": "20.16.11",
+    "typescript": "5.6.3"
+  }
+}

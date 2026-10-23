@@ -1,0 +1,194 @@
+# Security scan
+# Run: 2026-10-23 11:53 UTC
+
+## Summary (plain English)
+- bandit (Python code in backend/app): 0 issues at any severity.
+- pip-audit (backend/requirements.txt, all pinned packages): no known vulnerabilities.
+- npm audit --omit=dev (what ships to the browser):
+  * BEFORE: 3 HIGH findings, all in react-router-dom 6.26.2 (open-redirect advisories GHSA-2w69-qvjg-hvjx, GHSA-2j2x-hqr9-3h42).
+  * FIX APPLIED: react-router-dom pinned to 6.30.6 (same major version). Build, 12 vitest tests and all e2e tests pass after the change.
+  * AFTER: 2 MODERATE findings remain in react-router (GHSA-wrjc-x8rr-h8h6 backslash open redirect in <Link>/useNavigate;
+    GHSA-337j-9hxr-rhxg SSR hydration). The only fix is React Router 7 (a breaking upgrade). Risk here is low:
+    the app is client-side only (no SSR), and every <Link>/<Navigate> target is a fixed internal path, never user input.
+    Accepted for the hackathon; tracked as follow-up.
+- npm audit (including dev/build tools, for information): 15 findings (6 moderate, 7 high, 2 critical) in vite/esbuild (dev server), postcss,
+  tailwind 3's file watcher (braces/micromatch, postcss-selector-parser) and vitest (tinypool, @vitest/mocker; critical). These run only on the developer machine / CI during build
+  and test; none of them is shipped in dist/. Fixing them needs major upgrades (vite 6+/tailwind 4) or vitest 2.1.9+;
+  left as a follow-up rather than changing the build chain days before the demo.
+- npm audit (e2e/ Playwright project): 0 vulnerabilities.
+
+## 1. bandit (static analysis of backend/app, all severities)
+# Command: cd backend && .venv/bin/bandit -r app
+[main]	INFO	profile include tests: None
+[main]	INFO	profile exclude tests: None
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: None
+[main]	INFO	running on Python 3.11.17
+Run started:2026-10-23 11:52:49.110816+00:00
+
+Test results:
+	No issues identified.
+
+Code scanned:
+	Total lines of code: 1503
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 0
+		Medium: 0
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 0
+		High: 0
+Files skipped (0):
+
+## 2. pip-audit (known vulnerabilities in backend/requirements.txt)
+# Command: cd backend && .venv/bin/pip-audit -r requirements.txt
+No known vulnerabilities found
+
+## 3. npm audit (frontend production dependencies), AFTER the react-router-dom 6.30.6 fix
+# Command: cd frontend && npm audit --omit=dev
+# npm audit report
+
+react-router  6.0.0 - 7.17.0
+Severity: moderate
+React Router: Open redirect via backslash in <Link> and useNavigate (CVE-2025-68470 bypass) - https://github.com/advisories/GHSA-wrjc-x8rr-h8h6
+React Router: Arbitrary Constructor Injection via deserializeErrors() in React Router SSR Hydration - https://github.com/advisories/GHSA-337j-9hxr-rhxg
+fix available via `npm audit fix --force`
+Will install react-router-dom@7.18.4, which is a breaking change
+node_modules/react-router
+  react-router-dom  6.0.0-alpha.0 - 7.17.0
+  Depends on vulnerable versions of react-router
+  node_modules/react-router-dom
+
+2 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+## 3a. npm audit --omit=dev BEFORE the fix (react-router-dom 6.26.2), captured earlier in this run
+# Command: cd frontend && npm audit --omit=dev
+# npm audit report
+
+@remix-run/router  <=1.23.2
+Severity: high
+React Router vulnerable to XSS via Open Redirects - https://github.com/advisories/GHSA-2w69-qvjg-hvjx
+React Router's same-origin redirect with path starting // causes open redirect via protocol-relative URL reinterpretation - https://github.com/advisories/GHSA-2j2x-hqr9-3h42
+fix available via `npm audit fix --force`
+Will install react-router-dom@6.30.6, which is outside the stated dependency range
+node_modules/@remix-run/router
+  react-router  6.0.0 - 7.17.0
+  Depends on vulnerable versions of @remix-run/router
+  node_modules/react-router
+    react-router-dom  6.0.0-alpha.0 - 6.30.2
+    Depends on vulnerable versions of @remix-run/router
+    Depends on vulnerable versions of react-router
+    node_modules/react-router-dom
+
+
+3 high severity vulnerabilities
+
+To address all issues, run:
+  npm audit fix --force
+
+## 4. npm audit (frontend, including dev/build tools; for information), AFTER the fix
+# npm audit report
+
+@vitest/mocker  <=4.1.11
+Severity: moderate
+Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock - https://github.com/advisories/GHSA-82fw-gwwq-j7x9
+Vitest: Code injection via unauthenticated manual mock registration - https://github.com/advisories/GHSA-qxg6-89mg-rqv8
+fix available via `npm audit fix --force`
+Will install vitest@2.1.9, which is outside the stated dependency range
+node_modules/@vitest/mocker
+  vitest  <=4.1.10
+  Depends on vulnerable versions of @vitest/mocker
+  Depends on vulnerable versions of tinypool
+  node_modules/vitest
+
+braces  *
+Severity: high
+braces vulnerable to stack-exhaustion denial of service through deeply nested patterns - https://github.com/advisories/GHSA-vfj7-8cjw-p6xm
+fix available via `npm audit fix --force`
+Will install tailwindcss@4.3.3, which is a breaking change
+node_modules/braces
+  chokidar  2.0.0 - 3.6.0
+  Depends on vulnerable versions of braces
+  node_modules/chokidar
+    tailwindcss  <=0.0.0-oxide-insiders.ff2c25f || 0.5.0 - 3.4.19
+    Depends on vulnerable versions of chokidar
+    Depends on vulnerable versions of fast-glob
+    Depends on vulnerable versions of micromatch
+    Depends on vulnerable versions of postcss-nested
+    Depends on vulnerable versions of postcss-selector-parser
+    node_modules/tailwindcss
+  micromatch  >=0.2.0
+  Depends on vulnerable versions of braces
+  node_modules/micromatch
+    fast-glob  *
+    Depends on vulnerable versions of micromatch
+    node_modules/fast-glob
+
+esbuild  <=0.24.2
+Severity: moderate
+esbuild enables any website to send any requests to the development server and read the response - https://github.com/advisories/GHSA-67mh-4wv8-2f99
+fix available via `npm audit fix --force`
+Will install vite@5.4.21, which is outside the stated dependency range
+node_modules/esbuild
+  vite  <=6.4.3
+  Depends on vulnerable versions of esbuild
+  node_modules/vite
+
+postcss  <=8.5.22
+Severity: high
+PostCSS has XSS via Unescaped </style> in its CSS Stringify Output - https://github.com/advisories/GHSA-qx2v-qp2m-jg93
+PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments - https://github.com/advisories/GHSA-6g55-p6wh-862q
+PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset - https://github.com/advisories/GHSA-fxqj-rqcc-2cmp
+PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure - https://github.com/advisories/GHSA-r28c-9q8g-f849
+fix available via `npm audit fix --force`
+Will install postcss@8.5.31, which is outside the stated dependency range
+node_modules/postcss
+
+postcss-selector-parser  <7.1.6
+Severity: moderate
+PostCSS: Quadratic complexity in flat selector parsing allows CPU exhaustion - https://github.com/advisories/GHSA-rj75-hqrm-r3gf
+fix available via `npm audit fix --force`
+Will install tailwindcss@4.3.3, which is a breaking change
+node_modules/postcss-selector-parser
+  postcss-nested  2.0.3 - 6.2.0
+  Depends on vulnerable versions of postcss-selector-parser
+  node_modules/postcss-nested
+
+react-router  6.0.0 - 7.17.0
+Severity: moderate
+React Router: Open redirect via backslash in <Link> and useNavigate (CVE-2025-68470 bypass) - https://github.com/advisories/GHSA-wrjc-x8rr-h8h6
+React Router: Arbitrary Constructor Injection via deserializeErrors() in React Router SSR Hydration - https://github.com/advisories/GHSA-337j-9hxr-rhxg
+fix available via `npm audit fix --force`
+Will install react-router-dom@7.18.4, which is a breaking change
+node_modules/react-router
+  react-router-dom  6.0.0-alpha.0 - 7.17.0
+  Depends on vulnerable versions of react-router
+  node_modules/react-router-dom
+
+tinypool  <=2.1.1
+Severity: critical
+Tinypool: Prototype Pollution gadget in worker options leads to Remote Code Execution - https://github.com/advisories/GHSA-5gmw-xhrv-c9v3
+Tinypool: Prototype Pollution Gadget to RCE in run() options - https://github.com/advisories/GHSA-85c8-ppgw-ccpr
+fix available via `npm audit fix --force`
+Will install vitest@2.1.9, which is outside the stated dependency range
+node_modules/tinypool
+
+
+
+15 vulnerabilities (6 moderate, 7 high, 2 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
