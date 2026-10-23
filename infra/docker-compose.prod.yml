@@ -1,0 +1,44 @@
+# Runs on the EC2 server. Values come from .env (written by 07-deploy.sh);
+# app secrets come from app.env (pulled from Secrets Manager by 07-deploy.sh, chmod 600).
+services:
+  api:
+    image: ${IMAGE}
+    restart: always
+    env_file: app.env
+    environment:
+      - AWS_REGION=${AWS_REGION}
+      - LOG_JSON=true
+    expose: ["8000"]
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: /${PROJECT}/api
+        awslogs-create-group: "true"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: always
+    depends_on: [api]
+    ports: ["80:80", "443:443"]
+    environment:
+      - API_HOSTNAME=${API_HOSTNAME}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: /${PROJECT}/caddy
+        awslogs-create-group: "true"
+
+volumes:
+  caddy_data:
+  caddy_config:

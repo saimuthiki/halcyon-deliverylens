@@ -1,0 +1,13 @@
+# HTTPS for the API with an automatic Let's Encrypt certificate.
+# API_HOSTNAME is <elastic-ip-with-dashes>.sslip.io, so no domain purchase is needed.
+{$API_HOSTNAME} {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+	reverse_proxy api:8000
+}

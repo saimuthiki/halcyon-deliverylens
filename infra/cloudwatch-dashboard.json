@@ -1,0 +1,16 @@
+{
+  "widgets": [
+    {"type": "metric", "x": 0, "y": 0, "width": 12, "height": 6,
+     "properties": {"title": "API errors (5 min)", "region": "__REGION__", "stat": "Sum", "period": 300,
+       "metrics": [["DeliveryLens", "ApiErrors"]]}},
+    {"type": "metric", "x": 12, "y": 0, "width": 12, "height": 6,
+     "properties": {"title": "EC2 CPU %", "region": "__REGION__", "stat": "Average", "period": 300,
+       "metrics": [["AWS/EC2", "CPUUtilization", "InstanceId", "__INSTANCE__"]]}},
+    {"type": "metric", "x": 0, "y": 6, "width": 12, "height": 6,
+     "properties": {"title": "RDS connections and CPU", "region": "__REGION__", "stat": "Average", "period": 300,
+       "metrics": [["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", "__DB__"], [".", "CPUUtilization", ".", "."]]}},
+    {"type": "log", "x": 12, "y": 6, "width": 12, "height": 6,
+     "properties": {"title": "Latest API log lines", "region": "__REGION__",
+       "query": "SOURCE '/__PROJECT__/api' | fields @timestamp, @message | sort @timestamp desc | limit 50"}}
+  ]
+}

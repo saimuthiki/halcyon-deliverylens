@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {"Sid": "Bedrock", "Effect": "Allow",
+     "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream", "bedrock:Converse", "bedrock:ConverseStream", "bedrock:ApplyGuardrail"],
+     "Resource": ["arn:aws:bedrock:*::foundation-model/anthropic.*", "arn:aws:bedrock:*:__ACCOUNT__:inference-profile/*", "arn:aws:bedrock:__REGION__:__ACCOUNT__:guardrail/*"]},
+    {"Sid": "DataBucket", "Effect": "Allow",
+     "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+     "Resource": ["arn:aws:s3:::__BUCKET__", "arn:aws:s3:::__BUCKET__/*"]},
+    {"Sid": "AppSecret", "Effect": "Allow",
+     "Action": ["secretsmanager:GetSecretValue"],
+     "Resource": "arn:aws:secretsmanager:__REGION__:__ACCOUNT__:secret:__SECRET__-*"},
+    {"Sid": "PullImage", "Effect": "Allow",
+     "Action": ["ecr:GetAuthorizationToken", "ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"],
+     "Resource": "*"},
+    {"Sid": "Logs", "Effect": "Allow",
+     "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents", "logs:DescribeLogStreams"],
+     "Resource": "arn:aws:logs:__REGION__:__ACCOUNT__:log-group:/__PROJECT__/*"},
+    {"Sid": "Metrics", "Effect": "Allow", "Action": ["cloudwatch:PutMetricData"], "Resource": "*",
+     "Condition": {"StringEquals": {"cloudwatch:namespace": "DeliveryLens"}}}
+  ]
+}
