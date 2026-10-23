@@ -13,10 +13,11 @@ class FakeModels:
 
     def generate_content(self, *, model, contents, config=None):
         self.calls.append({"model": model, "contents": contents, "config": config})
-        if isinstance(self.reply, Exception):
-            raise self.reply
+        reply = self.reply.pop(0) if isinstance(self.reply, list) else self.reply
+        if isinstance(reply, Exception):
+            raise reply
         usage = SimpleNamespace(prompt_token_count=90, candidates_token_count=30)
-        return SimpleNamespace(text=self.reply, usage_metadata=usage)
+        return SimpleNamespace(text=reply, usage_metadata=usage)
 
 
 class FakeGemini:
@@ -69,6 +70,54 @@ def test_gemini_error_becomes_llm_error_without_the_key(gemini_env):
     with pytest.raises(LLMError) as exc:
         llm.generate(agent="test", system="s", prompt="p", mock=lambda: "")
     assert FAKE_KEY not in str(exc.value)
+
+
+class RateLimited(Exception):
+    """Shaped like google.genai.errors.ClientError for a 429."""
+    def __init__(self, details):
+        super().__init__("429 RESOURCE_EXHAUSTED")
+        self.code, self.details = 429, details
+
+
+def test_gemini_429_waits_the_suggested_delay_then_succeeds(gemini_env, monkeypatch):
+    from app.agents import llm_client
+
+    waits = []
+    monkeypatch.setattr(llm_client, "_sleep", waits.append)
+    hint = {"error": {"details": [{"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "7s"}]}}
+    llm = _llm([RateLimited(hint), RateLimited({}), '{"ok": true}'])
+    resp = llm.generate(agent="test", system="s", prompt="p", mock=lambda: "", json_output=True)
+    assert resp.text == '{"ok": true}' and len(llm._gemini.models.calls) == 3
+    assert waits == [8.0, 10.0]  # Google's hint + 1s, then the 5s * 2^attempt backoff
+
+
+def test_gemini_429_gives_up_on_daily_quota_and_after_max_retries(gemini_env, monkeypatch):
+    from app.agents import llm_client
+    from app.agents.llm_client import GEMINI_MAX_RETRIES, LLMError
+
+    waits = []
+    monkeypatch.setattr(llm_client, "_sleep", waits.append)
+    llm = _llm([RateLimited({"retryDelay": "3600s"})])  # daily quota: waiting will not help
+    with pytest.raises(LLMError):
+        llm.generate(agent="test", system="s", prompt="p", mock=lambda: "")
+    assert waits == [] and len(llm._gemini.models.calls) == 1
+
+    llm = _llm([RateLimited({}) for _ in range(GEMINI_MAX_RETRIES + 1)])
+    with pytest.raises(LLMError):
+        llm.generate(agent="test", system="s", prompt="p", mock=lambda: "")
+    assert len(waits) == GEMINI_MAX_RETRIES and len(llm._gemini.models.calls) == GEMINI_MAX_RETRIES + 1
+
+
+def test_gemini_non_429_errors_are_not_retried(gemini_env, monkeypatch):
+    from app.agents import llm_client
+    from app.agents.llm_client import LLMError
+
+    waits = []
+    monkeypatch.setattr(llm_client, "_sleep", waits.append)
+    llm = _llm(RuntimeError("400 API key not valid"))
+    with pytest.raises(LLMError):
+        llm.generate(agent="test", system="s", prompt="p", mock=lambda: "")
+    assert waits == [] and len(llm._gemini.models.calls) == 1
 
 
 def test_gemini_without_key_is_refused(loaded_db, monkeypatch):

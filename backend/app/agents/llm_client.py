@@ -45,6 +45,23 @@ class LLMError(RuntimeError):
 
 PROVIDERS = {"mock", "bedrock", "gemini"}
 
+# Gemini 429 (rate limit): wait and retry. Free-tier keys allow only a few calls per minute, so
+# "Process all" would otherwise fail part-way. A suggested wait above the cap means a daily quota,
+# which waiting will not fix, so that error is raised straight away.
+GEMINI_MAX_RETRIES = 4
+GEMINI_MAX_RETRY_DELAY_S = 60.0
+_RETRY_DELAY_RE = re.compile(r"retryDelay['\"]?\s*:\s*['\"](\d+(?:\.\d+)?)s")
+_sleep = time.sleep  # replaced in tests
+
+
+def _gemini_retry_delay(exc: Exception, attempt: int) -> float | None:
+    """Seconds to wait before retrying a Gemini call, or None when it should not be retried."""
+    if getattr(exc, "code", None) != 429:
+        return None
+    m = _RETRY_DELAY_RE.search(str(getattr(exc, "details", "")) or str(exc))
+    delay = float(m.group(1)) + 1 if m else 5.0 * 2 ** attempt
+    return delay if delay <= GEMINI_MAX_RETRY_DELAY_S else None
+
 
 def _scrub_secrets(message: str) -> str:
     """Never let an API key reach logs, agent_runs or an HTTP error body."""
@@ -153,7 +170,16 @@ class LLMClient:
         config = types.GenerateContentConfig(
             system_instruction=system, temperature=0, max_output_tokens=max(max_tokens, 1024) + 4096,
             response_mime_type="application/json" if json_output else None)
-        resp = self._gemini.models.generate_content(model=model, contents=prompt, config=config)
+        for attempt in range(GEMINI_MAX_RETRIES + 1):
+            try:
+                resp = self._gemini.models.generate_content(model=model, contents=prompt, config=config)
+                break
+            except Exception as exc:
+                delay = _gemini_retry_delay(exc, attempt)
+                if delay is None or attempt == GEMINI_MAX_RETRIES:
+                    raise
+                log.warning("Gemini rate limit (429); retry %d/%d in %.0fs", attempt + 1, GEMINI_MAX_RETRIES, delay)
+                _sleep(delay)
         text = resp.text or ""
         if not text:
             raise LLMError("Gemini returned an empty reply (possibly blocked by its safety filters)")

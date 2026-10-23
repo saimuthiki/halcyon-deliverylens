@@ -43,6 +43,9 @@ export const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const DEMO_TOKEN = (import.meta.env.VITE_DEMO_TOKEN || '').trim();
 const TIMEOUT_MS = 8000;
 const AGENT_TIMEOUT_MS = 60000;
+/** Order desk calls can wait out Gemini free-tier rate limits (backend retries 429s), so allow longer. */
+const DESK_TIMEOUT_MS = 120000;
+const DESK_ALL_TIMEOUT_MS = 360000;
 
 export interface Result<T> {
   data: T;
@@ -637,14 +640,14 @@ export const api = {
 
   deskProcess: (id: string) =>
     withFallback(
-      async () => normaliseDeskProcess(await http<unknown>(`/desk/process/${encodeURIComponent(id)}`, agentPost({}), AGENT_TIMEOUT_MS)),
+      async () => normaliseDeskProcess(await http<unknown>(`/desk/process/${encodeURIComponent(id)}`, agentPost({}), DESK_TIMEOUT_MS)),
       async () => (await deskFixtures()).sampleProcess(id),
       'desk',
     ),
 
   deskProcessAll: () =>
     withFallback(
-      async () => normaliseDeskProcessAll(await http<unknown>('/desk/process-all', agentPost({}), AGENT_TIMEOUT_MS * 3)),
+      async () => normaliseDeskProcessAll(await http<unknown>('/desk/process-all', agentPost({}), DESK_ALL_TIMEOUT_MS)),
       async () => (await deskFixtures()).sampleProcessAll(),
       'desk',
     ),
