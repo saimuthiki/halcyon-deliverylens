@@ -33,10 +33,10 @@ def test_causes(client):
     b = client.get("/api/causes").json()
     assert {c["cause"] for c in b["causes"]} == CAUSE_NAMES
     addr = next(c for c in b["causes"] if c["cause"] == "incomplete_address")
-    assert addr["fair_share_points"] == 6.8 and addr["points_if_fixed_alone"] == 6.0
+    assert addr["fair_share_points"] == 6.9 and addr["points_if_fixed_alone"] == 6.0
     assert addr["share_of_late"] == 0.2762 and addr["sla_penalties_usd"] == 287280
-    assert b["scenarios"] == {"today": 0.71, "all_fixed": 0.9663, "routing_only": 0.7862,
-                              "process_only": 0.8672, "no_problem_rate": 0.9663}
+    assert b["scenarios"] == {"today": 0.71, "all_fixed": 0.99, "routing_only": 0.8024,
+                              "process_only": 0.8667, "realistic": 0.9024, "no_problem_rate": 0.99}
 
 
 def test_cause_deliveries(client):
@@ -84,7 +84,7 @@ def test_simulate(client):
     r = client.post("/api/simulate", json={"fixes": {"incomplete_address": 1, "same_day_after_cutoff": 1,
                                                      "stock_not_at_nearest": 1}})
     b = r.json()
-    assert r.status_code == 200 and b["projected_on_time_rate"] == 0.8672
+    assert r.status_code == 200 and b["projected_on_time_rate"] == 0.8667
     assert set(b["points_by_cause"]) == {"incomplete_address", "same_day_after_cutoff", "stock_not_at_nearest"}
     assert b["at_risk"]["projected_on_time_rate"] > b["at_risk"]["today_on_time_rate"]
 
@@ -96,7 +96,65 @@ def test_simulate_rejects_bad_input(client):
 
 def test_vendor_assessment(client):
     b = client.get("/api/vendor-assessment").json()
-    assert b["verdict"] == "do_not_sign_as_scoped" and b["all_fixed"] == 0.9663
+    assert b["verdict"] == "do_not_sign_as_scoped" and b["all_fixed"] == 0.99
+    assert b["routing_only_ceiling"] == 0.8024 and b["realistic_all_five"] == 0.9024
+    text = " ".join(b["reasons"])
+    assert "80.2%" in text and "86.7%" in text and "90.2%" in text and "99.0%" in text
+
+
+def test_simulate_realistic_preset_equals_on_time_realistic(client):
+    from app.analytics.causes import REALISTIC_EFFECTIVENESS
+
+    b = client.post("/api/simulate", json={"fixes": REALISTIC_EFFECTIVENESS}).json()
+    assert b["projected_on_time_rate"] == 0.9024
+
+
+def test_roi(client):
+    b = client.get("/api/roi").json()
+    assert b["effectiveness_needed_for_94_benchmark"] == 0.84
+    a = b["assumptions"]
+    assert a["effectiveness"]["weak_carrier_lane"] == 0.9
+    assert a["fix_cost_per_year_usd"]["weak_carrier_lane"] == 84207
+    assert a["note"] == "Costs are our estimates to confirm with Halcyon; money is six months x2"
+    assert [s["name"] for s in b["scenarios"]] == ["Routing vendor only (ceiling)", "Process fixes only (ceiling)",
+                                                    "All five fixes, realistic", "All five fixes, ceiling"]
+    keys = {"name", "on_time_rate", "points_gained", "sla_penalties_avoided_usd", "redelivery_avoided_usd",
+            "late_deliveries_avoided", "cost_per_year_usd", "net_benefit_per_year_usd",
+            "net_benefit_penalties_only_usd"}
+    assert all(set(s) == keys for s in b["scenarios"])
+    vendor = b["scenarios"][0]
+    assert vendor["cost_per_year_usd"] == 680000 and vendor["net_benefit_penalties_only_usd"] == -160180
+    assert b["scenarios"][2]["net_benefit_per_year_usd"] == 1438817
+
+
+def test_stock_placement(client):
+    b = client.get("/api/stock/placement").json()
+    w = b["by_warehouse"]
+    assert w and set(w[0]) == {"warehouse_id", "name", "region", "deliveries", "stock_out_rate",
+                               "on_time_when_stocked", "on_time_when_stock_out"}
+    assert sum(r["deliveries"] for r in w) == 48340
+    assert all(0 <= r["stock_out_rate"] <= 1 for r in w)
+    c = b["worst_clients"]
+    assert 0 < len(c) <= 10
+    assert set(c[0]) == {"client_id", "client_name", "deliveries", "stock_out_rate", "on_time_rate"}
+    assert all(r["deliveries"] >= 50 for r in c)
+    rates = [r["stock_out_rate"] for r in c]
+    assert rates == sorted(rates, reverse=True)
+
+
+def test_route_deviation(client):
+    b = client.get("/api/routes/deviation").json()
+    carriers = b["by_carrier"]
+    assert len(carriers) == 6
+    assert set(carriers[0]) == {"carrier_id", "deliveries", "deviation_rate", "on_time_with_deviation",
+                                "on_time_without_deviation", "missing_actual_km_rate"}
+    assert sum(r["deliveries"] for r in carriers) == 48340
+    regions = b["by_region"]
+    assert {r["region"] for r in regions} == {"Midwest", "Southeast", "Northeast", "West"}
+    assert set(regions[0]) == {"region", "deliveries", "deviation_rate", "on_time_with_deviation",
+                               "on_time_without_deviation"}
+    total = sum(r["deviation_rate"] * r["deliveries"] for r in regions)
+    assert round(total) == 2880
 
 
 def test_order_intake_agent(client):
@@ -124,7 +182,7 @@ def test_delay_alert_agent(client):
 def test_ask_agent_includes_numbers(client):
     b = client.post("/api/agents/ask", json={"question": "Should we sign the routing vendor contract?"}).json()
     assert "vendor_assessment" in b["tools_used"]
-    assert "78.6%" in b["answer"]
+    assert "80.2%" in b["answer"]
     assert b["numbers_used"]
 
 
@@ -135,3 +193,15 @@ def test_agent_runs_logged_and_redacted(client):
     assert runs and {"agent", "provider", "model", "latency_ms", "input_tokens", "output_tokens",
                      "guardrail_flags", "created_at"} <= set(runs[0])
     assert "redacted_email" in runs[0]["guardrail_flags"]
+
+
+def test_ask_answers_payback_from_roi_tool(client):
+    b = client.post("/api/agents/ask", json={"question": "What does the plan cost and what is the payback?"}).json()
+    assert "roi" in b["tools_used"]
+    assert "$359,207" in b["answer"] and "90.2%" in b["answer"]
+
+
+def test_ask_scenarios_call_all_fixed_a_ceiling(client):
+    b = client.post("/api/agents/ask", json={"question": "What if we fix everything?"}).json()
+    assert "scenarios" in b["tools_used"]
+    assert "ceiling" in b["answer"] and "90.2%" in b["answer"] and "99.0%" in b["answer"]

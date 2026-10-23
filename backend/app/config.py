@@ -30,6 +30,9 @@ class Settings:
     bedrock_model_fast: str = PLACEHOLDER_MODEL_ID
     bedrock_model_smart: str = PLACEHOLDER_MODEL_ID
     llm_timeout_seconds: int = 30
+    warehouse_tz: str = "America/Chicago"
+    agent_rate_limit_per_min: int = 30
+    demo_token: str = ""
 
 
 @lru_cache
@@ -45,4 +48,7 @@ def get_settings() -> Settings:
         bedrock_model_fast=os.getenv("BEDROCK_MODEL_FAST", PLACEHOLDER_MODEL_ID),
         bedrock_model_smart=os.getenv("BEDROCK_MODEL_SMART", PLACEHOLDER_MODEL_ID),
         llm_timeout_seconds=int(os.getenv("LLM_TIMEOUT_SECONDS", "30")),
+        warehouse_tz=os.getenv("WAREHOUSE_TZ", "America/Chicago"),
+        agent_rate_limit_per_min=int(os.getenv("AGENT_RATE_LIMIT_PER_MIN", "30")),
+        demo_token=os.getenv("DEMO_TOKEN", ""),
     )

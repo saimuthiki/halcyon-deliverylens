@@ -56,3 +56,69 @@ def test_same_day_before_cutoff_is_fine():
     assert ext.commitment_type == "same_day"
     assert checks["cutoff"]["after_cutoff"] is False
     assert checks["address_status"] == "complete"
+
+
+def test_missing_country_defaults_to_us_and_is_recorded_as_assumption():
+    from app.agents.order_intake import parse_email_mock, run_checks
+
+    ext = parse_email_mock("Client: Client 007\nSKU HX-1 x 3\nName: Dock 2\nStreet: 1 Elm St\nCity: Austin\n"
+                           "State: TX\nPostcode: 73301\nNext day please.")
+    assert ext.ship_to.country is None
+    checks = run_checks(ext)
+    assert checks["address_status"] == "complete"
+    assert "country" not in checks["missing_address_fields"]
+    assert ext.ship_to.country == "US"
+    assert any("assumed US" in a for a in checks["assumptions"])
+
+
+def test_free_text_one_line_address_is_parsed():
+    from app.agents.order_intake import parse_email_mock, run_checks
+
+    ext = parse_email_mock("Hi, please send 4 x SKU HX-7 to 500 Main St, Dallas TX 75201 tomorrow. Thanks")
+    s = ext.ship_to
+    assert (s.street, s.city, s.state, s.postcode) == ("500 Main St", "Dallas", "TX", "75201")
+    assert run_checks(ext)["missing_address_fields"] == ["name"]
+
+
+def test_labelled_one_line_address_with_name_and_country():
+    ext = _run("05_one_line_address.txt")
+    s = ext.ship_to
+    assert (s.name, s.street, s.city, s.state, s.postcode, s.country) == (
+        "Client 150 Receiving", "77 Pine Avenue", "Denver", "CO", "80202", "US")
+
+
+def test_cutoff_uses_request_time_first():
+    from app.agents.order_intake import parse_email_mock, run_checks
+
+    ext = parse_email_mock("Same-day please. SKU HX-1 x 1")
+    cutoff = run_checks(ext, "2026-10-23 07:59")["cutoff"]
+    assert cutoff["received_at_source"] == "request" and cutoff["after_cutoff"] is False
+
+
+def test_cutoff_falls_back_to_warehouse_local_clock(monkeypatch):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from app.agents.order_intake import parse_email_mock, run_checks
+    from app.config import get_settings
+
+    monkeypatch.setenv("WAREHOUSE_TZ", "Asia/Kolkata")
+    get_settings.cache_clear()
+    try:
+        checks = run_checks(parse_email_mock("Same-day please. SKU HX-1 x 1"))
+    finally:
+        monkeypatch.delenv("WAREHOUSE_TZ")
+        get_settings.cache_clear()
+    cutoff = checks["cutoff"]
+    assert cutoff["received_at_source"] == "warehouse_clock" and cutoff["timezone"] == "Asia/Kolkata"
+    now = datetime.now(ZoneInfo("Asia/Kolkata"))
+    got = datetime.strptime(cutoff["received_at"], "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("Asia/Kolkata"))
+    assert abs((now - got).total_seconds()) < 120
+    assert any("Asia/Kolkata" in a for a in checks["assumptions"])
+
+
+def test_warehouse_timezone_defaults_to_chicago():
+    from app.agents.order_intake import parse_email_mock, run_checks
+
+    cutoff = run_checks(parse_email_mock("SKU HX-1 x 1"))["cutoff"]
+    assert cutoff["timezone"] == "America/Chicago"

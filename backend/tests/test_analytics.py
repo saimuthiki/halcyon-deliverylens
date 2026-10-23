@@ -39,9 +39,20 @@ def test_findings_match_analysis_output_exactly(dataset, expected):
 def test_headline_scenarios(dataset):
     f = dataset.findings
     assert f["on_time_rate_today"] == 0.71
-    assert f["on_time_if_all_fixed"] == 0.9663
-    assert f["on_time_if_only_routing_fixed"] == 0.7862
-    assert f["on_time_if_only_process_fixed"] == 0.8672
+    assert f["on_time_if_all_fixed"] == 0.99
+    assert f["on_time_if_only_routing_fixed"] == 0.8024
+    assert f["on_time_if_only_process_fixed"] == 0.8667
+    assert f["on_time_realistic"] == 0.9024
+    assert f["effectiveness_needed_for_94_benchmark"] == 0.84
+
+
+def test_weak_lanes_match_analysis():
+    from app.analytics.causes import CAUSES, WEAK_CARRIER_LANES
+
+    assert WEAK_CARRIER_LANES == {("D", "Midwest"), ("D", "Northeast"), ("D", "Southeast"), ("D", "West"),
+                                  ("E", "West"), ("F", "Northeast"), ("F", "Southeast")}
+    assert CAUSES["weak_carrier_lane"] == ("Weak carrier on that lane (D everywhere, E to West, "
+                                           "F to Northeast/Southeast)")
 
 
 def test_fair_shares_add_up_to_total_gain(dataset):
@@ -57,14 +68,26 @@ def test_simulator_full_fix_equals_all_fixed(dataset):
     from app.analytics.simulator import simulate
 
     out = simulate(dataset, {c: 1.0 for c in CAUSES})
-    assert out["projected_on_time_rate"] == 0.9663
+    assert out["projected_on_time_rate"] == 0.99
 
 
 def test_simulator_routing_only(dataset):
     from app.analytics.simulator import simulate
 
     out = simulate(dataset, {"weak_carrier_lane": 1.0, "route_deviation": 1.0})
-    assert out["projected_on_time_rate"] == 0.7862
+    assert out["projected_on_time_rate"] == 0.8024
+
+
+def test_simulator_realistic_preset_matches_analysis(dataset, expected):
+    from app.analytics.causes import REALISTIC_EFFECTIVENESS
+    from app.analytics.simulator import simulate
+
+    out = simulate(dataset, REALISTIC_EFFECTIVENESS)
+    realistic = next(s for s in expected["scenarios"] if s["name"] == "All five fixes, realistic")
+    assert out["projected_on_time_rate"] == expected["on_time_realistic"] == 0.9024
+    assert out["annual_sla_penalties_avoided_usd"] == realistic["sla_penalties_avoided_usd"]
+    assert out["annual_redelivery_cost_avoided_usd"] == realistic["redelivery_avoided_usd"]
+    assert out["annual_late_deliveries_avoided"] == realistic["late_deliveries_avoided"]
 
 
 def test_simulator_half_effectiveness_is_linear_blend(dataset):
@@ -99,7 +122,10 @@ def test_vendor_assessment_recommends_reshape(dataset):
 
     v = vendor_assessment(dataset)
     assert v["verdict"] == "do_not_sign_as_scoped"
-    assert v["routing_only_ceiling"] == 0.7862
+    assert v["routing_only_ceiling"] == 0.8024
+    assert v["process_only"] == 0.8667 and v["realistic_all_five"] == 0.9024 and v["all_fixed"] == 0.99
+    assert v["vendor_unique_points"] == 3.1
+    assert any("needs no software" in r for r in v["reasons"])
     assert v["budget_usd"] == 680000
     assert v["at_risk_revenue_usd"] == 14200000
     assert "Do not sign as scoped" in v["recommendation"]

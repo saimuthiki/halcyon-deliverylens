@@ -65,6 +65,7 @@ def causes_view(ds) -> dict:
         "on_time_rate": c["on_time_rate"], "share_of_late": c["share_of_late_deliveries"],
         "points_if_fixed_alone": c["points_gained_if_fixed_alone"],
         "fair_share_points": c["fair_share_points"], "sla_penalties_usd": c["sla_penalties_usd"],
+        "realistic_effectiveness": c["realistic_effectiveness"], "fix_cost_per_year_usd": c["fix_cost_per_year_usd"],
     } for c in f["causes"]]
     return {
         "causes": rows,
@@ -73,6 +74,7 @@ def causes_view(ds) -> dict:
             "all_fixed": f["on_time_if_all_fixed"],
             "routing_only": f["on_time_if_only_routing_fixed"],
             "process_only": f["on_time_if_only_process_fixed"],
+            "realistic": f["on_time_realistic"],
             "no_problem_rate": f["on_time_rate_with_no_problem"],
         },
     }
@@ -199,3 +201,55 @@ def at_risk_clients(ds) -> dict:
             "complaints": int(complaints.get(c.client_id, 0)),
         })
     return {"clients": rows, "total_annual_revenue_usd": int(clients.annual_revenue_usd.sum())}
+
+
+# ---------- Stock placement ----------
+def _on_time(late) -> float | None:
+    return round(1 - float(late.mean()), 4) if len(late) else None
+
+
+def stock_placement(ds, min_deliveries: int = 50, top: int = 10) -> dict:
+    df = ds.deliveries
+    out_of_stock = df.stock_not_at_nearest
+    warehouses = ds.warehouses.set_index("warehouse_id")
+    by_warehouse = []
+    for wid, d in df.groupby("nearest_warehouse_id"):
+        w = warehouses.loc[wid] if wid in warehouses.index else None
+        by_warehouse.append({
+            "warehouse_id": wid,
+            "name": w.warehouse_name if w is not None else wid,
+            "region": w.region if w is not None else None,
+            "deliveries": int(len(d)),
+            "stock_out_rate": round(float(out_of_stock[d.index].mean()), 4),
+            "on_time_when_stocked": _on_time(d.late[~d.stock_not_at_nearest]),
+            "on_time_when_stock_out": _on_time(d.late[d.stock_not_at_nearest]),
+        })
+    names = ds.clients.set_index("client_id").client_name
+    clients = df.groupby("client_id").agg(deliveries=("late", "size"), stock_out_rate=("stock_not_at_nearest", "mean"),
+                                         late=("late", "mean"))
+    clients = clients[clients.deliveries >= min_deliveries].sort_values(
+        ["stock_out_rate", "deliveries"], ascending=[False, False]).head(top)
+    worst = [{"client_id": cid, "client_name": names.get(cid, cid), "deliveries": int(c.deliveries),
+              "stock_out_rate": round(float(c.stock_out_rate), 4), "on_time_rate": round(1 - float(c.late), 4)}
+             for cid, c in clients.iterrows()]
+    return {"by_warehouse": by_warehouse, "worst_clients": worst}
+
+
+# ---------- Route deviation ----------
+def _deviation_rows(df, by: str, name: str, with_missing: bool) -> list[dict]:
+    rows = []
+    for key, d in df.groupby(by):
+        row = {name: key, "deliveries": int(len(d)),
+               "deviation_rate": round(float(d.route_deviation.mean()), 4),
+               "on_time_with_deviation": _on_time(d.late[d.route_deviation]),
+               "on_time_without_deviation": _on_time(d.late[~d.route_deviation])}
+        if with_missing:
+            row["missing_actual_km_rate"] = round(float(d.actual_route_km.isna().mean()), 4)
+        rows.append(row)
+    return rows
+
+
+def route_deviation(ds) -> dict:
+    df = ds.deliveries
+    return {"by_carrier": _deviation_rows(df, "carrier_id", "carrier_id", with_missing=True),
+            "by_region": _deviation_rows(df, "destination_region", "region", with_missing=False)}

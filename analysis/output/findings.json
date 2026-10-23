@@ -5,11 +5,15 @@
     "2026-09-25"
   ],
   "on_time_rate_today": 0.71,
-  "on_time_rate_with_no_problem": 0.9663,
-  "deliveries_with_no_problem": 24380,
-  "on_time_if_all_fixed": 0.9663,
-  "on_time_if_only_routing_fixed": 0.7862,
-  "on_time_if_only_process_fixed": 0.8672,
+  "on_time_rate_with_no_problem": 0.99,
+  "deliveries_with_no_problem": 21280,
+  "on_time_if_all_fixed": 0.99,
+  "on_time_if_only_routing_fixed": 0.8024,
+  "on_time_if_only_process_fixed": 0.8667,
+  "on_time_realistic": 0.9024,
+  "effectiveness_needed_for_94_benchmark": 0.84,
+  "points_lost_today": 29.0,
+  "points_explained_by_the_five_causes": 28.0,
   "causes": [
     {
       "cause": "incomplete_address",
@@ -18,7 +22,9 @@
       "on_time_rate": 0.354,
       "share_of_late_deliveries": 0.2762,
       "points_gained_if_fixed_alone": 6.0,
-      "fair_share_points": 6.8,
+      "fair_share_points": 6.9,
+      "realistic_effectiveness": 0.8,
+      "fix_cost_per_year_usd": 60000,
       "sla_penalties_usd": 287280
     },
     {
@@ -28,7 +34,9 @@
       "on_time_rate": 0.39,
       "share_of_late_deliveries": 0.21,
       "points_gained_if_fixed_alone": 4.6,
-      "fair_share_points": 5.3,
+      "fair_share_points": 5.4,
+      "realistic_effectiveness": 0.7,
+      "fix_cost_per_year_usd": 65000,
       "sla_penalties_usd": 171900
     },
     {
@@ -38,18 +46,22 @@
       "on_time_rate": 0.4999,
       "share_of_late_deliveries": 0.2144,
       "points_gained_if_fixed_alone": 4.0,
-      "fair_share_points": 4.8,
+      "fair_share_points": 4.9,
+      "realistic_effectiveness": 0.5,
+      "fix_cost_per_year_usd": 50000,
       "sla_penalties_usd": 184500
     },
     {
       "cause": "weak_carrier_lane",
-      "label": "Carrier is weak in that destination region",
-      "deliveries": 7895,
-      "on_time_rate": 0.5415,
-      "share_of_late_deliveries": 0.2582,
-      "points_gained_if_fixed_alone": 4.8,
-      "fair_share_points": 5.7,
-      "sla_penalties_usd": 213120
+      "label": "Weak carrier on that lane (D everywhere, E to West, F to Northeast/Southeast)",
+      "deliveries": 12624,
+      "on_time_rate": 0.5878,
+      "share_of_late_deliveries": 0.3712,
+      "points_gained_if_fixed_alone": 6.3,
+      "fair_share_points": 7.7,
+      "realistic_effectiveness": 0.9,
+      "fix_cost_per_year_usd": 84207,
+      "sla_penalties_usd": 309240
     },
     {
       "cause": "route_deviation",
@@ -58,8 +70,56 @@
       "on_time_rate": 0.3736,
       "share_of_late_deliveries": 0.1287,
       "points_gained_if_fixed_alone": 2.6,
-      "fair_share_points": 3.0,
+      "fair_share_points": 3.1,
+      "realistic_effectiveness": 0.5,
+      "fix_cost_per_year_usd": 100000,
       "sla_penalties_usd": 102960
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "Routing vendor only (ceiling)",
+      "on_time_rate": 0.8024,
+      "points_gained": 9.2,
+      "sla_penalties_avoided_usd": 519820,
+      "redelivery_avoided_usd": 313816,
+      "late_deliveries_avoided": 9230,
+      "cost_per_year_usd": 680000,
+      "net_benefit_per_year_usd": 153636,
+      "net_benefit_penalties_only_usd": -160180
+    },
+    {
+      "name": "Process fixes only (ceiling)",
+      "on_time_rate": 0.8667,
+      "points_gained": 15.7,
+      "sla_penalties_avoided_usd": 993406,
+      "redelivery_avoided_usd": 516011,
+      "late_deliveries_avoided": 15177,
+      "cost_per_year_usd": 175000,
+      "net_benefit_per_year_usd": 1334417,
+      "net_benefit_penalties_only_usd": 818406
+    },
+    {
+      "name": "All five fixes, realistic",
+      "on_time_rate": 0.9024,
+      "points_gained": 19.2,
+      "sla_penalties_avoided_usd": 1165304,
+      "redelivery_avoided_usd": 632720,
+      "late_deliveries_avoided": 18609,
+      "cost_per_year_usd": 359207,
+      "net_benefit_per_year_usd": 1438817,
+      "net_benefit_penalties_only_usd": 806097
+    },
+    {
+      "name": "All five fixes, ceiling",
+      "on_time_rate": 0.99,
+      "points_gained": 28.0,
+      "sla_penalties_avoided_usd": 1686150,
+      "redelivery_avoided_usd": 920391,
+      "late_deliveries_avoided": 27070,
+      "cost_per_year_usd": 359207,
+      "net_benefit_per_year_usd": 2247334,
+      "net_benefit_penalties_only_usd": 1326943
     }
   ],
   "money": {
@@ -68,7 +128,9 @@
     "at_risk_clients": 9,
     "at_risk_annual_revenue_usd": 14200000,
     "at_risk_on_time_rate": 0.707,
-    "routing_vendor_budget_usd": 680000
+    "others_on_time_rate": 0.7107,
+    "routing_vendor_budget_usd": 680000,
+    "fix_costs_are_estimates": true
   },
   "complaints": {
     "total": 34,
@@ -78,7 +140,8 @@
       "Redelivery needed": 6,
       "Penalty dispute": 2
     },
-    "from_at_risk_clients": 24
+    "from_at_risk_clients": 24,
+    "not_told_about_delay": 12
   },
   "customer_success_week": {
     "hours_total": 720.0,
@@ -95,14 +158,16 @@
   "holdout_check": {
     "lanes_picked_from_apr_jun": [
       "D-Midwest",
+      "D-Northeast",
       "D-Southeast",
+      "D-West",
       "E-West",
       "F-Northeast",
       "F-Southeast"
     ],
     "same_as_full_data_lanes": true,
-    "jul_sep_on_time_weak_lanes": 0.5438,
-    "jul_sep_on_time_other_lanes": 0.7456,
-    "jul_sep_on_time_with_no_problem": 0.9635
+    "jul_sep_on_time_weak_lanes_no_other_cause": 0.636,
+    "jul_sep_on_time_other_lanes_no_other_cause": 0.9889,
+    "jul_sep_on_time_with_no_problem": 0.9889
   }
 }

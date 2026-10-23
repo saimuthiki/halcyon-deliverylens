@@ -51,13 +51,21 @@ class ComboModel:
     def on_time_if_fixed(self, fixed: Iterable[str], counts: Mapping[int, int] | None = None) -> float:
         return self.on_time_for_mask(mask_of(fixed), counts)
 
+    def expected_by_key(self, effectiveness: Mapping[str, float]) -> dict[int, float]:
+        """Expected on-time rate per cause combination when each cause is removed with probability
+        = its effectiveness (the combo method averaged over every possible set of fixed causes)."""
+        weights = subset_weights(effectiveness)
+        return {k: sum(w * self.rate_after(k, m) for m, w in weights) for k in self.rate}
+
     def expected(self, effectiveness: Mapping[str, float], counts: Mapping[int, int] | None = None) -> float:
         """Partial fixes: each cause is removed from a delivery with probability = effectiveness.
 
         For one cause this is a straight line between today and fully fixed; for several it
         averages the combo method over every possible set of fixed causes.
         """
-        return sum(w * self.on_time_for_mask(m, counts) for m, w in subset_weights(effectiveness))
+        counts = self.counts if counts is None else counts
+        by_key = self.expected_by_key(effectiveness)
+        return sum(n * by_key[k] for k, n in counts.items()) / sum(counts.values())
 
 
 def subset_weights(effectiveness: Mapping[str, float]) -> list[tuple[int, float]]:

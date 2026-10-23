@@ -9,6 +9,7 @@ import re
 from app.agents.llm_client import LLMClient, extract_json, log_blocked
 from app.agents.order_intake import GuardrailBlocked
 from app.analytics import views
+from app.analytics.roi import roi_view
 from app.analytics.vendor import vendor_assessment
 from app.guardrails import check_input
 
@@ -44,10 +45,10 @@ def tool_causes(ds):
 def tool_scenarios(ds):
     s = views.causes_view(ds)["scenarios"]
     nums = {k: _pct(v) for k, v in s.items()}
-    text = (f"Today {nums['today']}. Fixing only routing (weak carrier lanes + route deviation) reaches "
+    text = (f"Today {nums['today']}. Fixing only routing (weak carrier lanes + route deviation) reaches at most "
             f"{nums['routing_only']}; fixing only process causes (address, same-day cutoff, stock placement) "
-            f"reaches {nums['process_only']}; fixing all five reaches {nums['all_fixed']}, the same as deliveries "
-            f"with no problem today ({nums['no_problem_rate']}).")
+            f"reaches at most {nums['process_only']}. All five fixes with realistic effectiveness reach "
+            f"{nums['realistic']}; {nums['all_fixed']} is the ceiling if every fix is fully adopted.")
     return text, nums
 
 
@@ -86,6 +87,23 @@ def tool_vendor_assessment(ds):
     return text, nums
 
 
+def tool_roi(ds):
+    r = roi_view(ds)
+    by_name = {s["name"]: s for s in r["scenarios"]}
+    real, vendor = by_name["All five fixes, realistic"], by_name["Routing vendor only (ceiling)"]
+    nums = {"realistic_on_time": _pct(real["on_time_rate"]), "realistic_cost_per_year_usd": real["cost_per_year_usd"],
+            "realistic_net_benefit_per_year_usd": real["net_benefit_per_year_usd"],
+            "realistic_net_penalties_only_usd": real["net_benefit_penalties_only_usd"],
+            "vendor_net_penalties_only_usd": vendor["net_benefit_penalties_only_usd"]}
+    text = (f"All five fixes, realistic: {nums['realistic_on_time']} on time for about "
+            f"${real['cost_per_year_usd']:,} a year; they avoid ${real['sla_penalties_avoided_usd']:,} of SLA "
+            f"penalties and ${real['redelivery_avoided_usd']:,} of redelivery cost a year, a net benefit of "
+            f"${real['net_benefit_per_year_usd']:,} (${real['net_benefit_penalties_only_usd']:,} on penalties alone). "
+            f"The routing vendor alone costs ${vendor['cost_per_year_usd']:,} and nets "
+            f"${vendor['net_benefit_penalties_only_usd']:,} on penalties alone. {r['assumptions']['note']}.")
+    return text, nums
+
+
 TOOLS = {
     "kpis": ("Headline on-time rate, volumes, penalties, redelivery cost, complaints, team hours", tool_kpis),
     "causes": ("The five causes of late deliveries with fair-share points and on-time rates", tool_causes),
@@ -93,11 +111,13 @@ TOOLS = {
     "carrier_scorecard": ("Carrier on-time by region, weak lanes, best carrier per region", tool_carrier_scorecard),
     "at_risk_clients": ("The clients threatening to leave: revenue, on-time rate, complaints", tool_at_risk_clients),
     "vendor_assessment": ("Whether to sign the $680K routing-optimisation contract", tool_vendor_assessment),
+    "roi": ("Cost, savings, net benefit and payback of each option", tool_roi),
 }
 
 KEYWORDS = [
+    ("roi", r"payback|roi|return|net benefit|worth it|plan cost|cost of the plan|invest"),
     ("vendor_assessment", r"vendor|contract|sign|routing (?:product|tool|software|optimi)|680"),
-    ("scenarios", r"what if|scenario|if we fix|all fixed|ceiling|projected|could we reach"),
+    ("scenarios", r"what if|scenario|if we fix|fix everything|all fixed|ceiling|realistic|projected|could we reach"),
     ("causes", r"cause|why|reason|biggest|driver|fix first|root"),
     ("carrier_scorecard", r"carrier|lane|region"),
     ("at_risk_clients", r"client|customer|at[- ]risk|leav|churn|revenue"),

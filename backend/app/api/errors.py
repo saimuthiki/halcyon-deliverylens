@@ -9,13 +9,15 @@ from app.agents.llm_client import LLMError
 from app.agents.order_intake import GuardrailBlocked
 from app.analytics.store import DataNotLoaded
 
-CODES = {400: "bad_request", 404: "not_found", 409: "conflict", 422: "validation_error",
+CODES = {400: "bad_request", 401: "unauthorized", 404: "not_found", 409: "conflict", 422: "validation_error", 429: "rate_limited",
          500: "internal_error", 502: "llm_error", 503: "unavailable"}
 
 
 class ApiError(Exception):
-    def __init__(self, status: int, message: str, code: str | None = None, details=None):
+    def __init__(self, status: int, message: str, code: str | None = None, details=None,
+                 headers: dict[str, str] | None = None):
         self.status, self.message, self.code, self.details = status, message, code or CODES.get(status, "error"), details
+        self.headers = headers
 
 
 def _body(code: str, message: str, details=None) -> dict:
@@ -25,7 +27,7 @@ def _body(code: str, message: str, details=None) -> dict:
 def install(app: FastAPI) -> None:
     @app.exception_handler(ApiError)
     async def _api(_: Request, e: ApiError):
-        return JSONResponse(_body(e.code, e.message, e.details), status_code=e.status)
+        return JSONResponse(_body(e.code, e.message, e.details), status_code=e.status, headers=e.headers)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(_: Request, e: StarletteHTTPException):
@@ -47,7 +49,7 @@ def install(app: FastAPI) -> None:
 
     @app.exception_handler(NotDelayed)
     async def _notdelayed(_: Request, e: NotDelayed):
-        return JSONResponse(_body("not_delayed", f"Delivery {e} was on time and had no risk factors"),
+        return JSONResponse(_body("not_delayed", f"Delivery {e} was on time and had none of the five causes, so there is nothing to warn about"),
                             status_code=409)
 
     @app.exception_handler(LLMError)

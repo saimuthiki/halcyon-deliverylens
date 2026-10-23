@@ -9,15 +9,18 @@ import json
 import re
 from datetime import datetime
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field, ValidationError
 
 from app.agents.llm_client import LLMClient, extract_json, log_blocked
 from app.analytics.causes import PICK_LIST_CUTOFF_MINUTES
+from app.config import get_settings
 from app.guardrails import check_input
 
 AGENT = "order_intake"
-ADDRESS_FIELDS = ["name", "street", "city", "state", "postcode", "country"]
+ADDRESS_FIELDS = ["name", "street", "city", "state", "postcode"]  # country is optional (default below)
+DEFAULT_COUNTRY = "US"
 FIELD_WORDS = {"name": "recipient / site name", "street": "street address", "city": "city",
                "state": "state", "postcode": "postcode (ZIP)", "country": "country"}
 
@@ -68,6 +71,11 @@ _LABELS = {
 }
 _ONE_LINE_RE = re.compile(r"(?:Deliver|Ship)\s+to:[ \t]*(\S[^\n]+)", re.I)
 _STATE_ZIP_RE = re.compile(r"^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$")
+# Free-text US address on one line: "500 Main St, Dallas TX 75201" or "77 Pine Avenue, Denver, CO 80202, US".
+_ADDRESS_RE = re.compile(
+    r"(?P<street>(?<![\w-])\d+[A-Za-z]?(?:\s+[A-Za-z][A-Za-z.'-]*){1,6})\s*,\s*"
+    r"(?P<city>[A-Za-z][A-Za-z .'-]*?)\s*,?\s+(?P<state>[A-Z]{2})\s*,?\s*(?P<postcode>\d{5}(?:-\d{4})?)\b"
+    r"(?:\s*,\s*(?P<country>US|USA|United States)\b)?")
 _DATE_RE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
 
 
@@ -100,7 +108,17 @@ def parse_email_mock(text: str) -> Extraction:
         lm = re.search(rf"^\s*{label}\s*:[ \t]*(.*)$", text, re.I | re.M)
         if lm:
             ship[field] = _clean(lm.group(1))
-    if not any(ship.values()):
+    am = _ADDRESS_RE.search(text)
+    if am and not any(ship.get(f) for f in ("city", "state", "postcode")):
+        ship.update(street=am.group("street").strip(), city=am.group("city").strip(), state=am.group("state"),
+                    postcode=am.group("postcode"))
+        if am.group("country"):
+            ship["country"] = "US"
+        om = _ONE_LINE_RE.search(text)
+        if om and not ship.get("name"):
+            before = om.group(1).split(am.group("street"))[0].strip(" ,")
+            ship["name"] = before or None
+    elif not any(ship.values()):
         om = _ONE_LINE_RE.search(text)
         if om:
             parts = [p.strip() for p in om.group(1).split(",") if p.strip()]
@@ -136,8 +154,16 @@ def parse_email_mock(text: str) -> Extraction:
 
 
 # ---------------------------------------------------------------- deterministic checks
+def warehouse_now(tz: str) -> datetime:
+    return datetime.now(ZoneInfo(tz)).replace(tzinfo=None)
+
+
 def run_checks(ext: Extraction, received_at: str | None = None) -> dict:
     warnings: list[str] = []
+    assumptions: list[str] = []
+    if not ext.ship_to.country:
+        ext.ship_to.country = DEFAULT_COUNTRY
+        assumptions.append(f"Country not given; assumed {DEFAULT_COUNTRY}.")
     missing = [f for f in ADDRESS_FIELDS if not getattr(ext.ship_to, f)]
     status = "incomplete" if missing else "complete"
     follow_up = None
@@ -155,19 +181,24 @@ def run_checks(ext: Extraction, received_at: str | None = None) -> dict:
     if not ext.items:
         warnings.append("No line items (SKU and quantity) found; check the email by hand.")
 
+    tz = get_settings().warehouse_tz
     when = received_at or ext.received_at
-    source = "request" if received_at else ("email_header" if ext.received_at else "server_clock")
-    ts = datetime.strptime(when, "%Y-%m-%d %H:%M") if when else datetime.now()
+    source = "request" if received_at else ("email_header" if ext.received_at else "warehouse_clock")
+    ts = datetime.strptime(when, "%Y-%m-%d %H:%M") if when else warehouse_now(tz)
+    if source == "email_header":
+        assumptions.append(f"Email header time read as warehouse-local time ({tz}).")
+    elif source == "warehouse_clock":
+        assumptions.append(f"No received time given; used the current warehouse-local time ({tz}).")
     minutes = ts.hour * 60 + ts.minute
     after = ext.commitment_type == "same_day" and minutes >= PICK_LIST_CUTOFF_MINUTES
     cutoff = {"received_at": ts.strftime("%Y-%m-%d %H:%M"), "received_at_source": source,
-              "pick_list_cutoff": "08:00", "after_cutoff": after,
+              "timezone": tz, "pick_list_cutoff": "08:00", "after_cutoff": after,
               "suggested_commitment_type": "next_day" if after else ext.commitment_type}
     if after:
         warnings.append(f"Same-day order received at {ts:%H:%M}, after the 08:00 pick-list cutoff. Same-day orders "
                         "received after the cutoff are on time only 39% of the time; offer next_day instead.")
     return {"address_status": status, "missing_address_fields": missing, "follow_up_email": follow_up,
-            "cutoff": cutoff, "warnings": warnings}
+            "cutoff": cutoff, "warnings": warnings, "assumptions": assumptions}
 
 
 # ---------------------------------------------------------------- agent
