@@ -5,6 +5,7 @@ from sqlalchemy import func, select, text
 from app.agents.ask import run_ask
 from app.agents.delay_alert import run_delay_alert
 from app.agents.order_intake import run_order_intake
+from app.storage import archive_json
 from app.analytics import views
 from app.analytics.causes import CAUSES
 from app.analytics.simulator import simulate
@@ -80,7 +81,13 @@ def vendor():
 
 @router.post("/agents/order-intake", tags=["agents"])
 def order_intake(body: OrderIntakeRequest):
-    return run_order_intake(body.email_text, body.received_at)
+    result = run_order_intake(body.email_text, body.received_at)
+    run_id = result.get("agent_run_id") if isinstance(result, dict) else None
+    uri = archive_json("inbox", f"order-intake-{run_id or 'run'}",
+                       {"email_text": body.email_text, "result": result})
+    if isinstance(result, dict):
+        result["archived_to"] = uri
+    return result
 
 
 @router.post("/agents/delay-alert", tags=["agents"])
