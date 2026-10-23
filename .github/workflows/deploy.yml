@@ -1,0 +1,68 @@
+name: Deploy API to AWS
+
+# Runs after CI passes on main. Does nothing until the AWS GitHub secrets are set
+# (see docs/06-aws-setup-guide.md): AWS_DEPLOY_ROLE_ARN, AWS_REGION, AWS_ACCOUNT_ID,
+# EC2_HOST (elastic IP), EC2_SSH_KEY (private key of the deliverylens key pair).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      ECR_REPO: deliverylens-api
+    steps:
+      - name: Check AWS secrets are configured
+        id: gate
+        env:
+          ROLE: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          if [ -z "$ROLE" ] || [ -z "$HOST" ]; then
+            echo "AWS secrets not set yet - skipping deploy."; echo "ready=false" >> "$GITHUB_OUTPUT"
+          else echo "ready=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Build and push the API image to ECR
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
+          docker build -f backend/Dockerfile -t "$REGISTRY/$ECR_REPO:$SHA" -t "$REGISTRY/$ECR_REPO:latest" .
+          docker push "$REGISTRY/$ECR_REPO:$SHA"
+          docker push "$REGISTRY/$ECR_REPO:latest"
+      - name: Restart the API on EC2 with the new image
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+          KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          install -m 600 /dev/null key.pem && printf '%s\n' "$KEY" > key.pem
+          ssh -i key.pem -o StrictHostKeyChecking=accept-new "ec2-user@$HOST" \
+            'cd /home/ec2-user && aws ecr get-login-password --region $(grep AWS_REGION .env | cut -d= -f2) | docker login --username AWS --password-stdin $(grep IMAGE .env | cut -d= -f2 | cut -d/ -f1) && docker compose -f docker-compose.prod.yml pull api && docker compose -f docker-compose.prod.yml up -d api'
+          rm -f key.pem
+      - name: Smoke test
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          sleep 10
+          curl -fsS "https://${HOST//./-}.sslip.io/api/health"

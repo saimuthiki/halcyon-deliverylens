@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply text-ink;
+    text-wrap: balance;
+  }
+  :focus-visible {
+    outline: 2px solid #0e6b63;
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: #cfe6e1;
+  }
+}
+
+@layer components {
+  .num {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .panel {
+    @apply rounded-lg border border-line bg-surface;
+  }
+  .panel-pad {
+    @apply p-5 sm:p-6;
+  }
+  .btn {
+    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-md px-4 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-route text-white hover:bg-route-dark;
+  }
+  .btn-secondary {
+    @apply btn border border-line bg-surface text-ink hover:border-slate hover:bg-paper;
+  }
+  .btn-quiet {
+    @apply btn px-2 text-route hover:bg-route-tint;
+  }
+  .field {
+    @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-[15px] text-ink placeholder:text-slate focus:border-route;
+  }
+  .th {
+    @apply px-3 py-2.5 text-left text-sm font-medium text-slate;
+  }
+  .td {
+    @apply px-3 py-3 align-middle;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Recharts: keep chart text in the app typeface */
+.recharts-text,
+.recharts-legend-item-text {
+  font-family: Barlow, system-ui, sans-serif;
+}
+.recharts-cartesian-axis-tick-value {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes slidein {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
