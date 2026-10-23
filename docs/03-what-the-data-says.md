@@ -90,6 +90,25 @@ quadrantChart
   picks them. Saving about $2.66 per shipment costs penalties and redeliveries far larger than
   that saving.
 
+## Did we just fit the data? A fair test
+
+```mermaid
+flowchart LR
+  A["April–June data only<br/>rule: a carrier is 'weak' in a region if it is<br/>more than 10 points below that region's average"] --> B["Picks exactly the same 5 lanes:<br/>D-Midwest, D-Southeast, E-West,<br/>F-Northeast, F-Southeast"]
+  B --> C["Test on July–September<br/>(data the rule never saw)"]
+  C --> D["Weak lanes: 54% on time<br/>Other lanes: 75% on time"]
+  C --> E["Deliveries with none of the 5 problems:<br/>96.3% on time"]
+```
+
+**What this shows**
+- A fair worry: did we choose the weak carrier lanes by looking at the answers?
+- So we chose them using only the first three months, with a simple rule, and tested them on
+  the last three months.
+- The same five lanes came out.
+- On the months the rule never saw, deliveries with none of the five problems were still 96.3% on
+  time. The causes are stable over time, not a coincidence.
+- The numbers are produced by `holdout_check` in `analysis/root_cause_analysis.py`.
+
 ## The same-day cutoff
 
 ```mermaid

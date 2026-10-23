@@ -87,6 +87,28 @@ def fair_share(df):
     return shares
 
 
+def holdout_check(df):
+    """Pick weak carrier lanes from Apr-Jun only, then test them and the five causes on Jul-Sep.
+
+    A lane is "weak" if its on-time rate is more than 10 points below its region's average.
+    """
+    train = df[df.order_received_ts < "2026-07-01"]
+    test = df[df.order_received_ts >= "2026-07-01"]
+    lane_rate = train.groupby(["carrier_id", "destination_region"]).late.apply(lambda s: 1 - s.mean())
+    region_rate = train.groupby("destination_region").late.apply(lambda s: 1 - s.mean())
+    picked = sorted(k for k, v in lane_rate.items() if v < region_rate[k[1]] - 0.10)
+    weak = pd.Series([(c, r) in set(picked) for c, r in zip(test.carrier_id, test.destination_region)], index=test.index)
+    other = test[list(CAUSES)].drop(columns="weak_carrier_lane").any(axis=1)
+    clean = ~(other | weak)
+    return {
+        "lanes_picked_from_apr_jun": [f"{c}-{r}" for c, r in picked],
+        "same_as_full_data_lanes": set(picked) == WEAK_CARRIER_LANES,
+        "jul_sep_on_time_weak_lanes": round(1 - test[weak].late.mean(), 4),
+        "jul_sep_on_time_other_lanes": round(1 - test[~weak].late.mean(), 4),
+        "jul_sep_on_time_with_no_problem": round(1 - test[clean].late.mean(), 4),
+    }
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     df = load()
@@ -153,6 +175,7 @@ def main():
             "late_deliveries": int(df.late.sum()),
         },
     }
+    findings["holdout_check"] = holdout_check(df)
     (OUT / "findings.json").write_text(json.dumps(findings, indent=2))
 
     df.pivot_table(index="destination_region", columns="carrier_id", values="late",

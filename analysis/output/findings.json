@@ -91,5 +91,18 @@
     "duplicate_order_ids": 21,
     "late_deliveries_with_redelivery_cost": 14019,
     "late_deliveries": 14019
+  },
+  "holdout_check": {
+    "lanes_picked_from_apr_jun": [
+      "D-Midwest",
+      "D-Southeast",
+      "E-West",
+      "F-Northeast",
+      "F-Southeast"
+    ],
+    "same_as_full_data_lanes": true,
+    "jul_sep_on_time_weak_lanes": 0.5438,
+    "jul_sep_on_time_other_lanes": 0.7456,
+    "jul_sep_on_time_with_no_problem": 0.9635
   }
 }
