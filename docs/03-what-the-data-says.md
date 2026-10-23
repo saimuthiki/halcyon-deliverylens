@@ -8,106 +8,109 @@ produced by `analysis/root_cause_analysis.py`; the results are in
 
 ```mermaid
 xychart-beta
-  title "On-time delivery: today vs after fixes"
-  x-axis ["Today", "Routing vendor only", "Our 3 process fixes", "All 5 fixes", "Industry benchmark"]
+  title "On-time delivery: today vs each option"
+  x-axis ["Today", "Routing vendor only", "3 process fixes", "All 5 fixes (realistic)", "All 5 fully fixed (ceiling)", "Benchmark"]
   y-axis "On-time %" 0 --> 100
-  bar [71.0, 78.6, 86.7, 96.6, 94.0]
+  bar [71.0, 80.2, 86.7, 90.2, 99.0, 94.0]
 ```
 
 **What this shows**
 - **Today:** 71 of every 100 deliveries are on time.
-- **If Halcyon only buys the routing tool:** at best about 79 in 100. It still misses the 94% benchmark.
-- **If Halcyon fixes the three process problems** (addresses, the same-day cutoff, stock placement): about 87.
-- **If all five causes are fixed:** about 97, better than the industry benchmark.
-- Put simply: the routing tool fixes about a third of the problem. Most of the lateness
-  starts before a truck ever leaves.
+- **Routing tool only:** at best about 80, even if it fixes everything routing can fix
+  (carrier choice and route deviation).
+- **Three process fixes:** about 87. These are address checks, the same-day cutoff and stock
+  placement.
+- **All five fixes, realistic case:** about **90**. This assumes each fix works most of the time,
+  not always (see the assumptions below).
+- **Ceiling:** if every cause were removed completely, about **99**. That is the upper limit, not
+  a promise.
+- **To pass the 94% benchmark,** each fix has to work about **84%** of the time.
 
 ## Proof that we found the real causes
 
 ```mermaid
 flowchart LR
-  ALL["All 48,340 deliveries<br/>71% on time"] --> NO["24,380 deliveries with<br/>none of the 5 problems<br/><b>96.6% on time</b>"]
-  ALL --> YES["23,960 deliveries with<br/>at least one problem<br/><b>about 45% on time</b>"]
+  ALL["All 48,340 deliveries<br/>71.0% on time<br/>29.0 points below perfect"] --> NO["21,280 deliveries with<br/>none of the 5 problems<br/><b>99.0% on time</b>"]
+  ALL --> YES["27,060 deliveries with<br/>at least one problem<br/><b>about 49% on time</b>"]
 ```
 
 **What this shows**
-- We split deliveries into two groups: those with none of the five problems, and those with at
-  least one.
-- Deliveries with none of the five problems are on time **96.6%** of the time, already above
-  the 94% benchmark.
-- Halcyon's normal operation works well; these five problems pull it down.
-- Only 821 of the 14,019 late deliveries have none of the five problems. We explain about 94% of
-  late deliveries.
+- Deliveries with none of the five problems are on time **99%** of the time. Halcyon's normal
+  operation works; these five problems pull it down.
+- The five causes explain **28.0 of the 29.0 on-time points** lost today. The last point is
+  ordinary noise: even problem-free deliveries are occasionally late.
 
 ## The five causes
 
 ```mermaid
 xychart-beta
-  title "On-time points lost to each cause (fair share, total 25.6)"
-  x-axis ["Incomplete address", "Weak carrier on a lane", "Same-day order after 08:00", "Stock not at nearest warehouse", "Route deviation"]
-  y-axis "Points of on-time %" 0 --> 8
-  bar [6.8, 5.7, 5.3, 4.8, 3.0]
+  title "On-time points lost to each cause (fair share, total 28.0)"
+  x-axis ["Weak carrier on a lane", "Incomplete address", "Same-day order after 08:00", "Stock not at nearest warehouse", "Route deviation"]
+  y-axis "Points of on-time %" 0 --> 9
+  bar [7.7, 6.9, 5.4, 4.9, 3.1]
 ```
 
-**What this shows:** how many on-time points each cause costs. The five add up from 71% to 96.6%.
-"Fair share" means that when one delivery has two problems, the blame is split between them.
+**What this shows:** how many on-time points each cause costs. "Fair share" means that when one
+delivery has two problems, the blame is split between them, so nothing is counted twice.
 
 | # | Cause | How many deliveries | On time when it happens | Example from the data | Can a routing tool fix it? |
 |---|---|---|---|---|---|
-| 1 | **Incomplete address** when the order arrives | 5,994 (12%) | 35% | 28% of email orders have an incomplete address, against 5% of EDI/API orders. Staff typing emails miss fields | No |
-| 2 | **Weak carrier on a lane**: a carrier that is bad in one region | 7,895 (16%) | 54% | Carrier F, the "preferred supplier", is 53% on time to the Southeast while Carriers A, B and C are 74–76% | Partly (carrier selection) |
-| 3 | **Same-day order after 08:00**: the pick list is already printed | 4,826 (10%) | 39% | A same-day order at 07:45 is on time 75% of the time; at 08:15 it drops to 38% | No |
+| 1 | **Weak carrier on a lane**: Carrier D in every region, E to the West, F to the Northeast and Southeast | 12,624 (26%) | 59% | Carrier F, the "preferred supplier", is 54% on time to the Southeast. A, B and C are about 99% when nothing else is wrong | Partly: carrier selection, which needs no new software |
+| 2 | **Incomplete address** when the order arrives | 5,994 (12%) | 35% | 28% of email orders have an incomplete address, against 5% of EDI/API orders | No |
+| 3 | **Same-day order after 08:00**, when the pick list is already printed | 4,826 (10%) | 39% | A same-day order at 07:45 is on time 75% of the time; at 08:15 it drops to 38% | No |
 | 4 | **Stock not at the nearest warehouse**, so it ships from far away | 6,009 (12%) | 50% | An order for the West ships from the Midwest, about 1,600 miles instead of about 160 | No |
 | 5 | **Route deviation**: the driver went more than 20% beyond the planned route | 2,880 (6%) | 37% | Planned 150 km, drove 190 km | **Yes**, this is what routing tools fix |
 
-## Carriers: the problem is the region, not the company
+## Carriers: Carrier D is weak everywhere; E and F on certain lanes
 
 ```mermaid
-quadrantChart
-  title Carrier on-time by region (lower-left = bad choice)
-  x-axis "Cheaper" --> "More expensive"
-  y-axis "Often late" --> "On time"
-  quadrant-1 "Good but pricey"
-  quadrant-2 "Best value"
-  quadrant-3 "Avoid on this lane"
-  quadrant-4 "Pricey and late"
-  "F to Southeast (53%)": [0.15, 0.20]
-  "F to Northeast (56%)": [0.15, 0.25]
-  "D to Midwest (53%)": [0.30, 0.18]
-  "D to Southeast (54%)": [0.30, 0.22]
-  "E to West (54%)": [0.40, 0.22]
-  "F to Midwest (75%)": [0.15, 0.85]
-  "D to West (67%)": [0.30, 0.55]
-  "A any region (75%)": [0.70, 0.85]
-  "C any region (75%)": [0.85, 0.85]
+flowchart TB
+  subgraph GOOD["About 99% on time (when nothing else is wrong)"]
+    A["Carrier A: all regions"]
+    B["Carrier B: all regions"]
+    Cc["Carrier C: all regions"]
+    E1["Carrier E: Midwest, Northeast, Southeast"]
+    F1["Carrier F: Midwest, West"]
+  end
+  subgraph WEAK["Weak lanes"]
+    D1["Carrier D: Midwest 55%, Southeast 56%"]
+    D2["Carrier D: Northeast 81%, West 80%"]
+    E2["Carrier E: West 55%"]
+    F2["Carrier F (preferred supplier):<br/>Northeast 57%, Southeast 54%"]
+  end
 ```
 
 **What this shows**
-- No carrier is bad everywhere. Each weak carrier is bad in **one or two regions**.
-  - Carrier F is fine to the Midwest (75%) but poor to the Southeast (53%).
-- The fix is simple: **do not send Carrier F to the Southeast; use Carrier A or B there**.
-- Weak lanes are cheaper (about $13.04 vs $15.70 per shipment), which is why the spreadsheet
-  picks them. Saving about $2.66 per shipment costs penalties and redeliveries far larger than
-  that saving.
+- We compared carriers only on deliveries with **none of the other four problems**, so the
+  comparison is fair.
+- Most carrier–region pairs are about 99% on time.
+- **Carrier D is weak in every region:** very weak in the Midwest and Southeast, and still about
+  20 points behind in the Northeast and West.
+- Carrier E is weak only to the West.
+- Carrier F, the "preferred supplier", is weak to the Northeast and Southeast.
+- The fix is simple: send those shipments with a strong carrier in that region.
+  - **This needs no new software.** It is a change to the carrier preference spreadsheet.
+- Switching costs a little more, about **$84K a year** in higher rates on these lanes, because
+  the weak lanes are the cheap ones. That is far less than the penalties and redeliveries they
+  cause.
 
 ## Did we just fit the data? A fair test
 
 ```mermaid
 flowchart LR
-  A["April–June data only<br/>rule: a carrier is 'weak' in a region if it is<br/>more than 10 points below that region's average"] --> B["Picks exactly the same 5 lanes:<br/>D-Midwest, D-Southeast, E-West,<br/>F-Northeast, F-Southeast"]
+  A["April–June data only<br/>rule: a lane is 'weak' if it is 10+ points<br/>below the region's typical carrier<br/>(on deliveries with no other problem)"] --> B["Picks exactly the same 7 lanes"]
   B --> C["Test on July–September<br/>(data the rule never saw)"]
-  C --> D["Weak lanes: 54% on time<br/>Other lanes: 75% on time"]
-  C --> E["Deliveries with none of the 5 problems:<br/>96.3% on time"]
+  C --> D["Weak lanes: 64% on time<br/>Other lanes: 99% on time"]
+  C --> E["Deliveries with none of the<br/>5 problems: 98.9% on time"]
 ```
 
 **What this shows**
-- A fair worry: did we choose the weak carrier lanes by looking at the answers?
-- So we chose them using only the first three months, with a simple rule, and tested them on
-  the last three months.
-- The same five lanes came out.
-- On the months the rule never saw, deliveries with none of the five problems were still 96.3% on
-  time. The causes are stable over time, not a coincidence.
-- The numbers are produced by `holdout_check` in `analysis/root_cause_analysis.py`.
+- A fair worry: did we choose the weak lanes by looking at the answers?
+- So we chose them using only the first three months, with a fixed rule, and tested them on the
+  last three months.
+- The same seven lanes came out, and they stayed weak on the months the rule never saw.
+- The causes are stable over time, not a coincidence.
+- See `holdout_check` in `findings.json`.
 
 ## The same-day cutoff
 
@@ -121,9 +124,7 @@ xychart-beta
 
 **What this shows**
 - Same-day orders that arrive **before 08:00** are on time about 75% of the time.
-- From 08:00 on, they fall off a cliff to about 39%.
-- The reason: the pick list is printed at 08:00, so a same-day order at 08:30 waits for
-  tomorrow's list but is still promised for today.
+- From 08:00 on, they fall to about 39%, because the pick list has already been printed.
 - The fix:
   1. stop promising "same day" after 08:00, or
   2. add a second pick wave (for example at 11:00).
@@ -133,32 +134,55 @@ xychart-beta
 ```mermaid
 flowchart LR
   L["14,019 late deliveries<br/>in 6 months"] --> P["$872,460 SLA penalties<br/>(about $1.74M a year)"]
-  L --> RD["$476,646 redelivery costs<br/>(about $0.95M a year)"]
-  L --> C["34 complaints in 90 days<br/>24 from the 9 at-risk clients"]
-  L --> CS["Customer success team:<br/>64% of their week on complaints<br/>6% keying emails, 25% proactive work"]
+  L --> RD["$476,646 redelivery costs<br/>(about $0.95M a year, to confirm)"]
+  L --> C["34 complaints in 90 days<br/>24 from the 9 at-risk clients<br/>12 say 'nobody told us'"]
+  L --> CS["Customer success team:<br/>64% of their week on complaints"]
   C --> R["9 clients, $14.2M a year,<br/>threatening to leave"]
 ```
 
 **What this shows**
-- **Late deliveries cost about $2.7M a year** in penalties and redeliveries. The routing tool
-  costs $680K.
-- **Customer success is stuck firefighting.** In the study week, 18 people spent 461 of 720
-  hours on complaints.
-- **12 of the 34 complaints say "nobody told us it would be late".** Even when a delay can't be
-  avoided, telling the client early would stop many complaints.
-- The 9 at-risk clients see the same problems as everyone else (71% on time). Three of them
-  (C055, C190, C263) order by email, and **about a quarter of their orders arrive with an
-  incomplete address**.
+- Late deliveries cost about $1.74M a year in penalties.
+- Redeliveries may cost about $0.95M more. We are checking this with the client: every late
+  delivery shows exactly $34, which may be a recording rule.
+- **Why the 9 clients are leaving:** their deliveries are no later than anyone else's (70.7% vs
+  71.1% on time). What sets them apart is **complaints**: 24 of the 34 come from them, and many
+  say "nobody told us it would be late".
+  - Telling clients early (our Delay Alert agent) is the fastest way to keep them, even before
+    on-time delivery improves.
+
+## The business case: what each option buys (per year)
+
+| Option | On-time | Penalties avoided | Redeliveries avoided | Cost per year (estimate) | Net benefit | Net, penalties only (cautious) |
+|---|---|---|---|---|---|---|
+| Routing vendor only (best case) | 80.2% | $520K | $314K | $680K (vendor budget) | $154K | **−$160K** |
+| 3 process fixes (best case) | 86.7% | $993K | $516K | $175K | $1.33M | $818K |
+| **All 5 fixes, realistic** | **90.2%** | **$1.17M** | **$633K** | **$359K** | **$1.44M** | **$806K** |
+| All 5 fixes, ceiling | 99.0% | $1.69M | $920K | $359K | $2.25M | $1.33M |
+
+**What this shows**
+- Even on the cautious view (penalties only, ignoring redelivery costs), the routing vendor
+  **does not pay for itself in year one**.
+- Our realistic plan gives about **$0.8M–$1.4M a year net**, before counting the $14.2M of
+  revenue at risk.
+
+**Our assumptions (please challenge them):**
+
+| Fix | Assumed effectiveness (realistic case) | Assumed cost per year |
+|---|---|---|
+| Order Intake Agent (addresses) | 80% of gaps caught | $60K (build + Bedrock + support) |
+| Same-day: second pick wave or honest promise | 70% | $65K (about 2 extra hours a day at 5 warehouses) |
+| Monthly stock rebalancing | 50% | $50K (extra transfers) |
+| Carrier choice by lane | 90% | $84K (higher rates; calculated from the rate card) |
+| Route discipline / small routing pilot | 50% | $100K |
 
 ## Data quality notes (what we checked, what we assumed)
 
 | What we found | What we did |
 |---|---|
-| 1,339 deliveries have no `actual_route_km` | Treated as "no route deviation". Those deliveries are 75% on time, so it doesn't change the picture |
-| 21 order IDs appear twice, for different clients | Kept them: `delivery_id` is unique. Flagged as a question for the client |
-| Every late delivery has a $34 redelivery cost, and no on-time one does | Looks like a recording rule. Asked the client (question 7) |
-| `email_format_id` is blank for EDI/API | Expected; only email orders have a layout |
-| The 14 email layouts all perform about the same (69–73%) | The layout itself is not the problem; missing address fields are |
+| 1,339 deliveries have no `actual_route_km` | Treated as "no route deviation". Those deliveries are 75% on time |
+| 21 order IDs appear twice, for different clients | Kept them: `delivery_id` is unique. Asked the client |
+| Every late delivery has a $34 redelivery cost, and no on-time one does | Looks like a recording rule. Asked the client; we show "penalties only" figures too |
+| The 14 email layouts all perform about the same (69–73%) | The layout is not the problem; missing address fields are |
 | `days_late` and `on_time` always agree with the dates | No fixes needed |
 
 ## What this means for the advice to leadership
@@ -166,17 +190,19 @@ flowchart LR
 ```mermaid
 flowchart TB
   Q{"Sign the $680K<br/>routing contract now?"} -->|Our advice| A["Not as scoped. Reshape it."]
-  A --> F1["Weeks 1–4: fix the cheap process causes<br/>address check · same-day cutoff rule · stock rebalancing<br/>→ about 87% on time"]
-  A --> F2["Weeks 2–6: change carrier choice by region<br/>(no new software needed)<br/>→ part of the remaining gap"]
-  A --> F3["Then: a smaller routing pilot only on<br/>lanes with high route deviation<br/>→ last ~3 points"]
-  F1 --> G["Target: above 94%"]
+  A --> F1["Weeks 1–4: process fixes<br/>address check · same-day rule · stock rebalancing<br/>→ about 87% (best case)"]
+  A --> F2["Weeks 2–6: carrier choice by lane<br/>(no software; about $84K a year in rates)"]
+  A --> F3["Then: a small routing pilot only on<br/>lanes with high route deviation"]
+  A --> F4["From day 1: proactive delay alerts<br/>for the 9 at-risk clients"]
+  F1 --> G["Realistic: about 90%<br/>94%+ if each fix works about 84% of the time"]
   F2 --> G
   F3 --> G
 ```
 
 **What this shows:** we don't say "never buy routing software". We say:
-1. Fix the cheaper causes first; they are about two-thirds of the problem.
-2. Choose carriers by region.
-3. Then test routing software only where routes are actually the problem.
+1. Fix the cheaper causes first.
+2. Choose carriers by lane.
+3. Tell at-risk clients about delays now.
+4. Only then test routing software, where routes are really the problem.
 
-That protects the $14.2M at risk without spending $680K on the smallest cause.
+Each step is measured, so leadership can see the number move before spending more.

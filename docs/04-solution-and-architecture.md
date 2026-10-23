@@ -14,11 +14,11 @@ Every diagram below is followed by a plain-English explanation.
 ```mermaid
 flowchart LR
   subgraph CAUSE["What goes wrong (from the data)"]
-    C1["Incomplete address<br/>−6.8 pts"]
-    C2["Weak carrier on a lane<br/>−5.7 pts"]
-    C3["Same-day order after 08:00<br/>−5.3 pts"]
-    C4["Stock not at nearest warehouse<br/>−4.8 pts"]
-    C5["Route deviation<br/>−3.0 pts"]
+    C1["Incomplete address<br/>−6.9 pts"]
+    C2["Weak carrier on a lane<br/>(D everywhere, E→West, F→NE/SE)<br/>−7.7 pts"]
+    C3["Same-day order after 08:00<br/>−5.4 pts"]
+    C4["Stock not at nearest warehouse<br/>−4.9 pts"]
+    C5["Route deviation<br/>−3.1 pts"]
     C6["Client not told about delays<br/>12 of 34 complaints"]
   end
   subgraph FIX["What DeliveryLens does"]
@@ -222,7 +222,7 @@ does the reading; simple rules do the checking; a person approves before anythin
 |---|---|---|
 | **Order Intake Agent** | Reads an email order, finds missing address parts, flags same-day-after-08:00 | "Postcode missing. Draft: 'Please confirm the postcode for order ORD-1234.'" |
 | **Delay Alert Agent** | Writes a message to the client before they chase | "Your order D012345 will arrive 1 day late because the nearest warehouse ran out; it ships from W2 today." |
-| **Ask DeliveryLens** | Answers leaders' questions with numbers from our analysis | "Which carrier is worst in the Southeast?" → "Carrier F, 53% on time (A is 75%)." |
+| **Ask DeliveryLens** | Answers leaders' questions with numbers from our analysis | "Which carrier is worst in the Southeast?" → "Carrier F: 54% on time to the Southeast when nothing else is wrong; A, B and C are about 99%." |
 
 **Safety rules for all agents:**
 - AI never calculates the KPIs; the code does.
@@ -236,7 +236,7 @@ does the reading; simple rules do the checking; a person approves before anythin
 flowchart TB
   NAV["Left menu"] --> S1["Overview<br/>71% vs 94%, money at risk"]
   NAV --> S2["Why late<br/>waterfall of the 5 causes,<br/>click → example deliveries"]
-  NAV --> S3["Vendor decision<br/>routing only 78.6% vs<br/>our fixes 96.6%"]
+  NAV --> S3["Vendor decision<br/>routing only 80.2% vs<br/>our plan 90.2% (ceiling 99%)<br/>+ business case"]
   NAV --> S4["What-if simulator<br/>sliders per fix → new on-time %"]
   NAV --> S5["Carriers<br/>carrier × region heatmap,<br/>best carrier per region"]
   NAV --> S6["At-risk clients<br/>the 9 clients, $14.2M"]

@@ -9,20 +9,26 @@
 
 ```mermaid
 xychart-beta
-  title "On-time delivery: today vs after fixes"
-  x-axis ["Today", "Routing vendor only", "Our 3 process fixes", "All 5 fixes", "Benchmark"]
+  title "On-time delivery: today vs each option"
+  x-axis ["Today", "Routing vendor only", "3 process fixes", "All 5 (realistic)", "All 5 (ceiling)", "Benchmark"]
   y-axis "On-time %" 0 --> 100
-  bar [71.0, 78.6, 86.7, 96.6, 94.0]
+  bar [71.0, 80.2, 86.7, 90.2, 99.0, 94.0]
 ```
 
 **What this shows:** Halcyon's leaders were about to spend **$680K on routing software**. The
 data shows routing explains only a small part of the lateness:
 
-| Option | On-time delivery | Reaches the 94% benchmark? |
+| Option | On-time delivery | Net benefit per year |
 |---|---|---|
-| Today | 71% | No |
-| Buy the routing tool alone | about 79% | No |
-| Fix the five causes we found (address capture, the same-day cutoff, stock placement, carrier choice by region, route deviation) | about 97% | Yes, and above it |
+| Today | 71% | – |
+| Buy the routing tool alone (best case) | about 80% | about $0.15M (negative on penalties alone) |
+| Fix the five causes, realistic case | about **90%** | about **$1.4M** |
+| Fix the five causes completely (ceiling) | about 99% | about $2.2M |
+
+The five causes: weak carrier on a lane (Carrier D everywhere, E and F on some lanes), incomplete
+addresses, same-day orders after the 08:00 cutoff, stock not at the nearest warehouse, and route
+deviation. Reaching the 94% benchmark needs each fix to work about 84% of the time. Costs and
+effectiveness are our stated estimates.
 
 Details: [docs/03-what-the-data-says.md](docs/03-what-the-data-says.md).
 
@@ -91,9 +97,9 @@ PostgreSQL, CloudWatch, Amplify, EC2**. See [docs/06-aws-setup-guide.md](docs/06
 
 ## Deliverables checklist (due 29 Oct)
 
-- [x] Discovery questions asked; answers applied ([docs/02](docs/02-the-problem.md))
+- [x] Discovery questions asked (round 2 sent 23 Oct); [ ] answers recorded and applied (due Mon 26 Oct)
 - [x] Agent pipeline across roles ([ai-logs/](ai-logs/INDEX.md))
-- [x] AI inside the product (Order Intake, Delay Alert, Ask DeliveryLens agents)
-- [x] Usable UI and working backend with tests
+- [x] AI inside the product (Order Intake, Delay Alert, Ask DeliveryLens agents), mock mode until Bedrock is connected Monday
+- [x] Usable UI and working backend; tests: backend 48, frontend 12, browser E2E 19 ([evidence/](evidence/README.md))
 - [ ] Deployed on AWS (Monday 26 Oct, once access arrives)
 - [ ] Evidence pack and final AI logs (Wed 28 Oct)

@@ -96,9 +96,11 @@ These are the questions that matter most now that we have the data:
 | 2 | Why do 12% of orders arrive with an incomplete address, and 28% of email orders? Who fixes the address, and when? | This is our biggest cause. If nobody checks addresses before picking, our address-check agent is the fix |
 | 3 | Can same-day orders that arrive after 08:00 still be accepted as same-day? Could there be a second pick wave? | Same-day orders after 08:00 are on time only 39% of the time |
 | 4 | How is stock split between warehouses, and how often is it rebalanced? | 12% of orders ship from a further warehouse because the nearest had no stock |
-| 5 | Why is Carrier F (the preferred supplier) used in the Northeast and Southeast, where it is on time only about 55% of the time? | Carrier choice by region is a quick win |
+| 5 | Carrier D is weak in every region, and Carrier F (the preferred supplier) to the Northeast and Southeast (about 55% on time when nothing else is wrong, vs about 99% for A, B, C). Can carriers be assigned per lane? Does the agreement require volumes? | Carrier choice by lane is worth 7.7 points with no new software |
 | 6 | What exactly will the $680K routing tool change: routes only, or also carrier choice? | It tells us how much of the problem the vendor can fix |
 | 7 | Every late delivery in the data has a $34 redelivery cost. Is that right, or a recording rule? | It affects the cost numbers we show the CFO |
 | 8 | Three carriers have no API (D by portal, E and F by batch file). How quickly do their delivery updates arrive? | 12 of 34 complaints say "nobody told us it would be late" |
 
-The full list we already sent, and the answers, live in `docs/reference/` and `docs/working/`.
+Our round-2 questions are in `docs/working/discovery-question-log-round2-InfinityStacks.xlsx`.
+**Answers are pending** (due Monday 26 Oct). When they arrive we record them in the same file
+and list what each answer changed in our assumptions.

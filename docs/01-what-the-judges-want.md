@@ -89,7 +89,8 @@ flowchart LR
 - **Reframe:** leadership asked for "a routing engine". We say "fix the five causes, starting with
   the three cheap ones".
 - **Build:** DeliveryLens, a working app.
-- **Prove:** on-time delivery goes from 71% toward 96.6% in the data, cause by cause.
+- **Prove:** in the data, on-time delivery goes from 71% to about 90% with realistic fixes (99%
+  ceiling), cause by cause, with a test on months the rules never saw.
 - **Customer story:** "Here is why you were about to spend $680K on the wrong fix."
 
 ## The presentation (30 minutes)

@@ -54,7 +54,7 @@ direction, review every output, and own the decisions. The agents and skills are
 | AI usage log per role | `ai-logs/` (index in `ai-logs/INDEX.md`) | `ai-logs/backend-agent-2026-10-23.md`: what the backend agent built, the skills it used, the test results |
 | AI calls made by the product | `agent_runs` table, the "Agent activity" screen, CloudWatch logs | Every Order Intake Agent call: model, time taken, tokens, guardrail flags |
 | Skills and agents available | `.claude/skills/` (95), `.claude/agents/` (43), catalogue in `tools/fde-toolkit/README.md` | `fde-design`, `c4-architecture`, `test-driven-development` |
-| Reproducible analysis | `analysis/root_cause_analysis.py` → `analysis/output/findings.json` | Re-run it and get exactly the same 71.0% / 96.6% |
+| Reproducible analysis | `analysis/root_cause_analysis.py` → `analysis/output/findings.json` | Re-run it and get exactly the same 71.0% / 90.2% realistic / 99.0% ceiling |
 
 ## Rules we follow when using agents
 
