@@ -10,6 +10,7 @@ const Vendor = lazy(() => import('./pages/Vendor'));
 const Simulator = lazy(() => import('./pages/Simulator'));
 const Carriers = lazy(() => import('./pages/Carriers'));
 const Clients = lazy(() => import('./pages/Clients'));
+const StockRoutes = lazy(() => import('./pages/StockRoutes'));
 const OrderIntake = lazy(() => import('./pages/OrderIntake'));
 const Ask = lazy(() => import('./pages/Ask'));
 const Activity = lazy(() => import('./pages/Activity'));
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/what-if" element={<Simulator />} />
           <Route path="/carriers" element={<Carriers />} />
           <Route path="/clients" element={<Clients />} />
+          <Route path="/stock-routes" element={<StockRoutes />} />
           <Route path="/order-intake" element={<OrderIntake />} />
           <Route path="/ask" element={<Ask />} />
           <Route path="/activity" element={<Activity />} />

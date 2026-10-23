@@ -3,11 +3,12 @@ import { expectLiveData, trackConsoleErrors } from './helpers';
 
 const PAGES: { path: string; heading: RegExp }[] = [
   { path: '/', heading: /On-time delivery is 71%/ },
-  { path: '/why-late', heading: /Five causes explain almost every late delivery/ },
+  { path: '/why-late', heading: /Five causes account for 28 of the 29 points lost/ },
   { path: '/vendor', heading: /The routing vendor fixes the wrong problem/ },
   { path: '/what-if', heading: /What if we fix part of the problem\?/ },
-  { path: '/carriers', heading: /Every carrier is fine somewhere/ },
+  { path: '/carriers', heading: /Carrier D is weak in every region/ },
   { path: '/clients', heading: /./ },
+  { path: '/stock-routes', heading: /Stock-outs and long routes happen everywhere/ },
   { path: '/order-intake', heading: /Check every email order/ },
   { path: '/ask', heading: /Ask DeliveryLens/ },
   { path: '/activity', heading: /Agent activity/ },

@@ -3,6 +3,8 @@ import path from 'node:path';
 import { expect, type Page, type TestInfo } from '@playwright/test';
 
 export const API_URL = process.env.E2E_API_URL || 'http://localhost:8000';
+/** When the API protects /api/agents/* with a demo token, pass the same token to the tests (and build the app with VITE_DEMO_TOKEN). */
+export const DEMO_TOKEN_HEADERS: Record<string, string> = process.env.E2E_DEMO_TOKEN ? { 'X-Demo-Token': process.env.E2E_DEMO_TOKEN } : {};
 export const SCREENSHOT_DIR = path.resolve(__dirname, '..', '..', 'evidence', 'e2e-screenshots');
 
 /** Save a full-page screenshot as evidence and attach it to the test report. */

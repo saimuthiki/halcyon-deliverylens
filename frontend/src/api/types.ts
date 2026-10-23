@@ -57,11 +57,18 @@ export interface CauseRow {
   points_gained_if_fixed_alone: number;
   fair_share_points: number;
   sla_penalties_usd: number;
+  /** Share of the cause we expect the fix to remove in the realistic case (0..1). */
+  realistic_effectiveness?: number;
+  /** Estimated yearly cost of the fix, US dollars. */
+  fix_cost_per_year_usd?: number;
 }
 
 export interface Scenarios {
   today: number;
+  /** Ceiling: every cause fully removed. Not a forecast. */
   all_fixed: number;
+  /** Realistic case: each fix only partly effective (see realistic_effectiveness). */
+  realistic: number;
   routing_only: number;
   process_only: number;
   no_problem_rate: number;
@@ -184,10 +191,83 @@ export interface VendorAssessment {
   today: number;
   routing_only: number;
   process_only: number;
+  /** Ceiling: every cause fully removed. */
   all_fixed: number;
+  /** All five fixes at realistic effectiveness. */
+  realistic: number;
   causes_vendor_addresses: CauseKey[];
   recommendation: string;
   reasons: string[];
+}
+
+/* ---------- /api/roi ---------- */
+export interface RoiScenario {
+  name: string;
+  on_time_rate: number;
+  points_gained: number;
+  sla_penalties_avoided_usd: number; // per year
+  redelivery_avoided_usd: number; // per year
+  late_deliveries_avoided: number; // per year
+  cost_per_year_usd: number; // estimate
+  net_benefit_per_year_usd: number;
+  net_benefit_penalties_only_usd: number;
+}
+
+export interface RoiResponse {
+  assumptions: {
+    effectiveness: Partial<Record<CauseKey, number>>;
+    fix_cost_per_year_usd: Partial<Record<CauseKey, number>>;
+    note: string;
+  };
+  scenarios: RoiScenario[];
+  effectiveness_needed_for_94_benchmark: number;
+}
+
+/* ---------- /api/stock/placement ---------- */
+export interface WarehouseStock {
+  warehouse_id: string;
+  name: string;
+  region: string;
+  deliveries: number;
+  stock_out_rate: number;
+  on_time_when_stocked: number;
+  on_time_when_stock_out: number;
+}
+
+export interface StockClient {
+  client_id: string;
+  client_name: string;
+  deliveries: number;
+  stock_out_rate: number;
+  on_time_rate: number;
+}
+
+export interface StockPlacement {
+  by_warehouse: WarehouseStock[];
+  worst_clients: StockClient[];
+}
+
+/* ---------- /api/routes/deviation ---------- */
+export interface CarrierDeviation {
+  carrier_id: string;
+  deliveries: number;
+  deviation_rate: number;
+  on_time_with_deviation: number;
+  on_time_without_deviation: number;
+  missing_actual_km_rate: number;
+}
+
+export interface RegionDeviation {
+  region: string;
+  deliveries: number;
+  deviation_rate: number;
+  on_time_with_deviation: number;
+  on_time_without_deviation: number;
+}
+
+export interface RouteDeviation {
+  by_carrier: CarrierDeviation[];
+  by_region: RegionDeviation[];
 }
 
 /* ---------- agents ---------- */
@@ -220,6 +300,12 @@ export interface DelayAlertResult {
   delivery_id: string;
   subject: string;
   body: string;
+  /** Forecast delay in days, from the historical delay of deliveries with the same causes. */
+  predicted_delay_days?: number | null;
+  /** Forecast arrival date (YYYY-MM-DD). */
+  predicted_date?: string | null;
+  /** One sentence on how the forecast was made. */
+  basis?: string | null;
   channel?: string;
   run_id?: string;
 }

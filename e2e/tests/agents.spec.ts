@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { API_URL, evidenceShot, expectLiveData } from './helpers';
+import { API_URL, DEMO_TOKEN_HEADERS, evidenceShot, expectLiveData } from './helpers';
 
 test.describe('AI agents (mock provider)', () => {
   test('order intake: incomplete address is flagged and a follow-up is drafted', async ({ page }, testInfo) => {
@@ -12,14 +12,17 @@ test.describe('AI agents (mock provider)', () => {
 
     const result = page.getByRole('region', { name: 'Agent result' });
     await expect(result.getByText('Client 117').first()).toBeVisible();
-    await expect(result.getByText('3 fields missing')).toBeVisible();
-    for (const field of ['Street', 'ZIP code', 'Country']) {
+    // Country is no longer required (defaults to US, recorded as an assumption), so 2 fields are missing.
+    await expect(result.getByText('2 fields missing')).toBeVisible();
+    for (const field of ['Street', 'ZIP code']) {
       const tile = result.locator('dl > div').filter({ has: page.getByText(field, { exact: true }) });
       await expect(tile.getByText('Missing')).toBeVisible();
     }
     await expect(result.getByText('Draft follow-up to the client')).toBeVisible();
     await expect(result.locator('pre')).toContainText('street address');
     await expect(result.getByRole('alert')).toHaveCount(0);
+    // A live agent answer never carries the offline label.
+    await expect(result.getByTestId('sample-response')).toHaveCount(0);
 
     await expectLiveData(page);
     await evidenceShot(page, testInfo, '06-order-intake-incomplete-address');
@@ -61,7 +64,7 @@ test.describe('AI agents (mock provider)', () => {
 
   test('agent activity lists the agent runs', async ({ page, request }, testInfo) => {
     // Own the data: make a run through the API first so this test does not depend on test order.
-    const ask = await request.post(`${API_URL}/api/agents/ask`, { data: { question: 'Which carriers are weak, and where?' } });
+    const ask = await request.post(`${API_URL}/api/agents/ask`, { data: { question: 'Which carriers are weak, and where?' }, headers: DEMO_TOKEN_HEADERS });
     expect(ask.ok()).toBeTruthy();
 
     await page.goto('/activity');

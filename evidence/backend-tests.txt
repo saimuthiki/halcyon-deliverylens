@@ -1,53 +1,54 @@
-# Backend tests: pytest with coverage
-# Command: cd backend && .venv/bin/python -m pytest -v --cov=app --cov-report=term-missing
-# Run: 2026-10-23 11:49 UTC | Python 3.11.17
-
+Backend pytest with coverage, run 2026-10-23T12:26Z (SQLite; the same suite passes on PostgreSQL 16 in CI job backend-postgres)
 ============================= test session starts ==============================
 platform linux -- Python 3.11.17, pytest-9.1.1, pluggy-1.7.0
 rootdir: /home/user/halcyon-deliverylens/backend
 configfile: pytest.ini
 testpaths: tests
 plugins: platformdirs-4.13.5, anyio-4.15.1, cov-7.1.0
-collected 48 items
+collected 106 items
 
-tests/test_analytics.py ...........                                      [ 22%]
-tests/test_api.py ..................                                     [ 60%]
-tests/test_guardrails.py .....                                           [ 70%]
-tests/test_infra_contract.py ..                                          [ 75%]
-tests/test_llm_client.py .....                                           [ 85%]
-tests/test_order_intake.py ....                                          [ 93%]
+tests/test_analytics.py .............                                    [ 12%]
+tests/test_api.py ........................                               [ 34%]
+tests/test_delay_alert.py ............                                   [ 46%]
+tests/test_guardrails.py ................................                [ 76%]
+tests/test_infra_contract.py ..                                          [ 78%]
+tests/test_llm_client.py .....                                           [ 83%]
+tests/test_order_intake.py ..........                                    [ 92%]
+tests/test_security.py .....                                             [ 97%]
 tests/test_storage.py ...                                                [100%]
 
 ================================ tests coverage ================================
 _______________ coverage: platform linux, python 3.11.17-final-0 _______________
 
-Name                         Stmts   Miss  Cover   Missing
-----------------------------------------------------------
+Name                         Stmts   Miss  Cover
+------------------------------------------------
 app/__init__.py                  0      0   100%
 app/agents/__init__.py           0      0   100%
-app/agents/ask.py               79     19    76%   23-33, 37-41, 45-51, 55-62, 124
-app/agents/delay_alert.py       45      9    80%   29, 33, 55-56, 83-85, 89-90
-app/agents/llm_client.py        90      9    90%   50, 89-93, 119-121, 139
-app/agents/order_intake.py     127     17    87%   106-121, 156
+app/agents/ask.py               87     11    87%
+app/agents/delay_alert.py       86     12    86%
+app/agents/llm_client.py        90      9    90%
+app/agents/order_intake.py     151     17    89%
 app/analytics/__init__.py        0      0   100%
-app/analytics/causes.py         20      0   100%
-app/analytics/combos.py         67      0   100%
-app/analytics/findings.py       16      0   100%
-app/analytics/simulator.py      37      1    97%   30
-app/analytics/store.py          58      1    98%   59
-app/analytics/vendor.py         10      0   100%
-app/analytics/views.py          95     11    88%   28, 96, 98, 106-110, 122, 128-130
+app/analytics/causes.py         23      0   100%
+app/analytics/combos.py         72      0   100%
+app/analytics/findings.py       17      0   100%
+app/analytics/roi.py            55      0   100%
+app/analytics/simulator.py      16      0   100%
+app/analytics/store.py          58      1    98%
+app/analytics/vendor.py         14      0   100%
+app/analytics/views.py         121     11    91%
 app/api/__init__.py              0      0   100%
-app/api/errors.py               37      4    89%   32, 46, 50, 55
-app/api/routes.py               79      3    96%   30-31, 97
+app/api/errors.py               38      3    92%
+app/api/routes.py               92      3    97%
 app/api/schemas.py              21      0   100%
-app/config.py                   28      2    93%   18-19
+app/api/security.py             45      3    93%
+app/config.py                   31      2    94%
 app/db.py                       24      0   100%
-app/guardrails.py               27      0   100%
-app/loader.py                   73     18    75%   27, 76-80, 84-94, 98
-app/main.py                     29      5    83%   19-23, 28
+app/guardrails.py               50      0   100%
+app/loader.py                   73     18    75%
+app/main.py                     29      5    83%
 app/models.py                  103      0   100%
 app/storage.py                  17      0   100%
-----------------------------------------------------------
-TOTAL                         1082     99    91%
-============================= 48 passed in 14.30s ==============================
+------------------------------------------------
+TOTAL                         1313     95    93%
+============================= 106 passed in 16.55s =============================

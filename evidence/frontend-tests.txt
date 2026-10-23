@@ -1,28 +1,7 @@
-# Frontend tests: vitest
-# Command: cd frontend && npx vitest run --reporter=verbose
-# Run: 2026-10-23 11:52 UTC | node v22.22.0
-
-
- RUN  v2.1.2 /home/user/halcyon-deliverylens/frontend
-
- ✓ src/__tests__/calc.test.ts > buildWaterfall > starts at today, ends at all-fixed, with one floating bar per cause
- ✓ src/__tests__/calc.test.ts > buildWaterfall > orders causes largest first and stacks each on the running total
- ✓ src/__tests__/calc.test.ts > simulateLocally > returns today when nothing is fixed
- ✓ src/__tests__/calc.test.ts > simulateLocally > reaches 96.6% and clears the benchmark when every cause is fully fixed
- ✓ src/__tests__/calc.test.ts > simulateLocally > scales a cause by its effectiveness and clamps out-of-range input
- ✓ src/__tests__/calc.test.ts > mockOrderIntake > passes a complete next-day order
- ✓ src/__tests__/calc.test.ts > mockOrderIntake > flags the missing street, postcode and country and drafts a follow-up
- ✓ src/__tests__/calc.test.ts > mockOrderIntake > warns about a same-day order after 08:00 but not before
- ✓ src/__tests__/calc.test.ts > mockOrderIntake > reads an address written on one line
- ✓ src/__tests__/components.test.tsx > SimulatorResults > shows the projected rate, points gained and the benchmark gap for process fixes
- ✓ src/__tests__/components.test.tsx > SimulatorResults > says the benchmark is met when every cause is fixed
- ✓ src/__tests__/components.test.tsx > DeliveryTrack > describes every option for screen readers
+Frontend vitest + typecheck, run 2026-10-23T12:25Z
 
  Test Files  2 passed (2)
-      Tests  12 passed (12)
-   Start at  11:52:27
-   Duration  2.03s (transform 563ms, setup 245ms, collect 930ms, tests 187ms, environment 1.13s, prepare 509ms)
+      Tests  15 passed (15)
+   Start at  12:25:45
+   Duration  2.00s (transform 609ms, setup 233ms, collect 942ms, tests 288ms, environment 1.14s, prepare 393ms)
 
-
-# Typecheck (tsc -b --noEmit)
-typecheck: OK, 0 errors

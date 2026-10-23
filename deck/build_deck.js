@@ -31,7 +31,7 @@ function fit(file, x, y, w, h) {
   return { path: file, x, y, w: iw * scale, h: ih * scale };
 }
 const pct = (x) => `${(x * 100).toFixed(1)}%`;
-const usd = (x) => (x >= 1e6 ? `$${(x / 1e6).toFixed(2)}M` : `$${Math.round(x / 1e3)}K`);
+const usd = (x) => (x < 0 ? "−" : "") + (Math.abs(x) >= 1e6 ? `$${(Math.abs(x) / 1e6).toFixed(2)}M` : `$${Math.round(Math.abs(x) / 1e3)}K`);
 
 const pres = new pptxgen();
 pres.layout = "LAYOUT_WIDE"; // 13.33 x 7.5 in
@@ -93,7 +93,11 @@ function bullets(s, items, opts) {
 }
 const chartText = { catAxisLabelFontFace: "+mn-lt", valAxisLabelFontFace: "+mn-lt", dataLabelFontFace: "+mn-lt", titleFontFace: "+mn-lt" };
 const causes = [...F.causes].sort((a, b) => b.fair_share_points - a.fair_share_points);
-const scenarios = [["Today", F.on_time_rate_today], ["Routing vendor only", F.on_time_if_only_routing_fixed], ["Our 3 process fixes", F.on_time_if_only_process_fixed], ["All 5 fixes", F.on_time_if_all_fixed]];
+const scenarios = [["Today", F.on_time_rate_today], ["Routing vendor only", F.on_time_if_only_routing_fixed], ["3 process fixes", F.on_time_if_only_process_fixed], ["All 5, realistic", F.on_time_realistic], ["All 5, ceiling", F.on_time_if_all_fixed]];
+const S = Object.fromEntries(F.scenarios.map((x) => [x.name, x]));
+const realistic = S["All five fixes, realistic"], vendor = S["Routing vendor only (ceiling)"];
+const H = F.holdout_check;
+const pts = Object.fromEntries(F.causes.map((c) => [c.cause, c.fair_share_points.toFixed(1)]));
 
 // ---------- 0. Title ----------
 section = "Opening";
@@ -118,7 +122,7 @@ sectionStart("1 · Discovery insights & the key problem", "What we were told, wh
     "The stakeholder's warning (Swarna): don't assume. Map the whole chain, find where lateness really starts, prove each fix with numbers",
     "Our job as FDEs: establish what is really happening, with evidence, before the contract is signed",
   ], { x: 0.6, y: 3.5, w: 12.1, h: 3.0 });
-  s.addNotes("Discovery: we asked 12 data-driven questions through the L&D log (docs/working). Main reframe: lateness starts before the truck.");
+  s.addNotes("Discovery: we asked 12 data-driven questions through the L&D log (docs/working); answers due Mon 26 Oct. Main reframe: most lateness starts before the truck, and the carrier problem is lane choice, not routing.");
 }
 {
   const s = slide("CONTENT", "Five causes explain the gap, not one");
@@ -128,13 +132,14 @@ sectionStart("1 · Discovery insights & the key problem", "What we were told, wh
     valAxisHidden: true, valGridLine: { style: "none" }, catGridLine: { style: "none" }, showLegend: false,
     showTitle: true, title: "On-time points lost to each cause (fair share)", titleFontSize: 14, titleColor: HEX.dk1, catAxisOrientation: "maxMin", ...chartText,
   });
-  stat(s, 8.4, 1.5, 4.3, pct(F.on_time_rate_with_no_problem), "On-time for deliveries with none of the 5 problems (already above 94%)", C.accent1, "clean");
+  stat(s, 8.4, 1.5, 4.3, pct(F.on_time_rate_with_no_problem), "On-time for deliveries with none of the 5 problems", C.accent1, "clean");
   bullets(s, [
     `${F.deliveries.toLocaleString()} deliveries, Apr–Sep 2026; causes found by tagging every delivery`,
-    "Holds on unseen months: rules picked on Apr–Jun give 96.3% on Jul–Sep",
-    "Biggest single cause: incomplete addresses, 28% of email orders",
+    `Holds on unseen months: rules picked on Apr–Jun give ${pct(H.jul_sep_on_time_with_no_problem)} on Jul–Sep`,
+    `The 5 causes explain ${F.points_explained_by_the_five_causes} of the ${F.points_lost_today} points lost`,
+    "Biggest: weak carrier lanes (Carrier D everywhere); then incomplete addresses (28% of email orders)",
   ], { x: 8.4, y: 3.4, w: 4.3, h: 3.2, fontSize: 15 });
-  s.addNotes("Fair share = Shapley split, so overlapping causes are not double counted. The five sum from 71.0% to 96.6%.");
+  s.addNotes("Fair share = Shapley split, so overlapping causes are not double counted. Weak lanes were picked with a fixed rule on Apr-Jun and confirmed on Jul-Sep.");
 }
 
 // ---------- 2. Solution approach & architecture ----------
@@ -143,11 +148,11 @@ sectionStart("2 · Solution approach & architecture", "One fix per cause, on AWS
   const s = slide("CONTENT", "DeliveryLens: one fix for each cause");
   const rows = [
     ["Cause (points lost)", "Fix in DeliveryLens"],
-    ["Incomplete address (6.8)", "Order Intake Agent reads the order, flags missing fields, drafts a request to the client"],
-    ["Weak carrier on a lane (5.7)", "Carrier Advisor: best carrier per region (e.g. not F to the Southeast)"],
-    ["Same-day after 08:00 (5.3)", "Promise check at intake: next-day or second pick wave"],
-    ["Stock not at nearest warehouse (4.8)", "Stock placement view: regions that run out most"],
-    ["Route deviation (3.0)", "Route deviation watch: the part routing software fixes"],
+    [`Weak carrier on a lane (${pts.weak_carrier_lane})`, "Carrier choice by lane: Carrier D nowhere; E not to the West; F not to the Northeast/Southeast"],
+    [`Incomplete address (${pts.incomplete_address})`, "Order Intake Agent reads the order, flags missing fields, drafts a request to the client"],
+    [`Same-day after 08:00 (${pts.same_day_after_cutoff})`, "Promise check at intake: next-day or second pick wave"],
+    [`Stock not at nearest warehouse (${pts.stock_not_at_nearest})`, "Stock placement view: regions that run out most"],
+    [`Route deviation (${pts.route_deviation})`, "Route deviation watch: the part routing software fixes"],
     ["\"Nobody told us\" (12 of 34 complaints)", "Delay Alert Agent drafts a proactive message, a person approves"],
   ];
   s.addTable(rows.map((r, i) => r.map((t) => ({ text: t, options: { bold: i === 0, color: i === 0 ? HEX.lt1 : HEX.dk1, fill: { color: i === 0 ? HEX.dk2 : i % 2 ? HEX.lt2 : HEX.lt1 } } }))),
@@ -199,12 +204,12 @@ sectionStart("3 · AI agents used", "Inside the product, and across every role t
 sectionStart("4 · Quality, validation & security", "Evidence, not claims");
 {
   const s = slide("CONTENT", "Tested, validated and secured");
-  stat(s, 0.6, 1.5, 2.9, "48", "Backend tests (numbers match the analysis exactly)", C.accent1, "be");
-  stat(s, 3.7, 1.5, 2.9, "12", "Frontend tests + browser E2E on every screen", C.accent1, "fe");
-  stat(s, 6.8, 1.5, 2.9, "96.3%", "Out-of-time check (Jul–Sep)", C.accent1, "hold");
+  stat(s, 0.6, 1.5, 2.9, "106", "Backend tests on SQLite + PostgreSQL (93% coverage)", C.accent1, "be");
+  stat(s, 3.7, 1.5, 2.9, "22", "Browser end-to-end tests on every screen and agent", C.accent1, "fe");
+  stat(s, 6.8, 1.5, 2.9, pct(H.jul_sep_on_time_with_no_problem), "Unseen-months check (Jul–Sep, no problem)", C.accent1, "hold");
   stat(s, 9.9, 1.5, 2.8, "0", "High-severity bandit findings", C.accent1, "sec");
   bullets(s, [
-    "CI on every push: tests, security scan, and a re-run of the analysis that must reproduce 71.0% / 96.6%",
+    "CI on every push: backend, frontend and Postgres tests, security scans, and a re-run of the analysis that must reproduce the headline numbers",
     "AI guardrails: personal data hidden in logs, prompt injection blocked, human approval before any client message",
     "AWS: HTTPS only, database not public, least-privilege IAM, secrets in Secrets Manager, synthetic data only",
   ], { x: 0.6, y: 3.5, w: 12.1, h: 3.0 });
@@ -213,25 +218,25 @@ sectionStart("4 · Quality, validation & security", "Evidence, not claims");
 // ---------- 5. Metrics & business impact ----------
 sectionStart("5 · Metrics & business impact", "What each option buys Halcyon");
 {
-  const s = slide("CONTENT", "Routing alone: 78.6%. Fixing the causes: 96.6%");
+  const s = slide("CONTENT", `Routing alone: ${pct(F.on_time_if_only_routing_fixed)}. Realistic plan: ${pct(F.on_time_realistic)}`);
   s.addChart(pres.charts.BAR, [{ name: "On-time %", labels: scenarios.map((x) => x[0]), values: scenarios.map((x) => +(x[1] * 100).toFixed(1)) }], {
-    x: 0.6, y: 1.4, w: 7.6, h: 5.3, barDir: "col", chartColors: [HEX.accent2, HEX.accent3, HEX.accent5, HEX.accent1], invertedColors: [HEX.accent2],
+    x: 0.6, y: 1.4, w: 7.6, h: 5.3, barDir: "col", chartColors: [HEX.accent2, HEX.accent3, HEX.accent5, HEX.accent1, HEX.dk1], invertedColors: [HEX.accent2],
     showValue: true, dataLabelPosition: "outEnd", dataLabelFormatCode: "0.0", dataLabelColor: HEX.dk1, dataLabelFontSize: 14,
     valAxisMinVal: 50, valAxisMaxVal: 100, valAxisLabelColor: HEX.accent3, catAxisLabelColor: HEX.dk1, catAxisLabelFontSize: 12,
     valGridLine: { color: HEX.lt2, size: 1 }, catGridLine: { style: "none" }, showLegend: false,
     showTitle: true, title: "On-time delivery % (industry benchmark 94%)", titleFontSize: 14, titleColor: HEX.dk1, ...chartText,
   });
-  stat(s, 8.6, 1.5, 4.1, "$2.39M / yr", "Penalties + redelivery avoided if all 5 are fixed", C.accent1, "all");
-  stat(s, 8.6, 3.3, 4.1, "$1.52M / yr", "From the 3 process fixes alone (no new software)", C.accent1, "proc");
-  stat(s, 8.6, 5.1, 4.1, "$0.70M / yr", "From routing-related fixes (vs $680K budget)", C.accent3, "route");
-  s.addNotes("Money = 6 months of penalties and redelivery costs x2, for late deliveries that become on time. Revenue protected (9 clients, $14.2M) comes on top.");
+  stat(s, 8.6, 1.5, 4.1, `${usd(realistic.net_benefit_per_year_usd)} / yr`, `Net benefit, realistic plan (cost ${usd(realistic.cost_per_year_usd)}/yr est.)`, C.accent1, "all");
+  stat(s, 8.6, 3.3, 4.1, `${usd(realistic.net_benefit_penalties_only_usd)} / yr`, "Same plan, counting penalties only (cautious)", C.accent1, "proc");
+  stat(s, 8.6, 5.1, 4.1, `${usd(vendor.net_benefit_penalties_only_usd)} / yr`, "Routing vendor, penalties only, after the $680K", C.accent2, "route");
+  s.addNotes(`Ceiling ${pct(F.on_time_if_all_fixed)} if every cause is fully removed. Each fix must work about ${Math.round(F.effectiveness_needed_for_94_benchmark * 100)}% of the time to reach 94%. Money = 6 months x2; costs are our estimates. Revenue at risk ($14.2M) comes on top.`);
 }
 {
   const s = slide("CONTENT", "Our recommendation: don't sign as scoped, reshape it");
   const steps = [
-    ["Weeks 1–4", "Fix the process causes", "Address check at intake, same-day promise rule or second pick wave, monthly stock rebalancing → about 87%"],
-    ["Weeks 2–6", "Choose carriers by region", "Stop the 5 weak carrier–region pairs; no new software → most of the remaining gap"],
-    ["Then", "Small routing pilot", "Only on lanes with high route deviation; measure before scaling → last ~3 points"],
+    ["Weeks 1–4", "Fix the process causes", "Address check at intake, same-day promise rule or second pick wave, monthly stock rebalancing"],
+    ["Weeks 2–6", "Choose carriers by lane", "Stop Carrier D and the weak E/F lanes; no new software, ~$84K/yr higher rates"],
+    ["Then", "Small routing pilot", "Only on lanes with high route deviation; measure before scaling (~3 points at stake)"],
   ];
   steps.forEach(([when, head, body], i) => {
     const x = 0.6 + i * 4.1;
@@ -243,8 +248,8 @@ sectionStart("5 · Metrics & business impact", "What each option buys Halcyon");
   });
   s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.6, y: 4.8, w: 12.1, h: 1.6, fill: { color: HEX.lt2 }, line: { color: HEX.lt2 }, rectRadius: 0.08, objectName: "target" });
   s.addText([
-    { text: "Target: above 94% on time. ", options: { bold: true, color: HEX.dk2 } },
-    { text: "Protects the $14.2M at risk and avoids ~$2.4M a year in penalties and redeliveries, while spending less than the $680K routing contract on the smallest cause." },
+    { text: `Realistic: ${pct(F.on_time_realistic)} on time, ${usd(realistic.net_benefit_per_year_usd)} a year net. `, options: { bold: true, color: HEX.dk2 } },
+    { text: `94%+ if each fix works about ${Math.round(F.effectiveness_needed_for_94_benchmark * 100)}% of the time. Start proactive delay alerts for the 9 at-risk clients ($14.2M) on day 1.` },
   ], { x: 0.85, y: 4.95, w: 11.6, h: 1.3, fontSize: 17, color: C.text1, valign: "middle", isTextBox: true });
 }
 
@@ -267,9 +272,9 @@ sectionStart("7 · Live demo", "Running on AWS with Claude on Bedrock");
 {
   const s = slide("CONTENT", "Demo path (6 minutes)");
   bullets(s, [
-    "Overview: 71% today vs 96.6% possible",
+    "Overview: 71% today, 90% realistic, 99% ceiling",
     "Why late: waterfall → click a cause → open a delivery → Draft delay alert (AI)",
-    "Vendor decision: routing only 78.6%",
+    "Vendor decision: routing only 80.2%, plus the business case",
     "Order intake: paste an email with a missing postcode → flagged + follow-up drafted (AI)",
     "What-if: switch on the 3 process fixes → about 87%",
     "Ask DeliveryLens: \"Which carrier is worst in the Southeast?\"",
@@ -278,7 +283,7 @@ sectionStart("7 · Live demo", "Running on AWS with Claude on Bedrock");
 }
 {
   const s = slide("TITLE_DARK", "Fix the five causes, not just the routes");
-  s.addText(`71% → 96.6% on time · $2.4M a year in penalties and redeliveries avoided · $14.2M of revenue protected`, { placeholder: "body" });
+  s.addText(`71% → ${pct(F.on_time_realistic)} on time (realistic) · ${usd(realistic.net_benefit_per_year_usd)} a year net · $14.2M of revenue protected`, { placeholder: "body" });
 }
 
 pres.writeFile({ fileName: OUT }).then(async () => {

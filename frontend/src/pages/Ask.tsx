@@ -3,10 +3,11 @@ import { Send } from 'lucide-react';
 import { api } from '../api/client';
 import type { DataSource } from '../api/types';
 import PageHeader from '../components/PageHeader';
-import { SourceTag } from '../components/States';
+import { SampleResponseNotice } from '../components/States';
 
 const SUGGESTIONS = [
   'Should we sign the $680K routing vendor?',
+  'What is the business case for the fixes?',
   'What is the biggest cause of late deliveries?',
   'Which carriers are weak, and where?',
   'How much have late deliveries cost us in penalties?',
@@ -43,7 +44,7 @@ export default function Ask() {
     } catch (err) {
       setMessages((m) => [
         ...m,
-        { role: 'assistant', text: `The question could not be answered: ${err instanceof Error ? err.message : String(err)}. Try again or rephrase it.`, error: true },
+        { role: 'assistant', text: `The question could not be answered. ${err instanceof Error ? err.message : String(err)}`, error: true },
       ]);
     } finally {
       setBusy(false);
@@ -82,11 +83,7 @@ export default function Ask() {
                   >
                     <span className="sr-only">{m.role === 'user' ? 'You asked: ' : 'DeliveryLens: '}</span>
                     <p className="whitespace-pre-wrap">{m.text}</p>
-                    {m.source === 'sample' && (
-                      <div className="mt-2">
-                        <SourceTag source="sample" />
-                      </div>
-                    )}
+                    <SampleResponseNotice source={m.source ?? null} className="mt-2" />
                   </div>
                 </li>
               ))}

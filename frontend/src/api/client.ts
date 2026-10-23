@@ -25,11 +25,17 @@ import type {
   Health,
   Kpis,
   OrderIntakeResult,
+  RoiResponse,
+  RoiScenario,
+  RouteDeviation,
   SimulateResponse,
+  StockPlacement,
   VendorAssessment,
 } from './types';
 
 export const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
+/** Optional shared demo token; sent as X-Demo-Token on agent calls when set at build time. */
+const DEMO_TOKEN = (import.meta.env.VITE_DEMO_TOKEN || '').trim();
 const TIMEOUT_MS = 8000;
 const AGENT_TIMEOUT_MS = 60000;
 
@@ -93,7 +99,7 @@ async function http<T>(path: string, init: RequestInit = {}, timeoutMs = TIMEOUT
       } catch {
         /* body was not JSON */
       }
-      throw new ApiError(detail || `Request failed (${res.status})`, res.status);
+      throw new ApiError(friendlyMessage(res.status, detail), res.status);
     }
     return (await res.json()) as T;
   } finally {
@@ -101,13 +107,25 @@ async function http<T>(path: string, init: RequestInit = {}, timeoutMs = TIMEOUT
   }
 }
 
-/** Falls back to sample data only when the API is unreachable or the endpoint does not exist yet. */
-function shouldFallback(err: unknown): boolean {
-  if (err instanceof ApiError) return err.status === 404 || err.status >= 500;
+/** Plain-language messages for the errors a person can do something about. */
+export function friendlyMessage(status: number, detail: string): string {
+  if (status === 401 || status === 403)
+    return 'The agents need a valid demo access token. Ask the DeliveryLens team for the token, or set VITE_DEMO_TOKEN when building the app.';
+  if (status === 429) return 'Too many agent requests in a short time. Wait a minute, then try again.';
+  return detail || `Request failed (${status})`;
+}
+
+/**
+ * Analytics pages fall back to sample data when the API is unreachable or an endpoint does not exist yet.
+ * Agent calls fall back only when the API cannot be reached at all: a server error from a live agent is
+ * shown as an error, never replaced by a rule-based stand-in.
+ */
+function shouldFallback(err: unknown, kind: 'analytics' | 'agent'): boolean {
+  if (err instanceof ApiError) return kind === 'analytics' && (err.status === 404 || err.status >= 500);
   return true; // network error, CORS, abort/timeout
 }
 
-async function withFallback<T>(call: () => Promise<T>, fallback: () => T): Promise<Result<T>> {
+async function withFallback<T>(call: () => Promise<T>, fallback: () => T, kind: 'analytics' | 'agent' = 'analytics'): Promise<Result<T>> {
   if (status === 'unknown') await probeApi();
   if (status === 'offline' && Date.now() - offlineSince < OFFLINE_RETRY_MS) {
     return { data: fallback(), source: 'sample' };
@@ -117,7 +135,7 @@ async function withFallback<T>(call: () => Promise<T>, fallback: () => T): Promi
     setStatus('live');
     return { data, source: 'live' };
   } catch (err) {
-    if (!shouldFallback(err)) throw err;
+    if (!shouldFallback(err, kind)) throw err;
     if (!(err instanceof ApiError)) setStatus('offline');
     return { data: fallback(), source: 'sample' };
   }
@@ -195,6 +213,8 @@ export function normaliseCauses(raw: unknown): CausesResponse {
       points_gained_if_fixed_alone: numOr(first(o, 'points_gained_if_fixed_alone', 'points_if_fixed_alone'), 0),
       fair_share_points: numOr(o.fair_share_points, 0),
       sla_penalties_usd: numOr(o.sla_penalties_usd, 0),
+      realistic_effectiveness: typeof o.realistic_effectiveness === 'number' ? o.realistic_effectiveness : undefined,
+      fix_cost_per_year_usd: typeof o.fix_cost_per_year_usd === 'number' ? o.fix_cost_per_year_usd : undefined,
     };
   });
   const s = obj(r.scenarios);
@@ -203,7 +223,8 @@ export function normaliseCauses(raw: unknown): CausesResponse {
     causes: rows,
     scenarios: {
       today: numOr(first(s, 'today', 'on_time_rate_today'), m.today),
-      all_fixed: numOr(first(s, 'all_fixed', 'on_time_if_all_fixed'), m.all_fixed),
+      all_fixed: numOr(first(s, 'all_fixed', 'ceiling', 'on_time_if_all_fixed'), m.all_fixed),
+      realistic: numOr(first(s, 'realistic', 'on_time_realistic'), m.realistic),
       routing_only: numOr(first(s, 'routing_only', 'routing_only_ceiling', 'on_time_if_only_routing_fixed'), m.routing_only),
       process_only: numOr(first(s, 'process_only', 'on_time_if_only_process_fixed'), m.process_only),
       no_problem_rate: numOr(first(s, 'no_problem_rate', 'on_time_rate_with_no_problem'), m.no_problem_rate),
@@ -352,7 +373,8 @@ export function normaliseVendor(raw: unknown): VendorAssessment {
     today: numOr(r.today, m.today),
     routing_only: numOr(first(r, 'routing_only', 'routing_only_ceiling'), m.routing_only),
     process_only: numOr(r.process_only, m.process_only),
-    all_fixed: numOr(r.all_fixed, m.all_fixed),
+    all_fixed: numOr(first(r, 'all_fixed', 'ceiling'), m.all_fixed),
+    realistic: numOr(first(r, 'realistic', 'on_time_realistic'), m.realistic),
     causes_vendor_addresses: vendorCauses.length ? vendorCauses : m.causes_vendor_addresses,
     recommendation: strOr(r.recommendation, m.recommendation),
     reasons: reasons.length ? reasons : m.reasons,
@@ -394,10 +416,14 @@ export function normaliseOrderIntake(raw: unknown): OrderIntakeResult {
 
 export function normaliseDelayAlert(raw: unknown, deliveryId: string): DelayAlertResult {
   const r = obj(raw);
+  const days = first(r, 'predicted_delay_days');
   return {
     delivery_id: strOr(r.delivery_id, deliveryId),
     subject: strOr(r.subject, `Update on delivery ${deliveryId}`),
     body: strOr(first(r, 'body', 'message'), ''),
+    predicted_delay_days: typeof days === 'number' ? days : null,
+    predicted_date: typeof r.predicted_date === 'string' ? r.predicted_date : null,
+    basis: typeof r.basis === 'string' ? r.basis : null,
     channel: (r.channel as string) ?? undefined,
     run_id: r.agent_run_id != null ? String(r.agent_run_id) : undefined,
   };
@@ -436,9 +462,93 @@ export function normaliseRuns(raw: unknown): AgentRun[] {
   });
 }
 
+export function normaliseRoi(raw: unknown): RoiResponse {
+  const r = obj(raw);
+  const m = mock.mockRoi;
+  const a = obj(r.assumptions);
+  const scenarios: RoiScenario[] = list(r.scenarios).map((x) => {
+    const o = obj(x);
+    const penalties = numOr(o.sla_penalties_avoided_usd, 0);
+    const redelivery = numOr(o.redelivery_avoided_usd, 0);
+    const cost = numOr(o.cost_per_year_usd, 0);
+    return {
+      name: strOr(o.name, ''),
+      on_time_rate: numOr(o.on_time_rate, 0),
+      points_gained: numOr(o.points_gained, 0),
+      sla_penalties_avoided_usd: penalties,
+      redelivery_avoided_usd: redelivery,
+      late_deliveries_avoided: numOr(o.late_deliveries_avoided, 0),
+      cost_per_year_usd: cost,
+      net_benefit_per_year_usd: numOr(o.net_benefit_per_year_usd, penalties + redelivery - cost),
+      net_benefit_penalties_only_usd: numOr(o.net_benefit_penalties_only_usd, penalties - cost),
+    };
+  });
+  return {
+    assumptions: {
+      effectiveness: Object.keys(obj(a.effectiveness)).length ? (obj(a.effectiveness) as RoiResponse['assumptions']['effectiveness']) : m.assumptions.effectiveness,
+      fix_cost_per_year_usd: Object.keys(obj(a.fix_cost_per_year_usd)).length
+        ? (obj(a.fix_cost_per_year_usd) as RoiResponse['assumptions']['fix_cost_per_year_usd'])
+        : m.assumptions.fix_cost_per_year_usd,
+      note: strOr(a.note, m.assumptions.note),
+    },
+    scenarios: scenarios.length ? scenarios : m.scenarios,
+    effectiveness_needed_for_94_benchmark: numOr(r.effectiveness_needed_for_94_benchmark, m.effectiveness_needed_for_94_benchmark),
+  };
+}
+
+export function normaliseStock(raw: unknown): StockPlacement {
+  const r = obj(raw);
+  return {
+    by_warehouse: list(r.by_warehouse).map((x) => {
+      const o = obj(x);
+      return {
+        warehouse_id: strOr(o.warehouse_id, ''),
+        name: strOr(first(o, 'name', 'warehouse_name'), strOr(o.warehouse_id, '')),
+        region: strOr(o.region, ''),
+        deliveries: numOr(o.deliveries, 0),
+        stock_out_rate: numOr(o.stock_out_rate, 0),
+        on_time_when_stocked: numOr(o.on_time_when_stocked, Number.NaN),
+        on_time_when_stock_out: numOr(o.on_time_when_stock_out, Number.NaN),
+      };
+    }),
+    worst_clients: list(r.worst_clients).map((x) => {
+      const o = obj(x);
+      return {
+        client_id: strOr(o.client_id, ''),
+        client_name: strOr(o.client_name, strOr(o.client_id, '')),
+        deliveries: numOr(o.deliveries, 0),
+        stock_out_rate: numOr(o.stock_out_rate, 0),
+        on_time_rate: numOr(o.on_time_rate, Number.NaN),
+      };
+    }),
+  };
+}
+
+export function normaliseRoutes(raw: unknown): RouteDeviation {
+  const r = obj(raw);
+  const row = (o: Loose) => ({
+    deliveries: numOr(o.deliveries, 0),
+    deviation_rate: numOr(o.deviation_rate, 0),
+    on_time_with_deviation: numOr(o.on_time_with_deviation, Number.NaN),
+    on_time_without_deviation: numOr(o.on_time_without_deviation, Number.NaN),
+  });
+  return {
+    by_carrier: list(r.by_carrier).map((x) => {
+      const o = obj(x);
+      return { carrier_id: strOr(o.carrier_id, ''), ...row(o), missing_actual_km_rate: numOr(o.missing_actual_km_rate, Number.NaN) };
+    }),
+    by_region: list(r.by_region).map((x) => {
+      const o = obj(x);
+      return { region: strOr(o.region, ''), ...row(o) };
+    }),
+  };
+}
+
 /* ---------- endpoints ---------- */
 
 const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
+/** POST to an agent, with the demo token when one is configured. */
+const agentPost = (body: unknown): RequestInit => ({ ...post(body), ...(DEMO_TOKEN ? { headers: { 'X-Demo-Token': DEMO_TOKEN } } : {}) });
 
 export const api = {
   health: () => http<Health>('/health', {}, 3000),
@@ -472,20 +582,28 @@ export const api = {
 
   vendor: () => withFallback(async () => normaliseVendor(await http<unknown>('/vendor-assessment')), () => mock.mockVendor),
 
+  roi: () => withFallback(async () => normaliseRoi(await http<unknown>('/roi')), () => mock.mockRoi),
+
+  stockPlacement: () => withFallback(async () => normaliseStock(await http<unknown>('/stock/placement')), () => mock.mockStock),
+
+  routeDeviation: () => withFallback(async () => normaliseRoutes(await http<unknown>('/routes/deviation')), () => mock.mockRoutes),
+
   orderIntake: (email_text: string) =>
     withFallback(
-      async () => normaliseOrderIntake(await http<unknown>('/agents/order-intake', post({ email_text }), AGENT_TIMEOUT_MS)),
+      async () => normaliseOrderIntake(await http<unknown>('/agents/order-intake', agentPost({ email_text }), AGENT_TIMEOUT_MS)),
       () => mock.mockOrderIntake(email_text),
+      'agent',
     ),
 
   delayAlert: (delivery_id: string) =>
     withFallback(
-      async () => normaliseDelayAlert(await http<unknown>('/agents/delay-alert', post({ delivery_id }), AGENT_TIMEOUT_MS), delivery_id),
+      async () => normaliseDelayAlert(await http<unknown>('/agents/delay-alert', agentPost({ delivery_id }), AGENT_TIMEOUT_MS), delivery_id),
       () => mock.mockDelayAlert(delivery_id),
+      'agent',
     ),
 
   ask: (question: string) =>
-    withFallback(async () => normaliseAsk(await http<unknown>('/agents/ask', post({ question }), AGENT_TIMEOUT_MS)), () => mock.mockAsk(question)),
+    withFallback(async () => normaliseAsk(await http<unknown>('/agents/ask', agentPost({ question }), AGENT_TIMEOUT_MS)), () => mock.mockAsk(question), 'agent'),
 
   runs: () => withFallback(async () => normaliseRuns(await http<unknown>('/agents/runs')), () => mock.mockRuns),
 };

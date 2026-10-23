@@ -7,11 +7,11 @@ holds the full, unedited output of the command, so anyone can check it.
 
 | What was tested | How | Result | Proof |
 |---|---|---|---|
-| Backend: analytics, simulator, API, AI agents, guardrails, storage | 48 automatic tests (pytest), with code coverage | **48 of 48 pass. 91% of backend code is run by the tests** | [backend-tests.txt](backend-tests.txt) |
+| Backend: analytics, simulator, API, AI agents, guardrails, storage | 106 automatic tests (pytest), with code coverage, on SQLite and PostgreSQL 16 | **106 of 106 pass. 93% of backend code is run by the tests** | [backend-tests.txt](backend-tests.txt) |
 | The numbers match the original analysis | One of the backend tests compares every figure with `analysis/output/findings.json` | Pass: exact match | [backend-tests.txt](backend-tests.txt) |
-| Frontend: waterfall maths, simulator maths, order-intake parser, components | 12 automatic tests (vitest) and a strict TypeScript check | **12 of 12 pass. 0 type errors** | [frontend-tests.txt](frontend-tests.txt) |
-| The whole app in a real browser (end to end) | 19 Playwright tests drive Chromium against the production build and the live API. They click through the same steps a user would | **19 of 19 pass** | [e2e-results.txt](e2e-results.txt) |
-| The browser tests are reliable, not lucky | Every browser test was run 10 times in a row (190 runs) | **190 of 190 pass, 0 flaky** | [e2e-results.txt](e2e-results.txt) |
+| Frontend: waterfall maths, simulator maths, order-intake parser, components | 15 automatic tests (vitest) and a strict TypeScript check | **15 of 15 pass. 0 type errors** | [frontend-tests.txt](frontend-tests.txt) |
+| The whole app in a real browser (end to end) | 22 Playwright tests drive Chromium against the production build and the live API. They click through the same steps a user would, including the business case and the Stock & routes page | **22 of 22 pass** (re-run after the round-2 fixes) | [e2e-results.txt](e2e-results.txt) |
+| The browser tests are reliable, not lucky | Every browser test was run 10 times in a row (190 runs, round 1 suite) | **190 of 190 pass, 0 flaky** | [e2e-results.txt](e2e-results.txt) |
 | Screens behave as described | One screenshot per main browser test | 10 screenshots | [e2e-screenshots/](e2e-screenshots/) |
 | AI agent quality | The order-intake agent read the 5 sample emails. Its answers were compared with what a person expects, plus one prompt-injection email | **36 of 36 checks match. The injection email is blocked** | [ai-agent-eval.md](ai-agent-eval.md) |
 | Security of our Python code | bandit (static code scan) | **0 issues** | [security-scan.txt](security-scan.txt) |

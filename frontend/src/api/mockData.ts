@@ -3,7 +3,19 @@
  * Numbers come from analysis/output/findings.json (see mockSnapshot.ts).
  * Agent responses here are rule-based stand-ins, clearly labelled as sample data in the UI.
  */
-import { AT_RISK_CLIENTS, FINDINGS, MONTHLY, SAMPLE_DELIVERIES, SCORECARD } from './mockSnapshot';
+import {
+  AT_RISK_CLIENTS,
+  CAUSE_DELAY_DAYS,
+  COMBO_CAUSES,
+  COMBOS,
+  FINDINGS,
+  MONTHLY,
+  ROI,
+  ROUTE_DEVIATION,
+  SAMPLE_DELIVERIES,
+  SCORECARD,
+  STOCK_PLACEMENT,
+} from './mockSnapshot';
 import type {
   AgentRun,
   AskResult,
@@ -15,13 +27,16 @@ import type {
   FixLevels,
   Kpis,
   OrderIntakeResult,
+  RoiResponse,
+  RouteDeviation,
   SimulateResponse,
+  StockPlacement,
   TimelineEvent,
   VendorAssessment,
 } from './types';
 import { BENCHMARK, CAUSE_META, causeShort } from '../lib/causes';
-import { simulateLocally } from '../lib/calc';
-import { usd } from '../lib/format';
+import { simulateExact, type ComboModel } from '../lib/calc';
+import { pct, usd } from '../lib/format';
 
 const F = FINDINGS;
 
@@ -44,6 +59,7 @@ export const mockCauses: CausesResponse = {
   scenarios: {
     today: F.on_time_rate_today,
     all_fixed: F.on_time_if_all_fixed,
+    realistic: F.on_time_realistic,
     routing_only: F.on_time_if_only_routing_fixed,
     process_only: F.on_time_if_only_process_fixed,
     no_problem_rate: F.on_time_rate_with_no_problem,
@@ -94,7 +110,9 @@ export function buildTimeline(d: DeliverySummary): TimelineEvent[] {
       detail: far
         ? `Nearest warehouse ${d.nearest_warehouse_id} had no stock; ${d.distance_miles ?? '?'} miles to ${d.destination_region}.`
         : has('weak_carrier_lane')
-          ? `Carrier ${d.carrier_id} is one of the weakest carriers into ${d.destination_region}.`
+          ? d.carrier_id === 'D'
+            ? `Carrier D is weak in every region, including ${d.destination_region}.`
+            : `Carrier ${d.carrier_id} is one of the weakest carriers into ${d.destination_region}.`
           : `${d.distance_miles ?? '?'} miles to ${d.destination_region}.`,
       status: far || has('weak_carrier_lane') ? 'problem' : 'ok',
     });
@@ -129,7 +147,9 @@ export function explain(d: DeliverySummary): string {
       case 'stock_not_at_nearest':
         return `the nearest warehouse (${d.nearest_warehouse_id}) had no stock, so it shipped from ${d.fulfilment_warehouse_id}`;
       case 'weak_carrier_lane':
-        return `Carrier ${d.carrier_id} is weak into the ${d.destination_region}`;
+        return d.carrier_id === 'D'
+          ? `Carrier D was used, and Carrier D is weak in every region`
+          : `Carrier ${d.carrier_id} is weak into the ${d.destination_region}`;
       case 'route_deviation':
         return 'the driver went more than 20% beyond the planned route';
       default:
@@ -149,14 +169,20 @@ export function mockDelivery(id: string): DeliveryDetail | null {
 export const mockScorecard = SCORECARD;
 export const mockAtRisk = AT_RISK_CLIENTS;
 
+export const comboModel: ComboModel = {
+  causes: COMBO_CAUSES,
+  combos: COMBOS,
+  atRiskToday: F.money.at_risk_on_time_rate,
+};
+
 export function mockSimulate(fixes: FixLevels): SimulateResponse {
-  return simulateLocally(fixes, {
-    todayRate: F.on_time_rate_today,
-    deliveries: F.deliveries,
-    penaltiesUsd: F.money.sla_penalties_6_months_usd,
-    causes: mockCauses.causes,
-  });
+  return simulateExact(fixes, comboModel);
 }
+
+/** Effectiveness per cause in the realistic case (from findings.json). */
+export const REALISTIC_FIXES: FixLevels = Object.fromEntries(F.causes.map((c) => [c.cause, c.realistic_effectiveness])) as FixLevels;
+
+const points = (k: CauseKey) => F.causes.find((c) => c.cause === k)?.fair_share_points ?? 0;
 
 export const mockVendor: VendorAssessment = {
   vendor_cost_usd: F.money.routing_vendor_budget_usd,
@@ -166,16 +192,21 @@ export const mockVendor: VendorAssessment = {
   routing_only: F.on_time_if_only_routing_fixed,
   process_only: F.on_time_if_only_process_fixed,
   all_fixed: F.on_time_if_all_fixed,
+  realistic: F.on_time_realistic,
   causes_vendor_addresses: ['weak_carrier_lane', 'route_deviation'],
   recommendation:
-    'Hold the $680K routing contract. Fix order intake, the 08:00 cutoff and stock placement first, and reassign weak carrier lanes using data we already have.',
+    'Do not sign as scoped. Fix order intake, the 08:00 cutoff and stock placement, move volume off the 7 weak carrier lanes, and pilot route alerts on high-deviation lanes before committing $680K.',
   reasons: [
-    'Routing software only reaches the two routing causes. On its own it lifts on-time delivery to 78.6%, well short of the 94% benchmark.',
-    'Three of the five causes start before a truck leaves the warehouse: incomplete addresses, same-day orders after 08:00 and stock in the wrong warehouse.',
-    'Fixing those process causes alone reaches 86.7%. Adding carrier reassignment and route alerts reaches 96.6%.',
-    '$14.2M of annual revenue from 9 clients is at risk; their on-time rate is 70.7%.',
+    `Even if it worked perfectly, routing software reaches only the two routing causes and lifts on-time delivery to ${pct(F.on_time_if_only_routing_fixed)}, well short of the 94% benchmark.`,
+    `Of those two, only route deviation (${points('route_deviation').toFixed(1)} points) needs software. Moving volume off weak carrier lanes (${points('weak_carrier_lane').toFixed(1)} points) is a carrier-allocation rule.`,
+    `The three process fixes alone reach ${pct(F.on_time_if_only_process_fixed)}. All five at realistic effectiveness reach ${pct(F.on_time_realistic)}; ${pct(F.on_time_if_all_fixed)} is the ceiling if every cause were fully removed.`,
+    `To reach 94%, each fix must work about ${Math.round(F.effectiveness_needed_for_94_benchmark * 100)}% of the time. $14.2M of annual revenue from 9 clients is at risk.`,
   ],
 };
+
+export const mockRoi: RoiResponse = ROI;
+export const mockStock: StockPlacement = STOCK_PLACEMENT;
+export const mockRoutes: RouteDeviation = ROUTE_DEVIATION;
 
 /* ---------------- agents (rule-based stand-ins) ---------------- */
 
@@ -288,53 +319,92 @@ Halcyon Logistics Customer Success`
   };
 }
 
+function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return date;
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export function mockDelayAlert(deliveryId: string): DelayAlertResult {
   const d = findSample(deliveryId);
-  const reason = d ? explain(d).split('. ')[0].replace(/^This delivery arrived/, 'your delivery is expected to arrive') : '';
+  if (!d || d.causes.length === 0) {
+    return {
+      delivery_id: deliveryId,
+      channel: 'email',
+      subject: `Update on delivery ${deliveryId}`,
+      body: `Hello,\n\nDelivery ${deliveryId} may arrive later than promised. We will send a confirmed date as soon as we have it.\n\nHalcyon Customer Success`,
+      predicted_delay_days: null,
+      predicted_date: null,
+      basis: 'No known cause on this delivery, so no forecast was made.',
+    };
+  }
+  const worst = [...d.causes].sort((a, b) => (CAUSE_DELAY_DAYS[b] ?? 0) - (CAUSE_DELAY_DAYS[a] ?? 0))[0];
+  const days = Math.max(1, Math.round(CAUSE_DELAY_DAYS[worst] ?? 1));
+  const date = addDays(d.promised_date, days);
+  const reason = explain(d).split('. ')[0].replace(/^This delivery arrived \d+ days? late because /, '');
   return {
     delivery_id: deliveryId,
     channel: 'email',
-    subject: `Update on delivery ${deliveryId}`,
+    subject: `Your delivery ${deliveryId} may arrive after ${dateWords(d.promised_date)}`,
     body: `Hello,
 
-We want to let you know before you have to ask: ${reason || `delivery ${deliveryId} is running late`}.
+We want to let you know before you have to ask: delivery ${deliveryId}, promised for ${dateWords(d.promised_date)}, is at risk of arriving late because ${reason}.
 
-We have already taken action and will confirm the new delivery time today. If the timing does not work for you, reply to this email and we will arrange an alternative.
+Our current estimate is ${dateWords(date)}, about ${days} day${days === 1 ? '' : 's'} later than promised. If that date does not work for you, reply to this email and we will look at the options with you.
 
 Halcyon Customer Success`,
+    predicted_delay_days: days,
+    predicted_date: date,
+    basis: `Late deliveries with "${causeShort(worst).toLowerCase()}" arrived a median of ${days} day${days === 1 ? '' : 's'} late in the last 6 months.`,
   };
+}
+
+function dateWords(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  return Number.isNaN(d.getTime()) ? date : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
 }
 
 const ANSWERS: { match: RegExp; answer: string }[] = [
   {
+    match: /payback|roi|business case|net benefit|cost of the fix/i,
+    answer:
+      'All five fixes at realistic effectiveness reach 90.2% on time, avoid about $1.17M of SLA penalties and $633K of redelivery cost a year, and cost about $359K a year (our estimate). Net benefit is about $1.44M a year, or $806K counting penalties only. The routing vendor alone nets $154K, and loses $160K a year counting penalties only.',
+  },
+  {
     match: /vendor|routing|680/i,
     answer:
-      'The $680K routing vendor only addresses two of the five causes (weak carrier lanes and route deviation). On its own it takes on-time delivery from 71% to 78.6%. Fixing the three process causes reaches 86.7%, and fixing all five reaches 96.6%, above the 94% benchmark.',
+      'The $680K routing vendor only reaches two of the five causes. Even working perfectly it takes on-time delivery from 71.0% to 80.2%. Of those two causes, only route deviation (3.1 points) needs software; moving volume off weak carrier lanes (7.7 points) is a carrier-allocation rule. The three process fixes reach 86.7%, and all five at realistic effectiveness reach 90.2%. 99.0% is the ceiling if every cause were fully removed.',
   },
   {
     match: /biggest|main|top|why/i,
     answer:
-      'The biggest single cause is incomplete addresses at order intake: worth 6.8 points of on-time delivery. Those orders are on time only 35% of the time, and email orders are five times more likely to have an incomplete address than EDI or API orders.',
+      'The biggest single cause is weak carrier lanes, worth 7.7 points: Carrier D in every region, E into the West and F into the Northeast and Southeast. Next is incomplete addresses at order intake, worth 6.9 points; those orders are on time only 35% of the time.',
   },
   {
     match: /client|revenue|risk|leave/i,
     answer:
-      '9 clients worth $14.2M a year are threatening to leave. Their on-time rate is 70.7%. They raised 24 of the 34 complaints, and 12 complaints were about not being told about a delay.',
+      '9 clients worth $14.2M a year are threatening to leave. Their on-time rate is 70.7%, about the same as everyone else (71.1%). What sets them apart is how delays are handled: they raised 24 of the 34 complaints, and 12 complaints were about not being told about a delay.',
   },
   {
     match: /carrier/i,
     answer:
-      'Carriers A, B and C are around 75% on time everywhere. Carrier D is weak in the Midwest and Southeast, E in the West, and F in the Northeast and Southeast (53–56%). Moving those lanes to the best carrier per region is worth 5.7 points.',
+      'Once the other causes are taken out, Carrier D is weak in every region, E is weak into the West and F into the Northeast and Southeast. Carriers A, B and C are about 75% on time everywhere. Moving those 7 lanes to the best carrier per region is worth 7.7 points, the largest single cause, and needs no new software.',
+  },
+  {
+    match: /stock|warehouse/i,
+    answer:
+      'About 12–13% of deliveries at every warehouse ship from further away because the nearest warehouse had no stock. Those deliveries are on time about 50% of the time, against about 74% when the stock is there. Stock placement is worth 4.9 points.',
   },
   {
     match: /penalt|cost|money/i,
     answer:
-      'In six months Halcyon paid $872K in SLA penalties and $477K in redelivery costs. Incomplete addresses alone account for $287K of penalties.',
+      'In six months Halcyon paid $872K in SLA penalties and $477K in redelivery costs. Weak carrier lanes account for $309K of penalties and incomplete addresses for $287K.',
   },
   {
     match: /cutoff|same[- ]day|08/i,
     answer:
-      'Same-day orders received after the 08:00 pick-list cutoff are on time only 39% of the time. Warning at intake and agreeing a realistic date is worth 5.3 points.',
+      'Same-day orders received after the 08:00 pick-list cutoff are on time only 39% of the time. Warning at intake and agreeing a realistic date is worth 5.4 points.',
   },
 ];
 
@@ -343,7 +413,7 @@ export function mockAsk(question: string): AskResult {
   return {
     answer:
       hit?.answer ??
-      'On-time delivery is 71% against a 94% benchmark. Five causes explain the gap; fixing all of them is projected to reach 96.6%. Try asking about the routing vendor, carriers, at-risk clients or penalties.',
+      'On-time delivery is 71.0% against a 94% benchmark. Five causes account for 28.0 of the 29.0 points lost. With realistic fixes Halcyon reaches about 90.2%; 99.0% is the ceiling if every cause were fully removed. Try asking about the routing vendor, the business case, carriers or at-risk clients.',
     sources: ['analysis/output/findings.json'],
   };
 }
@@ -356,7 +426,7 @@ export const mockRuns: AgentRun[] = [
     duration_ms: 2140,
     status: 'success',
     input_summary: 'Is the routing vendor worth $680K?',
-    output_summary: 'Vendor alone reaches 78.6%; process fixes reach 86.7%.',
+    output_summary: 'Vendor alone reaches 80.2% at best; all five fixes, realistic, reach 90.2%.',
     model: 'claude (Bedrock)',
   },
   {

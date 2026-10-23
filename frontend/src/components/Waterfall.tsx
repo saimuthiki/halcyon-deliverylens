@@ -2,7 +2,8 @@ import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, Responsiv
 import type { WaterfallStep } from '../lib/calc';
 import type { CauseKey } from '../api/types';
 
-const COLORS = { start: '#A84F0B', cause: '#0E6B63', end: '#0A524C' } as const;
+/** The end bar is the ceiling (every cause fully removed), so it is drawn light and dashed, like on the vendor page. */
+const COLORS = { start: '#A84F0B', cause: '#0E6B63', end: '#B9D9D3' } as const;
 
 interface Props {
   steps: WaterfallStep[];
@@ -80,6 +81,8 @@ export default function Waterfall({ steps, benchmark, selected, onSelect }: Prop
               <Cell
                 key={s.key}
                 fill={COLORS[s.kind]}
+                stroke={s.kind === 'end' ? '#0E6B63' : undefined}
+                strokeDasharray={s.kind === 'end' ? '4 3' : undefined}
                 fillOpacity={s.kind === 'cause' && selected && selected !== s.cause ? 0.35 : 1}
                 cursor={s.kind === 'cause' && onSelect ? 'pointer' : 'default'}
               />
@@ -91,7 +94,7 @@ export default function Waterfall({ steps, benchmark, selected, onSelect }: Prop
                 const { x = 0, y = 0, width = 0, index = 0 } = p as { x?: number; y?: number; width?: number; index?: number };
                 const s = steps[index];
                 if (!s) return null;
-                const text = s.kind === 'cause' ? `+${s.value.toFixed(1)}` : `${s.total}%`;
+                const text = s.kind === 'cause' ? `+${s.value.toFixed(1)}` : `${s.total.toFixed(1)}%`;
                 return (
                   <text x={Number(x) + Number(width) / 2} y={Number(y) - 7} textAnchor="middle" fontSize={14} fontWeight={700} fill={s.kind === 'start' ? '#A84F0B' : '#0A524C'}>
                     {text}

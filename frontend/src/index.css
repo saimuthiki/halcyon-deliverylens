@@ -87,3 +87,9 @@
     opacity: 1;
   }
 }
+
+/* Screen-reader-only text inside scrolling tables is absolutely positioned; anchor it to the scroller so it
+   cannot widen the page on phones. */
+.overflow-x-auto {
+  position: relative;
+}

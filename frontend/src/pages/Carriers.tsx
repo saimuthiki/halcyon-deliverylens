@@ -8,11 +8,16 @@ import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
 
 export default function Carriers() {
   const sc = useApi(() => api.scorecard());
+  const causes = useApi(() => api.causes());
+  const lanes = sc.data?.matrix.filter((m) => m.weak).length;
+  const worth = causes.data?.causes.find((c) => c.cause === 'weak_carrier_lane')?.fair_share_points;
   return (
     <>
       <PageHeader
-        title="Every carrier is fine somewhere, and weak somewhere else"
-        lede="Carriers D, E and F each have one or two regions where they deliver on time barely half the time. Moving those lanes to the best carrier for the region is worth 5.7 points, with no new software."
+        title="Carrier D is weak in every region. E and F are weak on three lanes."
+        lede={`Carriers A, B and C deliver about 75% on time everywhere. Moving the ${lanes ?? 7} weak lanes to the best carrier for each region is worth ${
+          worth != null ? `${worth.toFixed(1)} points` : 'more points than any other fix'
+        }, the largest single cause, and needs no new software.`}
         aside={<SourceTag source={sc.source} />}
       />
       {sc.loading && !sc.data ? (
@@ -101,7 +106,7 @@ function CarriersBody({ data }: { data: CarrierScorecard }) {
           </table>
         </div>
         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink-soft">
-          <Legend swatch="bg-late" label="Weak lane, under 60% on time" />
+          <Legend swatch="bg-late" label="Weak lane: well below the other carriers once other causes are taken out" />
           <Legend swatch="bg-late-tint border border-late/30" label="60–70%" />
           <Legend swatch="bg-surface border border-line" label="70% and above" />
           <Legend swatch="bg-route-tint ring-2 ring-inset ring-route" label="Best carrier for the region" />
@@ -153,10 +158,12 @@ function CarriersBody({ data }: { data: CarrierScorecard }) {
         </div>
         <p className="panel-pad pt-3 text-sm text-ink-soft sm:pt-3">
           The three weakest carriers are also the cheapest and the only ones without a live delivery-event API, so Halcyon learns about their delays last.
+          Carrier D, weak everywhere, reports delays only through a portal.
           {carriers.some((c) => c.preferred_supplier) && (
             <Fragment>
               {' '}
-              Carrier {carriers.find((c) => c.preferred_supplier)!.carrier_id} holds the preferred-supplier agreement despite being weak in two regions.
+              Carrier {carriers.find((c) => c.preferred_supplier)!.carrier_id} holds the preferred-supplier agreement despite being weak in{' '}
+              {carriers.find((c) => c.preferred_supplier)!.weak_regions.length} regions; it can keep the regions where it performs well.
             </Fragment>
           )}
         </p>

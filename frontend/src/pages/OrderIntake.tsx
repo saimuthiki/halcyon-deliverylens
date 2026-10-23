@@ -5,7 +5,7 @@ import { SAMPLE_EMAILS } from '../api/mockData';
 import type { OrderIntakeResult } from '../api/types';
 import { useAction } from '../lib/useApi';
 import PageHeader, { SectionTitle } from '../components/PageHeader';
-import { ErrorState, SourceTag } from '../components/States';
+import { ErrorState, SampleResponseNotice, SourceTag } from '../components/States';
 
 const FIELD_LABELS: Record<string, string> = {
   name: 'Ship-to name',
@@ -28,7 +28,7 @@ export default function OrderIntake() {
     <>
       <PageHeader
         title="Check every email order before it reaches the pick list"
-        lede="Email orders are five times more likely to arrive with an incomplete address, and incomplete addresses are the largest single cause of late deliveries. The agent reads the email, checks the address and drafts the follow-up for a person to send."
+        lede="Email orders are five times more likely to arrive with an incomplete address, and incomplete addresses are the largest cause that starts at order intake. The agent reads the email, checks the address and drafts the follow-up for a person to send."
       />
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="panel panel-pad flex flex-col lg:self-start" aria-labelledby="email-title">
@@ -80,7 +80,7 @@ export default function OrderIntake() {
 
         <section className="flex flex-col gap-6" aria-live="polite" aria-label="Agent result">
           {intake.error ? (
-            <ErrorState message={intake.error} onRetry={() => intake.run(email)} />
+            <ErrorState message={`The order could not be checked. ${intake.error}`} onRetry={() => intake.run(email)} />
           ) : intake.data ? (
             <IntakeResult data={intake.data} source={intake.source} />
           ) : (
@@ -100,6 +100,7 @@ function IntakeResult({ data, source }: { data: OrderIntakeResult; source: 'live
   const missing = new Set(data.address.missing);
   return (
     <>
+      <SampleResponseNotice source={source} />
       <div className="panel panel-pad">
         <SectionTitle note={<SourceTag source={source} />}>Extracted order</SectionTitle>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[15px]">

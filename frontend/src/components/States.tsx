@@ -42,3 +42,23 @@ export function SourceTag({ source }: { source: DataSource | null }) {
     </span>
   );
 }
+
+/**
+ * Shown on every agent result that came from the offline stand-in rather than the live agent,
+ * so a sample reply is never mistaken for the agent's own output.
+ */
+export function SampleResponseNotice({ source, className = '' }: { source: DataSource | null; className?: string }) {
+  if (source !== 'sample') return null;
+  return (
+    <p
+      role="note"
+      data-testid="sample-response"
+      className={`flex items-start gap-2 rounded-md border border-late/40 bg-late-tint px-3 py-2 text-sm text-ink ${className}`}
+    >
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-late" aria-hidden="true" />
+      <span>
+        <span className="font-semibold">Sample response — API offline.</span> This is a rule-based stand-in, not the agent's output.
+      </span>
+    </p>
+  );
+}

@@ -16,6 +16,12 @@ export default function Overview() {
   const k = kpis.data;
   const sc = causes.data?.scenarios;
   const benchmark = k?.benchmark_on_time_rate ?? 0.94;
+  const lost = sc ? (1 - sc.today) * 100 : 0;
+  const explained = causes.data ? causes.data.causes.reduce((sum, c) => sum + c.fair_share_points, 0) : 0;
+  const realisticMix = causes.data?.causes
+    .filter((c) => c.realistic_effectiveness != null)
+    .sort((a, b) => b.fair_share_points - a.fair_share_points)
+    .map((c) => `${causeShort(c.cause).toLowerCase()} ${Math.round((c.realistic_effectiveness ?? 0) * 100)}%`);
 
   return (
     <>
@@ -24,8 +30,10 @@ export default function Overview() {
         lede={
           sc && k ? (
             <>
-              Five fixable causes explain the gap. Fixing them takes Halcyon to <strong className="text-ink">{pct(sc.all_fixed)}</strong>;
-              the {usd(k.routing_vendor_budget_usd)} routing vendor on its own reaches only <strong className="text-ink">{pct(sc.routing_only)}</strong>.
+              Five fixable causes account for {explained.toFixed(1)} of the {lost.toFixed(1)} points lost. With each fix working as well as we
+              realistically expect, Halcyon reaches <strong className="text-ink">{pct(sc.realistic)}</strong>. The {usd(k.routing_vendor_budget_usd)} routing
+              vendor on its own reaches <strong className="text-ink">{pct(sc.routing_only)}</strong> at best. {pct(sc.all_fixed)} is the ceiling if every cause
+              were fully removed, not a forecast.
             </>
           ) : undefined
         }
@@ -49,9 +57,18 @@ export default function Overview() {
                     today={sc.today}
                     routingOnly={sc.routing_only}
                     processOnly={sc.process_only}
-                    allFixed={sc.all_fixed}
+                    realistic={sc.realistic}
+                    ceiling={sc.all_fixed}
                     benchmark={benchmark}
                   />
+                  {realisticMix && realisticMix.length > 0 && (
+                    <p className="mt-4 max-w-[80ch] text-sm text-ink-soft">
+                      Realistic means each fix removes only part of its cause: {realisticMix.join(', ')}.{' '}
+                      <Link to="/what-if" className="font-semibold text-route underline-offset-4 hover:underline">
+                        Change these in the what-if simulator
+                      </Link>
+                    </p>
+                  )}
                 </div>
               ) : causes.error ? (
                 <ErrorState message={causes.error} onRetry={causes.reload} />
@@ -79,7 +96,7 @@ export default function Overview() {
 
               <section className="panel panel-pad" aria-labelledby="points-title">
                 <SectionTitle>
-                  <span id="points-title">Points each fix is worth</span>
+                  <span id="points-title">Points each cause costs today</span>
                 </SectionTitle>
                 {causes.data ? (
                   <ul className="flex flex-col gap-3.5">

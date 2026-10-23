@@ -11,7 +11,7 @@ import PageHeader, { SectionTitle } from '../components/PageHeader';
 import Waterfall from '../components/Waterfall';
 import Drawer from '../components/Drawer';
 import CauseChip from '../components/CauseChip';
-import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
+import { ErrorState, LoadingBlock, SampleResponseNotice, SourceTag } from '../components/States';
 
 export default function WhyLate() {
   const causes = useApi(() => api.causes());
@@ -37,8 +37,16 @@ export default function WhyLate() {
   return (
     <>
       <PageHeader
-        title="Five causes explain almost every late delivery"
-        lede="Deliveries with none of these problems are on time 96.6% of the time. Each bar shows how many points of on-time delivery a cause costs Halcyon, shared fairly where causes overlap. Select a cause to see real late deliveries behind it."
+        title={
+          causes.data
+            ? `Five causes account for ${Math.round(causes.data.causes.reduce((t, c) => t + c.fair_share_points, 0))} of the ${Math.round((1 - causes.data.scenarios.today) * 100)} points lost`
+            : 'Why deliveries are late'
+        }
+        lede={
+          causes.data
+            ? `Deliveries with none of these problems are on time ${pct(causes.data.scenarios.no_problem_rate)} of the time. Each bar shows how many points of on-time delivery are associated with a cause, shared fairly where causes overlap. Select a cause to see real late deliveries behind it.`
+            : 'Each bar shows how many points of on-time delivery are associated with a cause, shared fairly where causes overlap. Select a cause to see real late deliveries behind it.'
+        }
         aside={<SourceTag source={causes.source} />}
       />
 
@@ -50,9 +58,16 @@ export default function WhyLate() {
         <div className="flex flex-col gap-6">
           <section className="panel panel-pad" aria-labelledby="wf-title">
             <SectionTitle note="Vertical axis starts at 60%">
-              <span id="wf-title">From {pct(causes.data.scenarios.today, 0)} today to {pct(causes.data.scenarios.all_fixed)} with every cause fixed</span>
+              <span id="wf-title">
+                From {pct(causes.data.scenarios.today, 0)} today to a ceiling of {pct(causes.data.scenarios.all_fixed)} if every cause were fully removed
+              </span>
             </SectionTitle>
             <Waterfall steps={steps} benchmark={BENCHMARK} selected={selected} onSelect={select} />
+            <p className="mt-3 max-w-[80ch] text-[15px] text-ink-soft">
+              No fix removes its cause completely. With the partial effectiveness we expect from each fix, the realistic outcome is{' '}
+              <strong className="num text-ink">{pct(causes.data.scenarios.realistic)}</strong>, so the bars show what each cause costs today, not what
+              each fix will win back.
+            </p>
           </section>
 
           <section className="panel overflow-hidden" aria-labelledby="table-title">
@@ -261,7 +276,7 @@ export function DeliveryDetailView({ id }: { id: string }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-[15px] font-semibold">Tell the client before they ask</h3>
-            <p className="text-sm text-ink-soft">12 of 34 complaints were about not being told about a delay.</p>
+            <p className="text-sm text-ink-soft">12 of 34 complaints were about not being told about a delay. The agent forecasts the delay and drafts the message.</p>
           </div>
           <button type="button" className="btn-primary" onClick={() => alert.run(d.delivery_id)} disabled={alert.loading}>
             <Mail className="h-4 w-4" aria-hidden="true" />
@@ -270,13 +285,32 @@ export function DeliveryDetailView({ id }: { id: string }) {
         </div>
         {alert.error && <p className="mt-3 text-[15px] text-late">The delay alert could not be drafted: {alert.error}</p>}
         {alert.data && (
-          <div className="mt-4 rounded-md border border-line bg-paper p-4" aria-live="polite">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="text-sm text-slate">Draft for review, not sent</div>
-              <SourceTag source={alert.source} />
+          <div className="mt-4 flex flex-col gap-3" aria-live="polite">
+            <SampleResponseNotice source={alert.source} />
+            {(alert.data.predicted_delay_days != null || alert.data.predicted_date) && (
+              <div className="rounded-md border border-line px-4 py-3" data-testid="delay-forecast">
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-[15px]">
+                  <div>
+                    <dt className="text-sm text-slate">Expected delay</dt>
+                    <dd className="num font-bold text-late">
+                      {alert.data.predicted_delay_days != null
+                        ? `${alert.data.predicted_delay_days} day${alert.data.predicted_delay_days === 1 ? '' : 's'}`
+                        : '–'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-slate">Expected arrival</dt>
+                    <dd className="num font-bold">{dateLabel(alert.data.predicted_date)}</dd>
+                  </div>
+                </dl>
+                {alert.data.basis && <p className="mt-2 text-sm text-ink-soft">How we estimated it: {alert.data.basis}</p>}
+              </div>
+            )}
+            <div className="rounded-md border border-line bg-paper p-4">
+              <div className="mb-2 text-sm text-slate">Draft for review, not sent</div>
+              <div className="mb-2 font-semibold">{alert.data.subject}</div>
+              <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-ink">{alert.data.body}</pre>
             </div>
-            <div className="mb-2 font-semibold">{alert.data.subject}</div>
-            <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-ink">{alert.data.body}</pre>
           </div>
         )}
       </div>

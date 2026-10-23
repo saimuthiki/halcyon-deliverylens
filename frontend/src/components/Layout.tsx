@@ -11,6 +11,7 @@ import {
   Scale,
   SearchCheck,
   Truck,
+  Warehouse,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -38,6 +39,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { to: '/carriers', label: 'Carriers', icon: Truck },
       { to: '/clients', label: 'At-risk clients', icon: Building2 },
+      { to: '/stock-routes', label: 'Stock & routes', icon: Warehouse },
     ],
   },
   {

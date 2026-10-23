@@ -2,36 +2,40 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import type { CauseKey, CauseRow, FixLevels, SimulateResponse } from '../api/types';
 import { useApi } from '../lib/useApi';
-import { simulateLocally } from '../lib/calc';
+import { simulateExact } from '../lib/calc';
+import { comboModel, REALISTIC_FIXES } from '../api/mockData';
 import { BENCHMARK, CAUSE_META, CAUSE_ORDER } from '../lib/causes';
 import { num, pct, pts, usd } from '../lib/format';
 import PageHeader, { SectionTitle } from '../components/PageHeader';
 import Gauge from '../components/Gauge';
 import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
 
-const PRESETS: { label: string; fixes: FixLevels }[] = [
-  { label: 'Routing vendor only', fixes: { weak_carrier_lane: 1, route_deviation: 1 } },
-  { label: 'Our process fixes', fixes: { incomplete_address: 1, same_day_after_cutoff: 1, stock_not_at_nearest: 1 } },
-  { label: 'All five fixes', fixes: { incomplete_address: 1, same_day_after_cutoff: 1, stock_not_at_nearest: 1, weak_carrier_lane: 1, route_deviation: 1 } },
-  { label: 'Reset', fixes: {} },
-];
+function presets(realistic: FixLevels): { label: string; fixes: FixLevels }[] {
+  return [
+    { label: 'Realistic plan', fixes: realistic },
+    { label: 'Routing vendor only', fixes: { weak_carrier_lane: 1, route_deviation: 1 } },
+    { label: 'Process fixes only', fixes: { incomplete_address: 1, same_day_after_cutoff: 1, stock_not_at_nearest: 1 } },
+    { label: 'Ceiling: all fully fixed', fixes: { incomplete_address: 1, same_day_after_cutoff: 1, stock_not_at_nearest: 1, weak_carrier_lane: 1, route_deviation: 1 } },
+    { label: 'Reset', fixes: {} },
+  ];
+}
+
+/** Realistic effectiveness per cause: from the API when it sends it, otherwise from the saved analysis. */
+function realisticFrom(causes: CauseRow[] | undefined): FixLevels {
+  const fromApi = Object.fromEntries((causes ?? []).filter((c) => c.realistic_effectiveness != null).map((c) => [c.cause, c.realistic_effectiveness]));
+  return Object.keys(fromApi).length ? (fromApi as FixLevels) : REALISTIC_FIXES;
+}
 
 export default function Simulator() {
   const causes = useApi(() => api.causes());
   const kpis = useApi(() => api.kpis());
-  const [fixes, setFixes] = useState<FixLevels>({ incomplete_address: 0.8, same_day_after_cutoff: 0.6 });
+  const [fixes, setFixes] = useState<FixLevels>(REALISTIC_FIXES);
   const [remote, setRemote] = useState<{ key: string; result: SimulateResponse } | null>(null);
   const fixKey = JSON.stringify(fixes);
 
-  const local = useMemo(() => {
-    if (!causes.data || !kpis.data) return null;
-    return simulateLocally(fixes, {
-      todayRate: causes.data.scenarios.today,
-      deliveries: kpis.data.deliveries,
-      penaltiesUsd: kpis.data.sla_penalties_usd,
-      causes: causes.data.causes,
-    });
-  }, [fixes, causes.data, kpis.data]);
+  // Same model as the API, computed in the browser from the saved cause combinations: instant while dragging, and offline.
+  const local = useMemo(() => simulateExact(fixes, comboModel), [fixes]);
+  const realistic = useMemo(() => realisticFrom(causes.data?.causes), [causes.data]);
 
   // Ask the API for the exact projection once the sliders settle; show the local estimate meanwhile.
   useEffect(() => {
@@ -61,7 +65,7 @@ export default function Simulator() {
     <>
       <PageHeader
         title="What if we fix part of the problem?"
-        lede="No fix is perfect. Set how well each fix works, from not at all to fully, and see where on-time delivery and penalties land."
+        lede="No fix is perfect. The sliders start at the realistic plan. Set how well each fix works, from not at all to fully, and see where on-time delivery and penalties land."
         aside={<SourceTag source={exact ? 'live' : causes.source} />}
       />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
@@ -70,7 +74,7 @@ export default function Simulator() {
             <span id="levers-title">How well each fix works</span>
           </SectionTitle>
           <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Presets">
-            {PRESETS.map((p) => (
+            {presets(realistic).map((p) => (
               <button key={p.label} type="button" className="btn-secondary min-h-[36px] px-3 text-sm" onClick={() => setFixes(p.fixes)}>
                 {p.label}
               </button>
@@ -92,6 +96,7 @@ export default function Simulator() {
                   </div>
                   <p className="mb-2 text-sm text-slate">
                     Up to {pts(byKey[c].fair_share_points)}. {CAUSE_META[c].owner === 'routing' ? 'Routing and carriers.' : 'Our process.'}
+                    {realistic[c] != null && ` Realistic: ${Math.round((realistic[c] ?? 0) * 100)}%.`}
                   </p>
                   <input
                     id={id}
@@ -121,7 +126,7 @@ export function SimulatorResults({ result, causes, exact }: { result: SimulateRe
   const gap = (BENCHMARK - result.projected_on_time_rate) * 100;
   return (
     <section className="panel panel-pad flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start" aria-labelledby="result-title" aria-live="polite">
-      <SectionTitle note={exact ? 'Calculated by the API' : 'Estimate from fair-share points'}>
+      <SectionTitle note={exact ? 'Calculated by the API' : 'Calculated in the browser, same model as the API'}>
         <span id="result-title">Projected result</span>
       </SectionTitle>
       <Gauge value={result.projected_on_time_rate} baseline={result.today_on_time_rate} benchmark={BENCHMARK} />
