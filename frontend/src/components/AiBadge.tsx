@@ -4,12 +4,19 @@ import { useApiStatus, useHealth } from '../lib/useApi';
 import type { Health } from '../api/types';
 
 /** "AI: Mock (canned)" / "AI: Gemini gemini-2.0-flash" / "AI: Bedrock" from /api/health. */
+/** "gemini-2.5-flash" -> "Gemini 2.5 Flash", so the badge fits the sidebar instead of repeating the provider. */
+function geminiName(model: string): string {
+  const words = model.replace(/^models\//, '').split('-').filter(Boolean);
+  if (words[0]?.toLowerCase() === 'gemini') words.shift();
+  return ['Gemini', ...words.map((w) => w.charAt(0).toUpperCase() + w.slice(1))].join(' ');
+}
+
 export function aiLabel(h: Pick<Health, 'llm_provider' | 'llm_model'> | null | undefined): string {
   const provider = (h?.llm_provider ?? '').toLowerCase();
   const model = h?.llm_model ? String(h.llm_model) : '';
   if (!provider) return 'AI: unknown';
   if (provider === 'mock') return 'AI: Mock (canned)';
-  if (provider === 'gemini') return `AI: Gemini${model ? ` ${model}` : ''}`;
+  if (provider === 'gemini') return `AI: ${model ? geminiName(model) : 'Gemini'}`;
   if (provider === 'bedrock') return 'AI: Bedrock';
   if (provider === 'sample') return 'AI: sample (offline)';
   return `AI: ${provider}${model ? ` ${model}` : ''}`;

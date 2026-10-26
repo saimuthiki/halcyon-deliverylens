@@ -454,24 +454,36 @@ function EmptyTrace({ message }: { message?: DeskMessage }) {
   );
 }
 
+/** Delay between trace steps appearing, so a run reads in pipeline order (10 steps ≈ 0.9 s). */
+const STEP_STAGGER_MS = 90;
+let traceRuns = 0;
+
 export function Trace({ steps }: { steps: DeskStep[] }) {
+  // A new result (another email, or the same email run again) gets a new key, so the steps replay.
+  const run = useMemo(() => ++traceRuns, [steps]);
   return (
-    <ol className="flex flex-col" data-testid="trace">
+    <ol key={run} className="flex flex-col" data-testid="trace">
       {steps.map((s, i) => (
-        <TraceStep key={`${s.step}-${s.key}`} s={s} last={i === steps.length - 1} />
+        <TraceStep key={`${s.step}-${s.key}`} s={s} last={i === steps.length - 1} index={i} />
       ))}
     </ol>
   );
 }
 
-function TraceStep({ s, last }: { s: DeskStep; last: boolean }) {
+function TraceStep({ s, last, index }: { s: DeskStep; last: boolean; index: number }) {
   const [open, setOpen] = useState(false);
   const st = STATUS_META[s.status] ?? STATUS_META.pass;
   const actor = ACTORS[s.actor] ?? ACTORS.Rule;
   const StatusIcon = st.icon;
   const hasDetails = Object.keys(s.details ?? {}).length > 0;
   return (
-    <li className="relative flex gap-3 pb-4" data-testid="trace-step" data-status={s.status} data-key={s.key}>
+    <li
+      className="relative flex gap-3 pb-4 motion-safe:animate-[rise_240ms_cubic-bezier(0.16,1,0.3,1)_both]"
+      style={{ animationDelay: `${index * STEP_STAGGER_MS}ms` }}
+      data-testid="trace-step"
+      data-status={s.status}
+      data-key={s.key}
+    >
       <div className="flex flex-col items-center">
         <span
           className={`num inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${s.status === 'skipped' ? 'bg-slate/50' : actor.solid}`}

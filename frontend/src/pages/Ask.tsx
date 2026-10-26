@@ -14,6 +14,8 @@ const SUGGESTIONS = [
   'Which clients are at risk of leaving?',
   'What happens to same-day orders after 08:00?',
 ];
+/** Matches AskRequest.question min_length in backend/app/api/schemas.py. */
+const MIN_QUESTION_LENGTH = 3;
 
 interface Message {
   role: 'user' | 'assistant';
@@ -37,6 +39,14 @@ export default function Ask() {
     if (!q || busy) return;
     setMessages((m) => [...m, { role: 'user', text: q }]);
     setInput('');
+    if (q.length < MIN_QUESTION_LENGTH) {
+      // The API refuses questions this short; answer here instead of showing a validation error.
+      setMessages((m) => [
+        ...m,
+        { role: 'assistant', text: `Ask me a full question about Halcyon's deliveries, for example: "${SUGGESTIONS[0]}"` },
+      ]);
+      return;
+    }
     setBusy(true);
     try {
       const r = await api.ask(q);

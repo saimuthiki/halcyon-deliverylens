@@ -88,6 +88,18 @@
   }
 }
 
+/* Order desk trace: each pipeline step rises in after the one before it, so the run reads in order. */
+@keyframes rise {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 /* Screen-reader-only text inside scrolling tables is absolutely positioned; anchor it to the scroller so it
    cannot widen the page on phones. */
 .overflow-x-auto {

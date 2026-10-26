@@ -101,8 +101,9 @@ async function http<T>(path: string, init: RequestInit = {}, timeoutMs = TIMEOUT
     if (!res.ok) {
       let detail = res.statusText;
       try {
-        const body = (await res.json()) as { detail?: unknown; error?: { message?: string } };
-        if (body?.error?.message) detail = body.error.message;
+        const body = (await res.json()) as { detail?: unknown; error?: { message?: string; details?: unknown } };
+        const reason = Array.isArray(body?.error?.details) ? (body.error.details[0] as { msg?: string } | undefined)?.msg : undefined;
+        if (body?.error?.message) detail = reason ? `${body.error.message}: ${reason}.` : body.error.message;
         else if (body?.detail) detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
       } catch {
         /* body was not JSON */

@@ -79,7 +79,9 @@ describe('Order desk normalisers', () => {
 describe('AI badge label', () => {
   it('names the provider the way the header shows it', () => {
     expect(aiLabel({ llm_provider: 'mock' })).toBe('AI: Mock (canned)');
-    expect(aiLabel({ llm_provider: 'gemini', llm_model: 'gemini-2.0-flash' })).toBe('AI: Gemini gemini-2.0-flash');
+    expect(aiLabel({ llm_provider: 'gemini', llm_model: 'gemini-2.0-flash' })).toBe('AI: Gemini 2.0 Flash');
+    expect(aiLabel({ llm_provider: 'gemini', llm_model: 'gemini-2.5-flash' })).toBe('AI: Gemini 2.5 Flash');
+    expect(aiLabel({ llm_provider: 'gemini' })).toBe('AI: Gemini');
     expect(aiLabel({ llm_provider: 'bedrock', llm_model: 'anthropic.claude' })).toBe('AI: Bedrock');
   });
 });
