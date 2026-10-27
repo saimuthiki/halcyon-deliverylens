@@ -7,7 +7,7 @@
 > 3. Commit it with your changes, so the next person who pulls gets the current state.
 > 4. Never put secrets here (keys, passwords, `.pem` contents, `.env` values).
 
-Last updated: 2026-10-27 by Sai M (with Claude Code).
+Last updated: 2026-10-28 by dkarasu (with Claude Code).
 
 ## 1. What we are building
 - **Problem 2:** Halcyon Logistics is 71% on time (benchmark 94%), and its leaders were about to buy a $680K routing tool.
@@ -73,14 +73,21 @@ These links are open to everyone on purpose (hackathon demo), with no login.
   - restarts the API on EC2 via Systems Manager and checks `/api/health`;
   - builds the website and uploads it to Amplify.
 - **No GitHub secrets needed.** GitHub signs in to AWS with OIDC, and only the `main` branch of `Evoke-Hackathon-2026/InfinityStacks` is trusted.
-- **Watch it:** GitHub → Actions → "Deploy to AWS".
+  - GitHub sends the repo in an ID-based form (`Evoke-Hackathon-2026@346869943/InfinityStacks@1435387832`), so the
+    role trusts both forms (`infra/policies/github-trust.json`, `GITHUB_REPO_IDS` in `infra/config.env`).
+    Add that line to your own `infra/config.env` before re-running `01-iam.sh`.
+- **Watch it:** GitHub → Actions → "Deploy to AWS". Run it by hand with **Run workflow** on `main`.
+- **Roll back the API:** the image from before the first auto-deploy is kept on the server as `deliverylens-api:pre-cicd`.
+  Re-tag it as the `IMAGE` in `/home/ec2-user/.env` and run `docker compose -f docker-compose.prod.yml up -d api`.
+  Or re-run the workflow on an older commit (ECR keeps each commit's image).
 - **Run it on a laptop:** see `README.md`. Without AWS, the AI runs in mock mode.
 
 ## 6. Rules (security)
 - Never commit `infra/config.env`, `infra/.state/` (DB password, SSH key), `backend/.env`, `test.py` or any keys.
-- Use the AWS SSO profile (`aws sso login --profile deliverylens`), never pasted access keys.
+- Use the AWS SSO profile (`aws sso login --profile deliverylens`; the profile name may differ on your laptop), never pasted access keys.
 - Tests before a push:
-  - backend: `cd backend && .venv/Scripts/python.exe -m pytest`;
+  - backend: `cd backend && .venv/Scripts/python.exe -m pytest` (macOS/Linux: `.venv/bin/python`; needs Python 3.11);
+    without a 3.11 install: `docker run --rm -v "$PWD":/repo -w /repo/backend python:3.11-slim sh -c "pip install -q -r requirements-dev.txt && python -m pytest -q"`;
   - frontend: `cd frontend && npx tsc -b --noEmit && npx vitest run`.
 
 ## 7. Open items
@@ -92,6 +99,11 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
+- **2026-10-28, dkarasu + Claude Code:**
+  - Auto-deploy fixed: GitHub's OIDC sign-in was refused (it sends an ID-based subject); the deploy role now trusts both forms.
+  - First automated deploy of `9a2ba80` succeeded: image in ECR, API restarted via Systems Manager, website job 2 on Amplify.
+    Checked live: health ok, 48,340 deliveries, CORS, Ask on Bedrock names carrier D with $209,880 penalties.
+  - Old server-built image kept as `deliverylens-api:pre-cicd` for rollback. `01-iam.sh` now re-applies the trust policy.
 - **2026-10-27, Sai M + Claude Code:**
   - Bedrock models activated, and all features tested live.
   - Ask now names the worst carrier with its penalties.
