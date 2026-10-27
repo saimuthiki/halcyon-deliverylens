@@ -2,8 +2,9 @@
 
 FastAPI service behind the DeliveryLens dashboard. It loads the Halcyon dataset into a database, tags every
 delivery with the five causes from `analysis/root_cause_analysis.py`, and serves the analytics, the what-if
-simulator, the vendor assessment, three AI agents (order intake, delay alert, ask) and the **Order desk**: the
-client's real email order process, end to end, from the shared inbox to a warehouse (WMS) order.
+simulator, the late same-day orders replay, the vendor assessment, three AI agents (order intake, delay alert, ask)
+and the **Order desk**: the client's real email order process, end to end, from the shared inbox to a warehouse
+(WMS) order that a person approves.
 
 The numbers match `analysis/output/findings.json` exactly, scenarios and money included (everything except
 `holdout_check`, which is an analysis-only validation). A test checks this
@@ -59,7 +60,10 @@ Uses the official `google-genai` SDK (`google-genai==2.33.0`), JSON mode for the
 `LLM_TIMEOUT_SECONDS` as the request timeout.
 
 The loader is idempotent: each run replaces the data tables in one transaction. `--if-empty` skips the
-load when data is already there (the deploy script uses it). `--data-dir PATH` points at another CSV folder.
+CSV load when data is already there (the deploy script uses it), but still refreshes the sample inbox from
+`../data/sample-inbox/` (so new emails such as M13 to M17 appear, and the Order desk demo resets) and adds
+the `wms_orders.approved_at` column to a database created before it existed. `--data-dir PATH` points at
+another CSV folder.
 
 ## Test
 
@@ -93,12 +97,18 @@ TEST_DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/deliverylens_tes
 | `INBOX_DIR` | `../data/sample-inbox` | Order desk sample emails and `manifest.json` (loaded by `python -m app.loader`) |
 | `LOG_JSON` | unset | `true` logs one JSON line per log record (CloudWatch) |
 | `WAREHOUSE_TZ` | `America/Chicago` | Warehouse-local time zone for the order-intake 08:00 cutoff check when the request has no `received_at` |
+| `SAME_DAY_GRACE_UNTIL` | `09:00` | Same-day orders received from 08:00 until this time are all added to today's pick list (grace period) |
+| `SAME_DAY_HARD_STOP` | `10:00` | From the grace time until this time only urgent orders are added; from this time every same-day order goes to tomorrow |
 | `AGENT_RATE_LIMIT_PER_MIN` | `30` | Requests per minute per client IP on `/api/agents/*` and the `POST /api/desk/*` routes (in memory, per process; `0` turns it off) |
 | `DEMO_TOKEN` | empty | When set, `POST /api/agents/*` and `POST /api/desk/*` need header `X-Demo-Token` with this value (401 otherwise) |
 | `S3_BUCKET` | empty | When set, order-intake input and result are archived there, with emails and phone numbers redacted |
 
 The Bedrock model IDs default to the placeholder `SET-ME-bedrock-model-id`. A call that uses the placeholder
 fails with a clear error and returns HTTP 502.
+
+`SAME_DAY_GRACE_UNTIL` and `SAME_DAY_HARD_STOP` are `HH:MM` on the hour or half hour, with
+08:00 ≤ grace ≤ hard stop ≤ 14:00. The API refuses to start on a bad value. Setting both to `08:00` gives the
+old rule (every same-day order after 08:00 goes to tomorrow).
 
 ## Endpoints (all under `/api`)
 
@@ -111,37 +121,40 @@ fails with a clear error and returns HTTP 502.
 | GET | `/deliveries/{delivery_id}` | full row, timeline, causes, plain-English explanation |
 | GET | `/carriers/scorecard` | per carrier: rate, on-time, redelivery rate, API, preferred; carrier x region matrix; best carrier per region (tie goes to the cheaper one) |
 | GET | `/clients/at-risk` | the 9 clients threatening to leave: revenue, tier, channel, on-time, cause rates, complaints |
+| POST | `/simulate/late-orders` | body `{"grace_until": "09:00", "hard_stop": "10:00"}` (body and both fields optional; missing values use `SAME_DAY_GRACE_UNTIL` and `SAME_DAY_HARD_STOP`; a bad time gives 422): replay of the 4,826 same-day orders received after 08:00. Returns `inputs`, `population` (orders per window, incomplete addresses excluded), `grace` and `urgent_priority_clients_at_most` (orders added, extra orders per warehouse-day, late avoided per year, SLA penalties avoided per year, at-risk late avoided per year), `urgent_other_clients_with_valid_reason`, `on_time_rate_after_cutoff_orders`, `arrivals` (per half hour), `rules`, `method`, `assumptions`, `order_desk_settings` |
 | POST | `/simulate` | body `{"fixes": {"incomplete_address": 1.0, "weak_carrier_lane": 0.5}}`: projected on-time, points per cause, at-risk projection, yearly penalties, redelivery cost and late deliveries avoided. The realistic preset gives 0.9024 |
 | GET | `/roi` | `assumptions` (realistic effectiveness and yearly fix cost per cause, note), the four `scenarios` (on-time, points, savings, cost, net benefit with and without redelivery), `effectiveness_needed_for_94_benchmark` |
 | GET | `/stock/placement` | `by_warehouse` (nearest warehouse: stock-out rate, on-time when stocked vs stock-out) and `worst_clients` (top 10 by stock-out rate, 50+ deliveries) |
 | GET | `/routes/deviation` | `by_carrier` and `by_region`: deviation rate, on-time with vs without deviation, missing actual-km rate per carrier |
 | GET | `/vendor-assessment` | routing-only 80.2% vs process 86.7% vs realistic 90.2% vs ceiling 99.0%, the vendor's unique part (route deviation, about 3 points), $680K budget, $14.2M at risk, recommendation |
 | POST | `/agents/order-intake` | body `{"email_text": "...", "received_at": "YYYY-MM-DD HH:MM"?}`: extraction, address and cutoff checks, follow-up email draft |
-| POST | `/agents/delay-alert` | body `{"delivery_id": "D000002"}`: at-dispatch draft warning with `predicted_delay_days`, `predicted_date`, `basis`, `subject`, `message` (a draft for Customer Success to approve) |
-| POST | `/agents/ask` | body `{"question": "..."}`: answer from fixed analytics tools, with the numbers it used |
+| POST | `/agents/delay-alert` | body `{"delivery_id": "D000002"}`: at-dispatch draft warning with `predicted_delay_days`, `predicted_date`, `basis`, `subject`, `message` (a draft for Customer Success to approve), `recovery` (internal, never sent: `priority`, `priority_score`, `priority_parts`, `escalate_to_account_owner`, `penalty_exposure_usd`, `penalty_note`, `actions[{cause, action, owner}]`, `method`) |
+| POST | `/agents/ask` | body `{"question": "..."}`: answer from fixed analytics tools (including `complaints`), with the numbers it used |
 | GET | `/agents/runs?limit=50` | recent agent runs: agent, provider, model, latency, tokens, guardrail flags |
 | GET | `/desk/inbox` | `{"messages": [{id, from_name, from_email, client_id, subject, received_at, scenario, expected_decision, what_it_demonstrates, has_attachment, status, decision}]}` |
 | GET | `/desk/inbox/{id}` | the same fields plus `body` and `attachments` `[{filename, content_type, text}]` |
 | POST | `/desk/process/{id}` | runs the 10-step pipeline on one email: `{message_id, decision, decision_reason, steps[], wms_order, client_email_draft, llm_provider, llm_model, expected_decision, matches_expected}` |
 | POST | `/desk/process-all` | runs every `new` email: `{processed, matches_expected, counts{accepted,on_hold,needs_review,blocked}, results[{message_id, decision, expected_decision, matches_expected, decision_reason, wms_order_id}], llm_provider, llm_model}` |
-| GET | `/desk/wms-orders` | `{"orders": [{wms_order_id, message_id, client_id, client_name, ship_to{}, lines[], commitment_type, requested_date, promised_date, destination_region, nearest_warehouse_id, fulfilment_warehouse_id, carrier_id, carrier_reason, status, pick_list_date, created_at}]}` |
+| GET | `/desk/wms-orders` | `{"orders": [{wms_order_id, message_id, client_id, client_name, ship_to{}, lines[], commitment_type, requested_date, promised_date, destination_region, nearest_warehouse_id, fulfilment_warehouse_id, carrier_id, carrier_reason, status, pick_list_date, created_at, approved_at}]}`. `status`: `awaiting_approval`, `ready_for_pick_list`, `on_hold_missing_address` or `needs_review` |
+| POST | `/desk/approve/{id}` | a person approves one accepted order: `awaiting_approval` to `ready_for_pick_list`, sets `approved_at`; returns `{wms_order}`. 404 if the email has no WMS order, 409 `conflict` if it is not awaiting approval |
+| POST | `/desk/approve-all` | approves every order awaiting approval: `{approved, wms_order_ids[]}` |
 | POST | `/desk/reset` | clears `wms_orders` and every email's decision (all back to `new`) |
 
 Every error has the same shape: `{"error": {"code": "...", "message": "...", "details": ...}}`.
-Codes: `unauthorized` 401, `not_found` 404, `validation_error` 422, `guardrail_blocked` 400, `not_delayed` 409,
+Codes: `unauthorized` 401, `not_found` 404, `validation_error` 422, `guardrail_blocked` 400, `not_delayed` 409, `conflict` 409,
 `rate_limited` 429 (with `Retry-After`), `llm_error` 502, `data_not_loaded` 503.
 
 All `/api/agents/*` routes are rate limited per client IP, and the POSTs need `X-Demo-Token` when `DEMO_TOKEN` is
 set. The limiter is in memory: with several worker processes or instances the effective limit multiplies, so
 put a shared limiter (proxy or Redis) in front beyond a single-instance demo.
 
-Sample order emails for the order-intake agent are in `sample_emails/`. The Order desk inbox (12 client
+Sample order emails for the order-intake agent are in `sample_emails/`. The Order desk inbox (17 client
 emails in different layouts, one with a CSV purchase order) is in `../data/sample-inbox/`, described by its
 `manifest.json`.
 
 ## The Order desk: the client's real intake process
 
-Today staff read each email order (14 different client layouts) and type it into the warehouse system; a
+Today staff read each email order (different client layouts) and type it into the warehouse system; a
 carrier is picked from a rate card. The Order desk runs that process with agents and rules and shows each step.
 `POST /api/desk/process/{id}` returns the trace; every step is
 `{step, key, title, actor, agent_name, status: pass|warn|fail|skipped, summary, details, duration_ms}`.
@@ -150,16 +163,17 @@ carrier is picked from a rate card. The Order desk runs that process with agents
 |---|---|---|---|---|
 | 1 | receive | Data lookup | Reads the email from the shared order inbox (sender, subject, received time, attachments) | |
 | 2 | guardrail | Guardrail | Prompt-injection screen; a hit stops everything (decision `blocked`). Personal data is masked in logs | |
-| 3 | extract | AI agent: Order Intake Agent | Reads client, lines (SKU, qty), ship-to, requested date, commitment, confidence; attachments included. No clear SKU/number or confidence below 0.6 gives `needs_review` | |
+| 3 | extract | AI agent: Order Intake Agent | Reads client, lines (SKU, qty), ship-to, requested date, commitment, confidence, `urgency` (none, medium, high) and `urgency_evidence` (the exact sentence); attachments included. The quote must be in the body or attachment text (case and whitespace ignored), or urgency becomes `none` and the flag `urgency_quote_not_verified` is added. No clear SKU/number or confidence below 0.6 gives `needs_review` | |
 | 4 | identify_client | Data lookup | Sender domain (`client-055.example`) or client name to the clients table: tier, region, at-risk flag | |
 | 5 | address_check | Rule | Street, city, state, postcode required (country defaults to US). Missing gives `on_hold` | 2 incomplete address |
-| 6 | promise_check | Rule | 08:00 warehouse-local cutoff: before it, today's pick list, else tomorrow's. Same-day after the cutoff is re-promised as next-day. Promised date = received date + 1 (same-day), 2 (next-day) or 4 (standard) days, as in the dataset | 3 same-day after 08:00 |
+| 6 | promise_check | Rule | 08:00 warehouse-local cutoff: before it, today's pick list, else tomorrow's. A same-day order after 08:00 with a complete address (`app/analytics/late_orders.py`): until `SAME_DAY_GRACE_UNTIL` (09:00) it is added to today's pick list (grace period); until `SAME_DAY_HARD_STOP` (10:00) it is added only if urgent: verified urgency `high` (a valid reason) from any client, or `medium` (says urgent) from a Tier 1 or at-risk client; from the hard stop it goes to tomorrow. An order not added is re-promised as next-day and the reply says so. Promised date = received date + 1 (same-day), 2 (next-day) or 4 (standard) days, as in the dataset | 3 same-day after 08:00 |
 | 7 | stock_check | Data lookup | Region from the ship-to state, nearest warehouse by distance; simulated stock (deterministic hash, about 12% out, HX-4410 never at W5). Ships from the next nearest warehouse with stock and warns | 4 stock not at nearest |
 | 8 | carrier_choice | Rule | Old spreadsheet (cheapest rate, always Carrier F) against the advisor (best on-time to that region from the scorecard, never one of the 7 weak lanes) with the reason | 1 weak carrier lane |
-| 9 | decision | Rule | `accepted` (WMS status `ready_for_pick_list`), `on_hold` (`on_hold_missing_address`), `needs_review`, or `blocked` (no WMS order) | |
+| 9 | decision | Rule | `accepted` (WMS status `awaiting_approval` until a person approves it, then `ready_for_pick_list`), `on_hold` (`on_hold_missing_address`), `needs_review`, or `blocked` (no WMS order) | |
 | 10 | client_message | AI agent: Client Reply Agent | Drafts the confirmation (with the promised date) or the follow-up (asking for the missing fields). A draft only, for a person to approve | |
 
-Under the mock provider all 12 sample emails reach their `expected_decision`
+Under the mock provider all 17 sample emails reach their `expected_decision` (13 accepted, 2 on hold, 1 needs
+review, 1 blocked)
 (`tests/test_order_desk.py`). With Gemini the reading step may differ; steps 4 to 9 are always the same
 rules. The WMS order is written, and the email marked processed, in one transaction at the end, so a failed
 model call (HTTP 502) leaves nothing half done. Reprocessing an email replaces its WMS order.
@@ -200,6 +214,12 @@ model call (HTTP 502) leaves nothing half done. Reprocessing an email replaces i
   With several causes the combo method is averaged over every possible set of fixed causes. Points per cause
   are Shapley values of that. Money avoided is the penalty and redelivery cost of the late deliveries that
   become on time. The data covers six months, so it is multiplied by 2 for a year.
+- `app/analytics/late_orders.py` holds the late same-day rule (grace period, urgent window, hard stop) used by
+  Order desk step 6, and the replay. The replay takes the 4,826 same-day orders received after 08:00, adds the
+  ones each window would add to today's pick list, and removes the same-day cause from them with the combo
+  method. SLA money is that gain times the client's past SLA penalty per late delivery. The grace period is
+  exact for the history. History has no email text, so the urgent window is an upper bound: it counts every
+  priority-client order as if it said it was urgent, and adds no other client's order.
 - Data is read once into pandas and cached in the process. Running the loader resets the cache.
 
 ## AI agents and guardrails
@@ -224,7 +244,16 @@ model call (HTTP 502) leaves nothing half done. Reprocessing an email replaces i
   delivery's own outcome (returned separately as `actual_outcome` for checking). The message states the
   causes and the estimate, claims no actions (a model reply that does is replaced by the template), and ends
   with "DRAFT: for Customer Success to review and approve before sending." It refuses (409) only a delivery
-  that was on time and had none of the five causes.
+  that was on time and had none of the five causes. `recovery` is rules, not AI, and is never sent to the client:
+  one next step and owner per cause, a priority score (at-risk client 40, SLA clause 30, Tier 1 20, Tier 2 10, +15 for a complaint in the 90
+  days before dispatch, +15 for a predicted delay of 3+ days; high at 60, medium at 30), escalation to the account
+  owner for at-risk or high-priority clients, and an SLA penalty exposure estimate from the client's past penalties
+  (only with a penalty clause).
+- Ask, complaints tool: structured retrieval over the 34 complaints. It filters by client (`C055`, "client 190")
+  or category words, joins each complaint to its delivery and the causes found in the delivery data, and gives
+  the pattern (category counts, top cause, escalations, at-risk share). The category is the client-reported
+  reason, not a verified cause. The dataset has no policy or resolution records, so the answer says so. No
+  vector database on purpose: 34 short texts in 4 categories, where filters and a join give exact counts.
 - Output checks: the order-intake checks are fixed rules, not AI. A delay alert must contain the promised
   and predicted dates, or they are added. An ask answer must quote at least one number from the tool results,
   or the numbers are appended.

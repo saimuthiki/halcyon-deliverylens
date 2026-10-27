@@ -125,9 +125,70 @@ xychart-beta
 **What this shows**
 - Same-day orders that arrive **before 08:00** are on time about 75% of the time.
 - From 08:00 on, they fall to about 39%, because the pick list has already been printed.
-- The fix:
-  1. stop promising "same day" after 08:00, or
-  2. add a second pick wave (for example at 11:00).
+- The business owner's answer: the procedure must not change. The 08:00 pick list stays, and there
+  is no second pick wave.
+- The fix keeps the 08:00 list and adds two simple time rules for same-day orders that miss it:
+  1. **Grace period, 08:00 to 09:00:** every same-day order with a complete address is still added
+     to today's pick list.
+  2. **Urgent orders only, 09:00 to 10:00:** an order is added only if it is urgent.
+  3. **Hard stop, from 10:00:** the order goes on tomorrow's list and is honestly re-promised as
+     next-day.
+
+### Late same-day orders: the grace period and the urgent window
+
+The rule is in `backend/app/analytics/late_orders.py`. The Order desk uses it at step 6, and
+`POST /api/simulate/late-orders` replays it on history.
+
+```mermaid
+flowchart LR
+  A["4,826 same-day orders<br/>after 08:00<br/>(6 months)"] --> B["799 in the grace period<br/>08:00–09:00"]
+  A --> C["821 in the urgent window<br/>09:00–10:00<br/>(175 from priority clients)"]
+  A --> D["3,206 after the<br/>10:00 hard stop:<br/>tomorrow"]
+  B --> E["741 added to today<br/>(complete address)"]
+  C --> F["at most 159 added<br/>(priority clients,<br/>complete address)"]
+```
+
+**Who counts as urgent (09:00 to 10:00)**
+- **A valid reason, any client.** The AI reads the email and quotes the sentence, for example "Our
+  production line stops at 3pm without these parts." Code checks that the quote is a whole sentence
+  of the email and shows operational impact (a stopped line, a fixed deadline, a store opening).
+- **"Urgent" with no reason, priority clients only.** A priority client is Tier 1 (at least $1M
+  revenue a year) or at risk of leaving. "URGENT!!!" from any other client goes to tomorrow.
+- **Not urgent:** tomorrow, even for a priority client.
+- The AI only reads the urgency and quotes the evidence. Code checks the quote; the rule decides.
+- The two times are settings (`SAME_DAY_GRACE_UNTIL`, default 09:00; `SAME_DAY_HARD_STOP`, default
+  10:00), so the client can choose other times.
+
+**How the replay works**
+1. Take the 4,826 same-day orders received after 08:00.
+2. Orders with an incomplete address are on hold and never added (106 in the first two windows).
+3. An order added to today's list loses the "same-day after 08:00" cause. It then gets the on-time
+   rate of deliveries with its other causes (the same method as the What-if simulator).
+4. SLA money = that gain × the client's past SLA penalty per late delivery.
+5. Six months of data × 2 = a year.
+
+| Per year (defaults 09:00 and 10:00) | Grace period (exact) | Urgent window, priority clients (upper bound) |
+|---|---|---|
+| Orders added (6 months) | 741 | at most 159 |
+| Extra orders per warehouse per day | 0.83 | at most 0.18 |
+| Late deliveries avoided | **729** | up to 166 |
+| SLA penalties avoided | **$43,436** | up to $16,927 |
+| Late deliveries avoided for the 9 at-risk clients | 159 | up to 138 |
+
+**What this shows**
+- The grace period alone lifts these orders from **39% to 47% on time**, with less than one extra
+  order per warehouse a day.
+- The urgent window adds at most one more point (**48%** at most).
+- Most late same-day orders (3,206 of 4,826) arrive after 10:00. They still go to tomorrow, but the
+  client is told the next-day date at order time instead of finding out when the order is late.
+
+**Limits (please challenge them)**
+- These are model estimates, like the What-if simulator, not measured results.
+- History has no email text. So the urgent window is an upper bound: it counts every priority-client
+  order as if it said it was urgent. The other 614 orders from ordinary clients in that window would
+  need a valid reason, which history cannot show, so they are not counted.
+- The replay does not change the business case below, which already assumes the same-day fix works
+  70% of the time.
 
 ## Money and people
 
@@ -149,6 +210,12 @@ flowchart LR
   say "nobody told us it would be late".
   - Telling clients early (our Delay Alert agent) is the fastest way to keep them, even before
     on-time delivery improves.
+- **What the complaints say, and what they don't:** 33 of the 34 complaints link to a delivery with
+  at least one of the five causes; the most common is a weak carrier lane (12 of 33). 26 of 34 were
+  escalated to the account owner.
+  - A complaint's category is the reason the client gave, not a checked cause.
+  - The data has **no policy or resolution records** (no refund or credit rules, no record of how a
+    complaint was closed). Ask DeliveryLens says so instead of guessing.
 
 ## The business case: what each option buys (per year)
 
@@ -170,7 +237,7 @@ flowchart LR
 | Fix | Assumed effectiveness (realistic case) | Assumed cost per year |
 |---|---|---|
 | Order Intake Agent (addresses) | 80% of gaps caught | $60K (build + Bedrock + support) |
-| Same-day: second pick wave or honest promise | 70% | $65K (about 2 extra hours a day at 5 warehouses) |
+| Same-day: grace period, urgent orders, honest next-day promise | 70% | $65K (staff time at 5 warehouses; estimate made for the earlier second-pick-wave idea, to re-check) |
 | Monthly stock rebalancing | 50% | $50K (extra transfers) |
 | Carrier choice by lane | 90% | $84K (higher rates; calculated from the rate card) |
 | Route discipline / small routing pilot | 50% | $100K |

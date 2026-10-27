@@ -53,14 +53,15 @@ flowchart TB
     G1 --> A1["🤖 <b>Order Intake Agent (AI)</b><br/>reads the email like a person<br/>and pulls out: client, items,<br/>address, date"]
     A1 --> R1["📏 <b>Address check (rule)</b><br/>street, city, state, postcode<br/>all present?"]
     R1 -->|missing| H1["⏸️ Order put ON HOLD<br/>🤖 AI drafts a polite email<br/>asking for the missing part"]
-    R1 -->|complete| R2["📏 <b>Promise check (rule)</b><br/>same-day after 08:00?<br/>→ promise next day instead"]
+    R1 -->|complete| R2["📏 <b>Promise check (rule)</b><br/>same-day after 08:00?<br/>08:00–09:00 → still today<br/>09:00–10:00 → today if urgent<br/>from 10:00 → promise next day"]
     R2 --> D1["🔎 <b>Stock check (data)</b><br/>nearest warehouse has it?<br/>if not, which one does?"]
     D1 --> R3["📏 <b>Carrier advisor (rule)</b><br/>best carrier for this region,<br/>not just the cheapest"]
-    R3 --> W1["🏭 Order created in the<br/><b>WMS</b>, ready for the pick list<br/>🤖 AI drafts the confirmation"]
+    R3 --> P1["👤 <b>A person approves</b><br/>🤖 AI drafts the confirmation"]
+    P1 --> W1["🏭 Order released to the<br/><b>WMS</b>, ready for the pick list"]
   end
   subgraph AFTER["After dispatch and for managers"]
-    A2["🤖 <b>Delay Alert Agent (AI)</b><br/>warns the client <i>before</i><br/>they have to chase"]
-    A3["🤖 <b>Ask DeliveryLens (AI)</b><br/>answers managers' questions<br/>with numbers from the data"]
+    A2["🤖 <b>Delay Alert Agent (AI)</b><br/>warns the client <i>before</i><br/>they have to chase<br/>📏 + a recovery plan for the team"]
+    A3["🤖 <b>Ask DeliveryLens (AI)</b><br/>answers managers' questions<br/>with numbers from the data,<br/>including past complaints"]
   end
 ```
 
@@ -70,7 +71,13 @@ flowchart TB
 - **Rules (📏) and data lookups (🔎)** do the checking and the maths. These must always give the
   same, explainable answer, so we don't let AI guess them.
 - **Guardrails (🛡️)** stop misuse and keep personal data out of the logs.
-- **A person approves** every message before it goes to a client.
+- **A person approves** every message before it goes to a client, and every order before it enters
+  the warehouse system.
+- **Late same-day orders:** the 08:00 pick list stays. Until 09:00 (grace period) every same-day
+  order is still added to today's list. Until 10:00 only urgent orders are added; after 10:00 they go
+  to tomorrow. The AI reads how urgent an email is and must quote the sentence. Code checks the quote
+  is really in the email, and a fixed rule decides. "URGENT!!!" alone counts only for a priority
+  client (Tier 1 or at risk of leaving).
 
 **How the agents are built:** our own small Python "pipeline". Each step is a plain function,
 and the AI steps call one shared AI client that can use **Mock** (canned, offline), **Google
@@ -125,7 +132,8 @@ flowchart LR
   S2 --> S3["3 · Why late<br/>the 5 causes,<br/>with real deliveries"]
   S3 --> S4["4 · Vendor decision<br/>routing tool vs our plan,<br/>money per year"]
   S4 --> S5["5 · What-if simulator<br/>move sliders,<br/>see on-time % change"]
-  S5 --> S6["6 · Ask DeliveryLens<br/>ask a question<br/>in plain English"]
+  S5 --> S5b["6 · Late same-day orders<br/>which orders after 08:00<br/>still go today"]
+  S5b --> S6["7 · Ask DeliveryLens<br/>ask a question<br/>in plain English"]
 ```
 
 **What this shows:** the best order to explore the app (and to demo it). Every screen has a
@@ -138,7 +146,8 @@ tour with pictures, read [08-user-guide.md](08-user-guide.md).
 |---|---|
 | 48,340 deliveries, clients, carriers, penalties, complaints | **Real hackathon dataset** from the stakeholder (synthetic data, but it is "their" data) |
 | The 5 causes and all percentages | **Calculated from that data** by `analysis/root_cause_analysis.py` |
-| The 12 emails in the Order desk | **Written by us** to show typical cases, good and bad, because the dataset has no email text |
+| The late same-day orders replay | **Calculated from the 4,826 same-day orders received after 08:00** in the data. The grace period figures are exact; the urgent window is an upper bound, because history has no email text |
+| The 17 emails in the Order desk | **Written by us** to show typical cases, good and bad, because the dataset has no email text |
 | The warehouse system (WMS) | **A simple table in our database** that stands in for the client's WMS |
 | AI answers | **Mock** (canned) by default; **Gemini** when you add a key; **Claude on Bedrock** on AWS |
 | Costs in the business case | **Our estimates**, clearly labelled, for the client to confirm |

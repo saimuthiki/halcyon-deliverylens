@@ -14,6 +14,7 @@ import {
   PlayCircle,
   RotateCcw,
   Sparkles,
+  UserCheck,
   X,
   XCircle,
 } from 'lucide-react';
@@ -34,7 +35,7 @@ export const DECISION_META: Record<DeskDecision, { label: string; chip: string; 
     chip: 'border-route/30 bg-route-tint text-route-dark',
     panel: 'border-route/40 bg-route-tint',
     icon: CheckCircle2,
-    meaning: 'Created in the warehouse system and put on a pick list.',
+    meaning: 'Every check passed. A person approves it before it goes into the warehouse system’s pick list.',
   },
   on_hold: {
     label: 'On hold',
@@ -73,6 +74,7 @@ export function wmsStatus(status: string): { label: string; chip: string; detail
     const r = s.slice(prefix.length).replace(/^_+/, '').replace(/_/g, ' ');
     return r || null;
   };
+  if (s.startsWith('awaiting')) return { label: 'Awaiting approval', chip: 'border-line bg-paper text-ink', detail: null };
   if (s.startsWith('ready') || s === 'accepted') return { label: 'Ready for pick list', chip: DECISION_META.accepted.chip, detail: null };
   if (s.startsWith('on_hold')) return { label: 'On hold', chip: DECISION_META.on_hold.chip, detail: rest('on_hold') };
   if (s.startsWith('needs_review')) return { label: 'Needs review', chip: DECISION_META.needs_review.chip, detail: rest('needs_review') };
@@ -123,6 +125,7 @@ export default function OrderDesk() {
   const [batch, setBatch] = useState<{ data: DeskProcessAll; source: DataSource } | null>(null);
   const [batchRunning, setBatchRunning] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [approving, setApproving] = useState<string | null>(null); // message id, or 'all'
 
   const messages = inbox.data ?? [];
   useEffect(() => {
@@ -178,6 +181,24 @@ export default function OrderDesk() {
       setBatchRunning(false);
     }
   }
+
+  async function approve(id: string | 'all') {
+    setApproving(id);
+    setRunError(null);
+    try {
+      if (id === 'all') await api.deskApproveAll();
+      else await api.deskApprove(id);
+      wms.reload();
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : String(err));
+      wms.reload(); // show the WMS as it really is
+    } finally {
+      setApproving(null);
+    }
+  }
+
+  // The order as the WMS holds it now (approval changes it after the run).
+  const shownOrder = shown && !shown.preview ? (wms.data ?? []).find((o) => o.message_id === shown.data.message_id) ?? null : null;
 
   async function reset() {
     setResetting(true);
@@ -238,7 +259,7 @@ export default function OrderDesk() {
             </h2>
             <button type="button" className="btn-secondary min-h-[36px] px-3 text-sm" onClick={runAll} disabled={batchRunning || !messages.length}>
               <PlayCircle className="h-4 w-4" aria-hidden="true" />
-              {batchRunning ? 'Running all…' : `Run all ${messages.length || 12}`}
+              {batchRunning ? 'Running all…' : `Run all ${messages.length || 17}`}
             </button>
           </div>
           {batch && (
@@ -306,7 +327,12 @@ export default function OrderDesk() {
         <div className="flex flex-col gap-6">
           {shown && !(running && running === selected) ? (
             <>
-              <DecisionCard r={shown.data} />
+              <DecisionCard
+                r={shown.data}
+                order={shownOrder}
+                approving={approving === shown.data.message_id || approving === 'all'}
+                onApprove={() => approve(shown.data.message_id)}
+              />
               <DraftCard draft={shown.data.client_email_draft} />
             </>
           ) : (
@@ -319,7 +345,7 @@ export default function OrderDesk() {
       </div>
 
       {/* WMS */}
-      <WmsTable state={wms} onReset={reset} resetting={resetting} />
+      <WmsTable state={wms} onReset={reset} resetting={resetting} onApproveAll={() => approve('all')} approving={approving === 'all'} />
     </>
   );
 }
@@ -503,6 +529,7 @@ function TraceStep({ s, last, index }: { s: DeskStep; last: boolean; index: numb
           <span className="num ml-auto text-sm text-slate">{duration(s.duration_ms)}</span>
         </div>
         <p className="mt-1 text-[15px] leading-snug text-ink-soft">{s.summary}</p>
+        <SameDayDetails details={s.details} />
         {hasDetails && (
           <>
             <button
@@ -523,6 +550,104 @@ function TraceStep({ s, last, index }: { s: DeskStep; last: boolean; index: numb
         )}
       </div>
     </li>
+  );
+}
+
+export interface SameDayInfo {
+  /** before_cutoff | grace | urgent_window | after_hard_stop, or null when the step has no window. */
+  window: string | null;
+  windowLabel: string | null;
+  sameDay: boolean;
+  added: boolean;
+  received: string | null;
+  graceUntil: string | null;
+  hardStop: string | null;
+  rule: string | null;
+  priorityClient: string | null;
+  urgency: string | null;
+  evidence: string | null;
+  note: string | null;
+}
+
+/** The late same-day order fields a step may carry (promise check: window and outcome; order reading: urgency). */
+export function parseSameDay(details: Record<string, unknown> | null | undefined): SameDayInfo {
+  const d = details ?? {};
+  const str = (x: unknown) => (typeof x === 'string' && x.trim() ? x : null);
+  return {
+    window: str(d.window),
+    windowLabel: str(d.window_label),
+    sameDay: d.requested_commitment === 'same_day' || d.commitment_type === 'same_day',
+    added: d.added_after_cutoff === true,
+    received: str(d.received_at)?.slice(-5) ?? null,
+    graceUntil: str(d.grace_until),
+    hardStop: str(d.hard_stop),
+    rule: str(d.same_day_rule),
+    priorityClient: str(d.priority_client),
+    urgency: str(d.urgency),
+    evidence: str(d.urgency_evidence),
+    note: str(d.urgency_note),
+  };
+}
+
+/** "Urgent orders only, 09:00 to 10:00": the window with its times. */
+function windowText(w: SameDayInfo): string {
+  const label = w.windowLabel ?? 'Window';
+  if (w.window === 'grace') return `${label}, 08:00 to ${w.graceUntil ?? '–'}`;
+  if (w.window === 'urgent_window') return `${label}, ${w.graceUntil ?? '–'} to ${w.hardStop ?? '–'}`;
+  if (w.window === 'after_hard_stop') return `${label}, from ${w.hardStop ?? '–'}`;
+  return label;
+}
+
+/** Readable late same-day outcome and urgency evidence inside a trace step. Renders nothing for steps without them. */
+export function SameDayDetails({ details }: { details: Record<string, unknown> }) {
+  const w = parseSameDay(details);
+  // Only a same-day order after the 08:00 cutoff has a window worth explaining.
+  const late = w.window != null && w.window !== 'before_cutoff' && w.sameDay;
+  // The quote matters on the reading step, and on the promise check once only urgent orders are added.
+  const quote = w.evidence != null && (w.window == null || (late && w.window !== 'grace'));
+  if (!late && !quote && !w.note) return null;
+  return (
+    <div className="mt-2 flex flex-col gap-2 rounded-md border border-line px-3 py-2 text-sm" data-testid="same-day-details">
+      {late && (
+        <>
+          <p className={`flex items-center gap-1.5 font-semibold ${w.added ? 'text-route-dark' : 'text-late'}`} data-testid="same-day-outcome">
+            {w.added ? <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" /> : <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />}
+            {w.added ? 'Added to today’s pick list after the 08:00 cutoff' : 'Not added: tomorrow’s pick list, re-promised as next-day'}
+          </p>
+          <p className="text-ink" data-testid="same-day-window">
+            {w.received && (
+              <>
+                Received <span className="num font-semibold">{w.received}</span>,{' '}
+              </>
+            )}
+            <span className="num">{windowText(w)}</span>
+          </p>
+          {w.rule && (
+            <p className="flex flex-wrap items-center gap-2 text-ink-soft" data-testid="same-day-rule">
+              <ActorBadge actor="Rule" />
+              <span>Because {w.rule}.</span>
+            </p>
+          )}
+          {w.window !== 'grace' && w.priorityClient && (
+            <p className="text-ink-soft" data-testid="priority-client">
+              Priority client: <span className="font-semibold text-ink">{w.priorityClient}</span>
+            </p>
+          )}
+        </>
+      )}
+      {quote && (
+        <figure className="flex flex-col gap-1" data-testid="urgency-evidence">
+          <figcaption className="flex flex-wrap items-center gap-2 text-ink-soft">
+            <ActorBadge actor="AI agent" />
+            <span>
+              Urgency <span className="font-semibold text-ai">{w.urgency ?? 'read'}</span>, quoted from the email:
+            </span>
+          </figcaption>
+          <blockquote className="rounded-md bg-ai-tint px-3 py-1.5 text-[15px] text-ai">&ldquo;{w.evidence}&rdquo;</blockquote>
+        </figure>
+      )}
+      {w.note && <p className="text-slate">{w.note}</p>}
+    </div>
   );
 }
 
@@ -566,9 +691,21 @@ export function KeyValues({ value, depth = 0 }: { value: unknown; depth?: number
 
 /* ---------- decision + draft ---------- */
 
-export function DecisionCard({ r }: { r: DeskProcessResult }) {
+export function DecisionCard({
+  r,
+  order = null,
+  approving = false,
+  onApprove,
+}: {
+  r: DeskProcessResult;
+  /** The WMS order as it is now; null for a preview that has not been run. */
+  order?: WmsOrder | null;
+  approving?: boolean;
+  onApprove?: () => void;
+}) {
   const m = DECISION_META[r.decision];
   const Icon = m.icon;
+  const status = order?.status ?? r.wms_order?.status ?? '';
   return (
     <section className={`rounded-lg border p-5 sm:p-6 ${m.panel}`} aria-labelledby="decision-title" data-testid="decision-card" data-decision={r.decision}>
       <h2 id="decision-title" className="text-sm font-medium text-ink-soft">
@@ -597,7 +734,34 @@ export function DecisionCard({ r }: { r: DeskProcessResult }) {
           {r.wms_order.pick_list_date && <>, pick list {r.wms_order.pick_list_date}</>}.
         </p>
       )}
+      {r.decision === 'accepted' && r.wms_order && <Approval status={status} canApprove={!!order && !!onApprove} approving={approving} onApprove={onApprove} />}
     </section>
+  );
+}
+
+/** Human approval before the WMS: the last step is always a person's. */
+function Approval({ status, canApprove, approving, onApprove }: { status: string; canApprove: boolean; approving: boolean; onApprove?: () => void }) {
+  if (status.startsWith('ready'))
+    return (
+      <p className="mt-4 flex items-center gap-2 border-t border-route/30 pt-4 text-[15px] font-semibold text-route-dark" data-testid="approval-done">
+        <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+        Approved by a person: Ready for pick list.
+      </p>
+    );
+  return (
+    <div className="mt-4 border-t border-route/30 pt-4" data-testid="approval">
+      <p className="text-[15px] text-ink">
+        <span className="font-semibold">Waiting for a person to approve it into the WMS.</span> Nothing is picked until then.
+      </p>
+      {canApprove ? (
+        <button type="button" className="btn-primary mt-3" onClick={onApprove} disabled={approving}>
+          <UserCheck className="h-4 w-4" aria-hidden="true" />
+          {approving ? 'Approving…' : 'Approve into WMS'}
+        </button>
+      ) : (
+        <p className="mt-1 text-sm text-slate">Run DeliveryLens on this email to create the order, then approve it here.</p>
+      )}
+    </div>
   );
 }
 
@@ -643,8 +807,21 @@ function DraftCard({ draft }: { draft: DeskDraft | null }) {
 
 /* ---------- WMS ---------- */
 
-function WmsTable({ state, onReset, resetting }: { state: ApiState<WmsOrder[]>; onReset: () => void; resetting: boolean }) {
+function WmsTable({
+  state,
+  onReset,
+  resetting,
+  onApproveAll,
+  approving,
+}: {
+  state: ApiState<WmsOrder[]>;
+  onReset: () => void;
+  resetting: boolean;
+  onApproveAll: () => void;
+  approving: boolean;
+}) {
   const orders = useMemo(() => state.data ?? [], [state.data]);
+  const waiting = orders.filter((o) => o.status.startsWith('awaiting')).length;
   return (
     <section className="panel mt-6 overflow-hidden" aria-labelledby="wms-title">
       <div className="panel-pad flex flex-wrap items-start justify-between gap-3 pb-4 sm:pb-4">
@@ -653,14 +830,22 @@ function WmsTable({ state, onReset, resetting }: { state: ApiState<WmsOrder[]>; 
             Warehouse system (WMS) — orders created
           </h2>
           <p className="mt-1 max-w-[72ch] text-[15px] text-ink-soft">
-            What DeliveryLens wrote into the warehouse system. Only orders marked Ready for pick list are picked at the next 08:00 run; the rest wait for
-            the client or a person.
+            What DeliveryLens wrote for the warehouse system. Accepted orders wait for a person to approve them; only orders marked Ready for pick list
+            are picked. The rest wait for the client or a person.
           </p>
         </div>
-        <button type="button" className="btn-secondary" onClick={onReset} disabled={resetting}>
-          <RotateCcw className="h-4 w-4" aria-hidden="true" />
-          {resetting ? 'Resetting…' : 'Reset demo'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {waiting > 0 && (
+            <button type="button" className="btn-primary" onClick={onApproveAll} disabled={approving} data-testid="approve-all">
+              <UserCheck className="h-4 w-4" aria-hidden="true" />
+              {approving ? 'Approving…' : `Approve all accepted (${waiting})`}
+            </button>
+          )}
+          <button type="button" className="btn-secondary" onClick={onReset} disabled={resetting}>
+            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+            {resetting ? 'Resetting…' : 'Reset demo'}
+          </button>
+        </div>
       </div>
       {state.loading && !state.data ? (
         <div className="px-5 pb-5">
@@ -672,7 +857,7 @@ function WmsTable({ state, onReset, resetting }: { state: ApiState<WmsOrder[]>; 
         </div>
       ) : orders.length === 0 ? (
         <p className="border-t border-line px-5 py-6 text-[15px] text-ink-soft sm:px-6" data-testid="wms-empty">
-          No orders yet. Run DeliveryLens on an email, or Run all 12, and the orders it creates appear here.
+          No orders yet. Run DeliveryLens on an email, or Run all, and the orders it creates appear here.
         </p>
       ) : (
         <div className="overflow-x-auto border-t border-line">

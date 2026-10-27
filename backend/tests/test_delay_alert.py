@@ -88,3 +88,58 @@ def test_model_action_claims_are_replaced(dataset, monkeypatch):
 @pytest.mark.parametrize("field", ["predicted_delay_days", "predicted_date", "basis", "message", "subject"])
 def test_response_shape(client, field):
     assert field in _alert(client, "D000002")
+
+
+# ---------------------------------------------------------------- recovery plan for Customer Success
+def test_recovery_plan_gives_one_internal_action_per_cause(client, dataset):
+    b = _alert(client, "D000002")  # stock_not_at_nearest + weak_carrier_lane
+    plan = b["recovery"]
+    assert [a["cause"] for a in plan["actions"]] == ["stock_not_at_nearest", "weak_carrier_lane"]
+    assert all(a["action"] and a["owner"] for a in plan["actions"])
+    lane = next(a for a in plan["actions"] if a["cause"] == "weak_carrier_lane")
+    region = dataset.by_id.loc["D000002"].destination_region
+    best = lane["recommended_carrier"]
+    from app.analytics.causes import WEAK_CARRIER_LANES
+    assert (best, region) not in WEAK_CARRIER_LANES and f"carrier {best}" in lane["action"]
+    # Internal actions never leak into the client draft.
+    assert lane["action"] not in b["message"]
+
+
+def test_recovery_priority_is_the_sum_of_its_parts_and_at_risk_clients_escalate(client, dataset):
+    df = dataset.deliveries
+    at_risk = dataset.at_risk_client_ids
+    row = df[df.late & df.client_id.isin(at_risk) & df.weak_carrier_lane].iloc[0]
+    plan = _alert(client, row.delivery_id)["recovery"]
+    assert plan["priority_score"] == sum(p["points"] for p in plan["priority_parts"])
+    assert "At-risk client" in {p["rule"] for p in plan["priority_parts"]}
+    assert plan["escalate_to_account_owner"] is True and plan["priority"] == "high"
+    assert any(a["owner"] == "Account owner" for a in plan["actions"])
+
+
+def test_low_priority_client_is_not_escalated(client, dataset):
+    df = dataset.deliveries
+    c = dataset.clients
+    quiet = set(c[(c.account_tier == "Tier 3") & (c.sla_penalty_clause == "N") &
+                  (c.account_status == "active")].client_id) - set(dataset.complaints.client_id)
+    row = df[df.late & df.client_id.isin(quiet) & df.incomplete_address & (df.days_late <= 1)].iloc[0]
+    plan = _alert(client, row.delivery_id)["recovery"]
+    assert plan["escalate_to_account_owner"] is False and plan["penalty_exposure_usd"] is None
+    assert plan["priority"] in {"normal", "medium"}
+
+
+def test_penalty_exposure_is_the_expected_penalty_per_late_delivery(client, dataset):
+    df = dataset.deliveries
+    sla = set(dataset.clients.loc[dataset.clients.sla_penalty_clause == "Y", "client_id"])
+    row = df[df.late & df.client_id.isin(sla)].iloc[0]
+    own = df[df.client_id == row.client_id]
+    plan = _alert(client, row.delivery_id)["recovery"]
+    assert plan["penalty_exposure_usd"] == int(round(float(own.penalty_usd.sum()) / int(own.late.sum())))
+    assert "expected SLA penalty per late delivery for this client" in plan["penalty_note"]
+
+
+def test_same_day_action_states_the_cutoff_times(client, dataset):
+    df = dataset.deliveries
+    row = df[df.late & df.same_day_after_cutoff].iloc[0]
+    plan = _alert(client, row.delivery_id)["recovery"]
+    action = next(a["action"] for a in plan["actions"] if a["cause"] == "same_day_after_cutoff")
+    assert "by 08:00 (or 09:00 at the latest)" in action and "until 10:00 only urgent" in action

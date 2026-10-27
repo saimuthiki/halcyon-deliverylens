@@ -7,18 +7,20 @@ from app.agents.delay_alert import run_delay_alert
 from app.agents.llm_client import LLMClient
 from app.agents.order_intake import run_order_intake
 from app.desk.inbox import message_detail, message_summary
-from app.desk.pipeline import MessageNotFound, process_all, process_message, reset_desk, wms_order_dict
+from app.desk.pipeline import (AlreadyApproved, MessageNotFound, NotAwaitingApproval, approve_all, approve_order,
+                               process_all, process_message, reset_desk, wms_order_dict)
 from app.guardrails import redact_payload
 from app.storage import archive_json
 from app.analytics import views
 from app.analytics.causes import CAUSES
+from app.analytics.late_orders import simulate_late_orders
 from app.analytics.roi import roi_view
 from app.analytics.simulator import simulate
 from app.analytics.store import get_dataset
 from app.analytics.vendor import vendor_assessment
 from app.api.errors import ApiError
 from app.api.security import agent_guard
-from app.api.schemas import AskRequest, DelayAlertRequest, OrderIntakeRequest, SimulateRequest
+from app.api.schemas import AskRequest, DelayAlertRequest, OrderIntakeRequest, LateOrdersRequest, SimulateRequest
 from app.config import get_settings
 from app.db import get_engine, get_session
 from app.models import AgentRun, Delivery, InboxMessage, WmsOrder
@@ -100,6 +102,14 @@ def simulate_fixes(body: SimulateRequest):
     return simulate(get_dataset(), body.fixes)
 
 
+@router.post("/simulate/late-orders", tags=["analytics"])
+def simulate_late(body: LateOrdersRequest | None = None):
+    body = body or LateOrdersRequest()
+    s = get_settings()
+    return {**simulate_late_orders(get_dataset(), body.grace_until, body.hard_stop),
+            "order_desk_settings": {"grace_until": s.same_day_grace_until, "hard_stop": s.same_day_hard_stop}}
+
+
 @router.get("/vendor-assessment", tags=["analytics"])
 def vendor():
     return vendor_assessment(get_dataset())
@@ -169,6 +179,8 @@ def desk_process(message_id: str):
         return process_message(message_id)
     except MessageNotFound:
         raise ApiError(404, f"Message {message_id!r} not found") from None
+    except AlreadyApproved:
+        raise ApiError(409, "Already approved into the WMS; reset the demo to run it again") from None
 
 
 @router.get("/desk/wms-orders", tags=["desk"])
@@ -176,6 +188,23 @@ def desk_wms_orders():
     with get_session() as s:
         rows = s.scalars(select(WmsOrder).order_by(WmsOrder.message_id)).all()
         return {"orders": [wms_order_dict(o) for o in rows]}
+
+
+@router.post("/desk/approve-all", tags=["desk"], dependencies=AGENT_GUARD)
+def desk_approve_all():
+    """A person approves every accepted order waiting for approval into the WMS."""
+    return approve_all()
+
+
+@router.post("/desk/approve/{message_id}", tags=["desk"], dependencies=AGENT_GUARD)
+def desk_approve(message_id: str):
+    """A person approves one accepted order: awaiting_approval -> ready_for_pick_list."""
+    try:
+        return {"wms_order": approve_order(message_id)}
+    except MessageNotFound:
+        raise ApiError(404, f"No WMS order for message {message_id!r}") from None
+    except NotAwaitingApproval as e:
+        raise ApiError(409, f"WMS order for {message_id!r} is {e.args[0]}, not awaiting approval") from None
 
 
 @router.post("/desk/reset", tags=["desk"], dependencies=AGENT_GUARD)

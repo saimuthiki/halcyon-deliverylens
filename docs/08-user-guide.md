@@ -11,21 +11,22 @@ and follow this guide from top to bottom.
 1. [The menu on the left](#1-the-menu-on-the-left)
 2. [How it works: the client's process, start to end](#2-how-it-works-the-clients-process-start-to-end)
 3. [Order desk (live): emails in, warehouse orders out](#3-order-desk-live-emails-in-warehouse-orders-out)
-4. [The 12 sample emails: good cases and bad cases](#4-the-12-sample-emails-good-cases-and-bad-cases)
+4. [The 17 sample emails: good cases and bad cases](#4-the-17-sample-emails-good-cases-and-bad-cases)
 5. [Overview](#5-overview)
 6. [Why deliveries are late](#6-why-deliveries-are-late)
 7. [Vendor decision](#7-vendor-decision)
 8. [What-if simulator](#8-what-if-simulator)
-9. [Carriers](#9-carriers)
-10. [At-risk clients](#10-at-risk-clients)
-11. [Stock & routes](#11-stock--routes)
-12. [Order intake agent](#12-order-intake-agent)
-13. [Ask DeliveryLens](#13-ask-deliverylens)
-14. [Agent activity](#14-agent-activity)
-15. [The "What am I looking at?" panel](#15-the-what-am-i-looking-at-panel)
-16. [Where the AI is, which framework, and in which phase](#16-where-the-ai-is-which-framework-and-in-which-phase)
-17. [Turning on real AI answers with Google Gemini](#17-turning-on-real-ai-answers-with-google-gemini)
-18. [Blockers and open items](#18-blockers-and-open-items)
+9. [Late same-day orders](#9-late-same-day-orders)
+10. [Carriers](#10-carriers)
+11. [At-risk clients](#11-at-risk-clients)
+12. [Stock & routes](#12-stock--routes)
+13. [Order intake agent](#13-order-intake-agent)
+14. [Ask DeliveryLens](#14-ask-deliverylens)
+15. [Agent activity](#15-agent-activity)
+16. [The "What am I looking at?" panel](#16-the-what-am-i-looking-at-panel)
+17. [Where the AI is, which framework, and in which phase](#17-where-the-ai-is-which-framework-and-in-which-phase)
+18. [Turning on real AI answers with Google Gemini](#18-turning-on-real-ai-answers-with-google-gemini)
+19. [Blockers and open items](#19-blockers-and-open-items)
 
 ---
 
@@ -36,14 +37,14 @@ Every screen has the same menu on the left. It is split into four groups:
 | Group | Screens | What the group is for |
 |---|---|---|
 | **Start here** | How it works | The client's process, and where we act in it. Open this first. |
-| **The decision** | Overview, Why deliveries are late, Vendor decision, What-if simulator | The answer for the COO and CFO: why deliveries are late, and whether to buy the $680K routing tool. |
+| **The decision** | Overview, Why deliveries are late, Vendor decision, What-if simulator, Late same-day orders | The answer for the COO and CFO: why deliveries are late, and whether to buy the $680K routing tool. |
 | **Operations** | Carriers, At-risk clients, Stock & routes | The detail behind each cause, for the operations team. |
 | **AI agents** | Order desk (live), Order intake agent, Ask DeliveryLens, Agent activity | The AI agents working, and the log of everything they did. |
 
 Two small things in the menu:
 - **The purple badge under the logo** ("AI: Mock (canned)") tells you which AI is answering right now.
   - **Mock (canned)**: prepared answers, no internet needed. Good for a safe demo.
-  - **Gemini**: real Google AI answers. You turn it on with your own key (see [section 17](#17-turning-on-real-ai-answers-with-google-gemini)).
+  - **Gemini**: real Google AI answers. You turn it on with your own key (see [section 18](#18-turning-on-real-ai-answers-with-google-gemini)).
   - **Bedrock**: Claude on Amazon, used once we deploy to AWS.
 - **"48,340 deliveries, 1 Apr – 25 Sep 2026"** at the bottom is the size of the data behind every number in the app.
 
@@ -64,7 +65,7 @@ Two small things in the menu:
 | 5 | **"$680K routing tool acts only here: the road"** | The dashed box sits under step 7, the delivery drive. That is the only step the routing software touches. The **amber boxes** above it show the points of on-time delivery each cause costs: −7.7 weak carrier, −6.9 incomplete address, −5.4 same-day after 08:00, −4.9 stock not at the nearest warehouse, −3.1 route deviation. Only the last one is on the road. |
 | 6 | **Who does the work at each step** | The key to the badge colours. **AI agent** (purple): reads and writes language. **Rule** (green): a fixed check in code, same answer every time. **Data lookup** (blue): looks up a fact in Halcyon's data. **Guardrail** (red): a safety check before the AI sees anything. |
 | 7 | **Start here** list | The suggested order to explore the app. Each row opens that screen. |
-| 8 | **What am I looking at?** | A plain-English key to the page. Every screen has one. See [section 15](#15-the-what-am-i-looking-at-panel). |
+| 8 | **What am I looking at?** | A plain-English key to the page. Every screen has one. See [section 16](#16-the-what-am-i-looking-at-panel). |
 
 **A "point"** in this app means one percentage point of on-time delivery. Going from 71% to 72% is +1 point.
 
@@ -80,16 +81,17 @@ lands in the warehouse system.
 
 | # | What it is | What it means |
 |---|---|---|
-| 1 | **Inbox (12)** | The shared order mailbox. These are the emails clients send to Halcyon's order desk. Each row shows the message id (M01 to M12), the sender, the subject and a one-line description of the case. **"Expect: …"** is what the right answer should be. **"New"** means not processed yet; **"Done: …"** shows what DeliveryLens decided. **Run all 12** processes every new email in one go. |
+| 1 | **Inbox (17)** | The shared order mailbox. These are the emails clients send to Halcyon's order desk. Each row shows the message id (M01 to M17), the sender, the subject and a one-line description of the case. **"Expect: …"** is what the right answer should be. **"New"** means not processed yet; **"Done: …"** shows what DeliveryLens decided. **Run all 17** processes every new email in one go. |
 | 2 | **Email M02 (selected)** | The email you clicked. Here, M02 from "Plant 2 Ops" for Client 263, which is missing a postcode. |
 | 3 | **The email itself** | Sender, time received, the client it belongs to, and the full email text. The grey box explains in one line which cause this email shows. |
 | 4 | **Run DeliveryLens on this email** | Starts the 10-step pipeline for this one email. It takes a second with Mock, a few seconds with Gemini. |
 | 5 | **Pipeline trace** | Every step the email went through, in order, with **who did it** (the badge), the **result** (Passed, Failed, Warning or Skipped), **how long it took** (ms = thousandths of a second) and a one-line reason. Click **Details** to see the raw data of a step, for example the fields the AI extracted. The 10 steps are listed below this table. |
-| 6 | **Warehouse system (WMS)** | The orders DeliveryLens wrote into the warehouse system. Only rows marked **Ready for pick list** are picked at the next 08:00 run. The rest wait for the client or a person. |
-| 7 | **Reset demo** | Clears the WMS table and marks all 12 emails as new again, so you can run the demo from the start. |
+| 6 | **Warehouse system (WMS)** | The orders DeliveryLens wrote into the warehouse system. An accepted order first shows **Awaiting approval**. Only rows marked **Ready for pick list** (after a person approves) are picked at the next run. The rest wait for the client or a person. **Approve all accepted (n)** approves every waiting order at once. |
+| 7 | **Reset demo** | Clears the WMS table and marks all 17 emails as new again, so you can run the demo from the start. |
 
 To the right of the trace (not numbered) are two more cards:
 - **Decision for email M02**: the final result (**On hold** here), the reason ("missing postcode"), and **Matches expected**, which proves the result is the one we planned for this email.
+  For an **Accepted** order, this card also has the **Approve into WMS** button (see below).
 - **Reply to the client**: the email the **Client Reply Agent** drafted. It is marked **DRAFT — needs approval**: a person reads and sends it. Nothing goes to a client automatically.
 
 ### The 10 steps in the pipeline trace
@@ -98,19 +100,58 @@ To the right of the trace (not numbered) are two more cards:
 |---|---|---|---|
 | 1 | Email received | Data lookup | Reads the email (and any attachment) from the shared inbox. |
 | 2 | Safety screen | **Guardrail** | Blocks emails that try to give the AI instructions ("ignore your instructions…"). Masks personal data such as email addresses and phone numbers before anything is logged. |
-| 3 | Read the order | **AI: Order Intake Agent** | Reads the free-text email like a person would and pulls out: client, PO number, order lines (SKU and quantity), delivery address, promise type (same-day, next-day, standard) and a confidence score. It also reads CSV attachments. |
+| 3 | Read the order | **AI: Order Intake Agent** | Reads the free-text email like a person would and pulls out: client, PO number, order lines (SKU and quantity), delivery address, promise type (same-day, next-day, standard) and a confidence score. It also reads CSV attachments. It also reads **how urgent** the email is (none, medium, high) and copies the sentence that shows it. Code then checks that sentence is really in the email; if not, urgency counts as none. |
 | 4 | Identify the client | Data lookup | Matches the sender's email domain to a client on file, and flags the 9 at-risk clients. |
 | 5 | Check the address | Rule | Street, city, state and postcode must all be there. Country defaults to US. If anything is missing, the order is put **on hold** before picking. |
-| 6 | Check the promise date | Rule | A same-day order after 08:00 cannot make today's pick list, so it is honestly re-promised for the next day. |
+| 6 | Check the promise date | Rule | Before 08:00 an order goes on today's pick list. A same-day order after 08:00 is still added to today's list in the **grace period** (until 09:00), or until the **hard stop** (10:00) if it is urgent (see below). Otherwise it is honestly re-promised for the next day. |
 | 7 | Check stock | Data lookup | Is the item in stock at the warehouse nearest the client? If not, which warehouse has it? |
 | 8 | Choose the carrier | Rule | Picks the best carrier for the destination region, avoiding the 7 weak lanes, instead of the cheapest one from the rate card. |
-| 9 | Decision | Rule | **Accepted**, **On hold**, **Needs review** or **Blocked**. Writes the row in the WMS table. |
+| 9 | Decision | Rule | **Accepted**, **On hold**, **Needs review** or **Blocked**. Writes the row in the WMS table. An accepted order waits as **Awaiting approval** until a person approves it. |
 | 10 | Draft the reply | **AI: Client Reply Agent** | Writes a confirmation, or a polite request for the missing details, for a person to approve. |
 
 **Why only steps 3 and 10 use AI:** AI is good at language: reading a messy email, writing a polite
 reply. It is not trusted with arithmetic or business decisions. The cutoff, the carrier choice and
 the final accept-or-hold are rules and data, so the same order always gets the same answer and
-anyone can check why.
+anyone can check why. The AI's urgency reading only counts when its quote is found in the email,
+and even then a fixed rule decides what happens to the order.
+
+### Late same-day orders (step 6)
+
+The 08:00 pick list stays. A same-day order with a complete address that arrives after 08:00 is
+handled by its arrival time. The [Late same-day orders](#9-late-same-day-orders) screen replays the
+same rule on history.
+
+1. **Grace period, 08:00 to 09:00:** added to today's pick list, urgent or not.
+2. **Urgent orders only, 09:00 to 10:00:** added to today's pick list only if
+   - the email gives a **valid reason** (any client). The AI reads the urgency as high and quotes the
+     sentence, for example a stopped production line or a fixed deadline. Code checks the quote is
+     a whole sentence of the email and shows a real impact; or
+   - the email **says it is urgent** with no reason (medium), and the client is a **priority client**:
+     Tier 1 (at least $1M revenue a year) or at risk of leaving.
+   - "URGENT!!!" from any other client, or an email that is not urgent, goes to tomorrow.
+3. **Hard stop, from 10:00:** tomorrow, always.
+4. An order that is not added is re-promised as next-day, and the reply to the client says so.
+
+The AI only reads the urgency and quotes the evidence. Code checks the quote, and the rule decides.
+The two times are settings (`SAME_DAY_GRACE_UNTIL` and `SAME_DAY_HARD_STOP` in `backend/.env`).
+
+| Email | Arrived | What the rule sees | Result |
+|---|---|---|---|
+| M16: plain same-day order | 08:35 | Grace period | Added to today |
+| M14: "URGENT!!!" only | 09:15 | Says urgent; Tier 3 client, not at risk | Re-promised next day. Shouting is not enough. |
+| M15: "This one is URGENT" | 09:20 | Says urgent; Tier 1 client | Added to today |
+| M04: "it is for a store opening" | 09:30 | Valid reason | Added to today |
+| M13: "Our production line stops at 3pm without these parts." | 09:40 | Valid reason | Added to today |
+| M17: production line stops at 4pm, at-risk client | 10:20 | After the hard stop | Re-promised next day, even with a valid reason |
+
+### A person approves before the WMS
+
+1. DeliveryLens accepts an order and writes it to the WMS as **Awaiting approval**. Nothing is
+   picked yet.
+2. A person checks the decision card and clicks **Approve into WMS** (or **Approve all accepted**
+   under the WMS table).
+3. The order changes to **Ready for pick list**, with the time it was approved.
+4. Only accepted orders can be approved. On hold, needs review and blocked orders cannot.
 
 ### What the results look like
 
@@ -123,13 +164,14 @@ skipped: nothing is sent to the AI and nothing goes into the warehouse system.
 
 ![M10 blocked](guide-images/04-order-desk-blocked.png)
 
-**A same-day order after the cutoff: M04.** The order is accepted, but step 6 shows a warning: it
-arrived at 09:30, after the 08:00 pick list, so it is re-promised for the next day instead of
-silently arriving late.
+**A same-day order after the cutoff: M04.** It arrived at 09:30, after the 08:00 pick list and
+after the 09:00 grace period. The email gives a valid reason ("it is for a store opening"), so step 6
+adds it to today's pick list and it keeps its same-day promise. The screenshot below was taken under
+the earlier rule, when M04 was re-promised for the next day.
 
 ![M04 same-day after cutoff](guide-images/05-order-desk-same-day.png)
 
-### The warehouse system (WMS) after "Run all 12"
+### The warehouse system (WMS) after "Run all 17"
 
 ![WMS orders](guide-images/06-wms-orders.png)
 
@@ -142,24 +184,28 @@ silently arriving late.
 | Promise | Same-day, next-day or standard, and the date we promise. "date not set" means the order is waiting. |
 | Warehouse | The warehouse that will pick it (W1 to W5). Orange text such as "nearest W5 out of stock" means it ships from further away. |
 | Carrier | The carrier chosen by our rule. The grey line underneath says which carrier the old rate card would have picked, for comparison. |
-| Pick list | The date of the 08:00 pick list it goes on. "not yet" means it is waiting. |
-| Status | **Ready for pick list**, **On hold** (missing address), or **Needs review** (a person must check). Blocked emails (M10) never reach the WMS. |
+| Pick list | The date of the pick list it goes on (today's, or tomorrow's for a late same-day order that was not added). "not yet" means it is waiting. |
+| Status | **Awaiting approval** (accepted, waiting for a person), **Ready for pick list** (approved), **On hold** (missing address), or **Needs review** (a person must check). Blocked emails (M10) never reach the WMS. |
+
+The screenshot above was taken before the approval step was added, so it shows accepted orders as
+Ready for pick list straight away.
 
 **About the WMS:** Halcyon's real warehouse system is not available to us. The WMS here is a simple
 table (`wms_orders`) in our database that stands in for it. In production, step 9 would call the
 WMS's own API instead of writing to this table. Nothing else changes.
 
-**Where the emails come from:** for the demo, the 12 emails are real `.eml` files in
+**Where the emails come from:** for the demo, the 17 emails are real `.eml` files in
 `data/sample-inbox/` (the format any mail server saves). The loader reads them, with attachments,
 into the `inbox_messages` table. In production the same code would read from Halcyon's shared order
 mailbox (for example by IMAP, or through Amazon SES storing new mail in S3).
 
 ---
 
-## 4. The 12 sample emails: good cases and bad cases
+## 4. The 17 sample emails: good cases and bad cases
 
-The dataset has no email text, so we wrote 12 emails that cover the typical good and bad cases.
-With the Mock AI, all 12 give exactly the expected result. With Gemini, the wording of the replies
+The dataset has no email text, so we wrote 17 emails that cover the typical good and bad cases.
+With the Mock AI, all 17 give exactly the expected result (13 accepted, 2 on hold, 1 needs review,
+1 blocked). With Gemini, the wording of the replies
 changes every time, but the decisions are made by rules, so they stay the same.
 
 | Email | Case | Good or bad? | Expected result | What it shows |
@@ -167,7 +213,7 @@ changes every time, but the decisions are made by rules, so they stay the same.
 | M01 | Complete order, labelled layout | ✅ Good | Accepted | A clean email from an at-risk client goes straight to the pick list, no typing. The old rate card would have used Carrier F, which is weak to the Northeast. |
 | M02 | Missing postcode | ❌ Bad | On hold | Cause 2 (incomplete address): held before picking, follow-up drafted asking for the postcode. |
 | M03 | Missing street, free-text order line | ❌ Bad | On hold | Cause 2 again with a different layout: only city, state and ZIP given. |
-| M04 | Same-day order received 09:30 | ⚠️ Risky | Accepted, re-promised next day | Cause 3 (same-day after 08:00): accepted, but honestly promised for tomorrow. |
+| M04 | Same-day order received 09:30 | ⚠️ Risky | Accepted, added to today | Cause 3 (same-day after 08:00): after the 09:00 grace period only urgent orders are added. The AI quotes the valid reason (a store opening), code checks the quote, so the order keeps its same-day promise. |
 | M05 | Same-day order received 07:10 | ✅ Good | Accepted | Before the 08:00 cutoff, so it keeps its same-day promise. |
 | M06 | Address written on one line | ✅ Good | Accepted | The AI reads a one-line address, which a fixed template cannot. |
 | M07 | Text table with four lines | ✅ Good | Accepted | A different client layout is read without a template for it. |
@@ -176,6 +222,11 @@ changes every time, but the decisions are made by rules, so they stay the same.
 | M10 | Prompt injection in the body | ❌ Attack | Blocked | The guardrail stops an email that tries to give the AI instructions. Nothing reaches the AI or the WMS. |
 | M11 | "A couple of pallets of the usual" | ❌ Unclear | Needs review | No SKU and no number, so the agent does not guess; a person checks it. |
 | M12 | Order lines only in an attached CSV | ✅ Good | Accepted | The agent reads the attachment as well as the email body. |
+| M13 | Same-day order at 09:40, "production line stops at 3pm" | ✅ Good | Accepted, added to today | Urgent window: the AI quotes the sentence and code finds it in the email. A valid reason counts for any client, so the order keeps its same-day promise. |
+| M14 | Same-day order at 09:15, "URGENT!!!" only | ❌ Gaming | Accepted, re-promised next day | Shouting with no reason only "says urgent". Client 018 is Tier 3 and not at risk, so the order goes to tomorrow, and the reply says so. |
+| M15 | Same-day order at 09:20, "URGENT" from a Tier 1 client | ✅ Good | Accepted, added to today | A priority client: "urgent" with no reason is enough for a Tier 1 or at-risk client. |
+| M16 | Same-day order at 08:35, not urgent | ✅ Good | Accepted, added to today | Grace period (08:00 to 09:00): every same-day order with a complete address is still added. |
+| M17 | Same-day order at 10:20, production line stops, at-risk client | ⚠️ Risky | Accepted, re-promised next day | Hard stop (10:00): even a valid reason from an at-risk client cannot reach today's list. The reply says so honestly. |
 
 ### How DeliveryLens decides an address is good enough
 
@@ -229,6 +280,20 @@ clients threatening to leave.
 | 2 | **The causes, largest first** | One row per cause. **Worth**: points of on-time delivery it costs. **Deliveries hit**: how many of the 48,340 deliveries had this problem. **On time when hit**: how often those deliveries were still on time (for example only 35% with an incomplete address). **Share of late**: what share of all late deliveries had this cause. **SLA penalties**: penalties paid on those deliveries in 6 months. **Fixed by**: whether routing software or a process change fixes it. |
 | 3 | **A cause row (click it)** | Opens a list of real late deliveries with that cause, so you can see actual examples behind the number. |
 
+**Draft delay alert and the recovery plan.** Click a delivery in that list to open its details, then
+click **Draft delay alert**.
+1. The **Delay Alert Agent** drafts the message to the client, for a person to approve.
+2. Under it is the **Recovery plan for the team (not sent to the client)**. This part is rules, not AI:
+   - **next steps:** one per cause, each with an owner. Example: "Ask carrier D for a tracking
+     update today, and book future Southeast orders with carrier B" (owner: carrier manager).
+   - **priority:** high, medium or normal. The points are: at-risk client 40, SLA penalty clause 30, Tier 1 20,
+     Tier 2 10, plus 15 for a complaint from this client in the last 90 days, plus 15 if the delay is 3 days or more. High
+     is 60 or more; medium is 30 or more.
+   - **escalation:** at-risk clients and high-priority cases also get "call the client" for the
+     account owner.
+   - **SLA penalty exposure:** an estimate of the SLA penalty this delay may cost, from this
+     client's past penalties. Shown only if the contract has a penalty clause.
+
 ---
 
 ## 7. Vendor decision
@@ -263,7 +328,40 @@ Halcyon to confirm. Everything else is calculated from the data.
 
 ---
 
-## 9. Carriers
+## 9. Late same-day orders
+
+**Menu:** The decision → Late same-day orders. Same-day orders that arrive after 08:00 miss the
+pick list. The business owner asked us not to change the procedure, so the 08:00 pick list stays.
+This screen shows the rule the Order desk uses for those late orders, and replays it on the 4,826
+same-day orders received after 08:00 in the data. You can change the two times to test other
+settings against history. There is no annotated picture yet; the parts, top to bottom:
+
+| Part | What it means |
+|---|---|
+| **Title** | The finding for the times you chose, with the real numbers. With the defaults (grace until 09:00, hard stop 10:00): the grace period avoids about 729 late deliveries and $43,436 of SLA penalties a year. |
+| **Grace period until** and **Hard stop** | The two times, in half-hour steps between 08:00 and 14:00. They start at the Order desk's settings (09:00 and 10:00). Changing them here only changes the replay, not the Order desk. |
+| **The rule** | The rule table, in the order it is applied, with who decides each row (**AI agent** or **Rule**). Before 08:00: today. Grace period: today. Urgent window: today only with a valid reason (any client) or "urgent" from a priority client. Not urgent: tomorrow, even for a priority client. From the hard stop: tomorrow. |
+| **When the orders arrive** | The 4,826 orders per half hour, coloured by window. With the defaults: 799 in the grace period, 821 in the urgent window (175 from priority clients) and 3,206 after the hard stop. |
+| **What each window adds** | Per window: orders added, extra orders per warehouse per day, late deliveries avoided a year, SLA penalties avoided a year, and late deliveries avoided for the 9 at-risk clients. The urgent window is shown as "at most" (see below). |
+| **On-time rate for these orders** | 39% today, 47% with the grace period, at most 48% with the urgent window too. |
+| **Method and assumptions** | How the replay works and what it leaves out. |
+
+**Who counts as a priority client:** Tier 1 (at least $1M revenue a year) or at risk of leaving.
+
+**Good to know**
+- The grace period figures are exact for the history: every same-day order with a complete address
+  in that window is added (741 orders, 0.83 extra orders per warehouse per day).
+- History has no email text, so the urgent window is an **upper bound**. It counts every
+  priority-client order as if it said it was urgent: at most 159 orders, up to 166 late deliveries
+  and $16,927 of SLA penalties avoided a year. The other 614 orders in that window would need a
+  valid reason, which history cannot show, so they are not counted.
+- Orders with an incomplete address are on hold and never added (106 in the first two windows).
+- The full results are in [03-what-the-data-says.md](03-what-the-data-says.md#the-same-day-cutoff).
+- Offline, the page shows a saved copy labelled **Sample — API offline**.
+
+---
+
+## 10. Carriers
 
 **Menu:** Operations → Carriers. Cause 1, the biggest one.
 
@@ -276,7 +374,7 @@ Halcyon to confirm. Everything else is calculated from the data.
 
 ---
 
-## 10. At-risk clients
+## 11. At-risk clients
 
 **Menu:** Operations → At-risk clients. The 9 clients worth $14.2M.
 
@@ -289,7 +387,7 @@ Halcyon to confirm. Everything else is calculated from the data.
 
 ---
 
-## 11. Stock & routes
+## 12. Stock & routes
 
 **Menu:** Operations → Stock & routes. Causes 4 and 5.
 
@@ -303,7 +401,7 @@ Halcyon to confirm. Everything else is calculated from the data.
 
 ---
 
-## 12. Order intake agent
+## 13. Order intake agent
 
 **Menu:** AI agents → Order intake agent. The same AI as step 3 of the order desk, on its own, so you
 can paste any email and test it.
@@ -321,7 +419,7 @@ With Gemini on, the AI reads your new text and the reply changes.
 
 ---
 
-## 13. Ask DeliveryLens
+## 14. Ask DeliveryLens
 
 **Menu:** AI agents → Ask DeliveryLens. Managers ask questions in plain English.
 
@@ -338,9 +436,22 @@ only those numbers. So the AI never makes up a figure: every number comes from t
 the rest of the app. You can see both AI calls ("Ask: choose data tool" and "Ask DeliveryLens") on
 the Agent activity screen.
 
+**Questions about complaints** (for example "Why are clients complaining?" or "What has Client 190
+complained about?") use the **complaints** tool:
+1. It filters the 34 complaints by client or by category, if the question names one.
+2. It joins each complaint to its delivery, to show the carrier, region, days late and the causes
+   found in the delivery data.
+3. It gives the pattern. Example: 12 of 34 are "Not told about the delay"; 26 of 34 were escalated.
+4. A complaint's category is what the client said, not a checked cause. The answer says so.
+5. The data has no policy or resolution records. So for "What is our refund policy?" the answer says
+   it cannot be answered from the data, instead of inventing one.
+
+This is a plain filter and join, not a vector database: 34 short complaints in 4 categories do not
+need one, and a filter gives exact, checkable counts.
+
 ---
 
-## 14. Agent activity
+## 15. Agent activity
 
 **Menu:** AI agents → Agent activity. The audit log of every AI call.
 
@@ -356,7 +467,7 @@ call.
 
 ---
 
-## 15. The "What am I looking at?" panel
+## 16. The "What am I looking at?" panel
 
 Every screen has this bar near the top. Click it to open a short plain-English key to that page:
 what each chart shows, what each number means and what to do next.
@@ -365,26 +476,28 @@ what each chart shows, what each number means and what to do next.
 
 ---
 
-## 16. Where the AI is, which framework, and in which phase
+## 17. Where the AI is, which framework, and in which phase
 
 ### AI agents inside the product
 
 | Agent | Where you see it | What it does | Why AI here |
 |---|---|---|---|
-| **Order Intake Agent** | Order desk step 3; Order intake agent screen | Reads a free-text email (and CSV attachments) and returns the order as structured data. | Every client writes differently. A fixed template cannot read "ship to 88 Harbor St Boston" on one line or a table layout. |
+| **Order Intake Agent** | Order desk step 3; Order intake agent screen | Reads a free-text email (and CSV attachments) and returns the order as structured data, including how urgent it is, with a quote. | Every client writes differently. A fixed template cannot read "ship to 88 Harbor St Boston" on one line or a table layout. |
 | **Client Reply Agent** | Order desk step 10 | Drafts the confirmation, or the request for missing details. | Writing a clear, polite email is language work. A person approves it. |
-| **Delay Alert Agent** | How it works, step 8 (API: `/api/agents/delay-alert`) | Writes a warning to the client before a late delivery, with the new date. | 12 complaints were about not being told. A message costs almost nothing. |
-| **Ask DeliveryLens** | Ask DeliveryLens screen | Picks a data tool, then answers in plain English using only those numbers. | Managers ask in their own words, not in SQL. |
+| **Delay Alert Agent** | Why deliveries are late → a delivery → Draft delay alert (API: `/api/agents/delay-alert`) | Writes a warning to the client before a late delivery, with the new date. The recovery plan next to it is rules. | 12 complaints were about not being told. A message costs almost nothing. |
+| **Ask DeliveryLens** | Ask DeliveryLens screen | Picks a data tool (including the complaint search), then answers in plain English using only those numbers. | Managers ask in their own words, not in SQL. |
 
-What is **not** AI, on purpose: the address rule, the 08:00 cutoff, stock lookup, carrier choice,
-the final decision and every number on every chart. These are rules and calculations, so they
+What is **not** AI, on purpose: the address rule, the 08:00 cutoff, the urgency quote check, the
+late same-day rule (grace period, urgent window, hard stop), stock lookup, carrier choice, the final decision, the recovery
+plan, the complaint search and every number on every chart. A person approves every order before it
+enters the WMS. These are rules and calculations, so they
 always give the same, checkable answer.
 
 ### The framework
 
 - **Our own small Python pipeline, no heavy framework** (no LangChain). Each step is a plain
   function in `backend/app/desk/pipeline.py`. A step gets the email, does one job and adds a line to
-  the trace you see on screen. Small, fast and easy to test (148 backend tests).
+  the trace you see on screen. Small, fast and easy to test (226 backend tests).
 - **One shared AI client** (`backend/app/agents/llm_client.py`) that can talk to three providers.
   The setting `LLM_PROVIDER` chooses one:
   - `mock`: canned answers, offline, the default;
@@ -410,7 +523,7 @@ always give the same, checkable answer.
 
 ---
 
-## 17. Turning on real AI answers with Google Gemini
+## 18. Turning on real AI answers with Google Gemini
 
 With Mock, the AI answers are prepared in advance. With Gemini, the replies are written live, so
 they change with the email you give it.
@@ -439,12 +552,12 @@ The database: locally the app uses **SQLite** (a single file, `backend/deliveryl
 
 ---
 
-## 18. Blockers and open items
+## 19. Blockers and open items
 
 | # | Blocker | Impact | What we need |
 |---|---|---|---|
 | 1 | **AWS access arrives Monday 26 Oct** | No live URL yet (a must-have). All AWS scripts are ready with placeholders in `infra/config.env.example`. | Account access; then run `infra/scripts/00` to `08` (about half a day). |
-| 2 | **Gemini not yet tested with a real key** | The code follows Google's official SDK and is unit-tested, but no live call has been made. | Your key in `backend/.env`; run the 12 emails once and check the Agent activity screen. |
+| 2 | **Gemini not yet tested with a real key** | The code follows Google's official SDK and is unit-tested, but no live call has been made. | Your key in `backend/.env`; run the 17 emails once and check the Agent activity screen. |
 | 3 | **Amazon Bedrock not yet verified** | Model access must be switched on in the AWS account. | Confirm Claude model access in the Bedrock console on Monday. |
 | 4 | **Discovery answers pending** | Our cost and "how well each fix works" figures are estimates. | Answers from the stakeholder (round 2 questions sent 23 Oct); then update `analysis/root_cause_analysis.py`. |
 | 5 | **Old branch `wip/frontend-round3` on GitHub** | None (it is a leftover snapshot). | Delete it in GitHub → Branches (our tool was not allowed to). |

@@ -16,3 +16,19 @@ def test_loader_if_empty_skips_when_loaded(loaded_db):
     out = subprocess.run([sys.executable, "-m", "app.loader", "--if-empty"], capture_output=True, text=True,
                          check=True)
     assert "skipping" in out.stdout
+
+
+def test_if_empty_refresh_creates_missing_inbox_tables(tmp_path):
+    """A DB loaded before the Order desk existed has deliveries but no inbox / WMS tables."""
+    from sqlalchemy import create_engine, inspect
+
+    from app.loader import refresh_inbox
+    from app.models import Delivery
+
+    eng = create_engine(f"sqlite:///{tmp_path / 'old.db'}")
+    Delivery.__table__.create(eng)
+    assert not inspect(eng).has_table("inbox_messages")
+    assert refresh_inbox(eng) > 0
+    insp = inspect(eng)
+    assert insp.has_table("inbox_messages") and insp.has_table("wms_orders")
+    assert "approved_at" in {c["name"] for c in insp.get_columns("wms_orders")}

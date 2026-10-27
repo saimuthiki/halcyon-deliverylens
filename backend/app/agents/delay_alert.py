@@ -15,8 +15,11 @@ import numpy as np
 
 from app.agents.llm_client import LLMClient, extract_json
 from app.analytics.causes import CAUSES, PICK_LIST_CUTOFF_MINUTES, causes_of
+from app.analytics import views
 from app.analytics.combos import mask_of
+from app.analytics.late_orders import expected_penalty_per_late
 from app.analytics.views import clean_value
+from app.config import get_settings
 
 AGENT = "delay_alert"
 MIN_SAMPLE = 5  # fewer late deliveries than this in the same combination -> use all late deliveries with a cause
@@ -104,6 +107,82 @@ def delay_facts(ds, delivery_id: str) -> dict:
     }
 
 
+# ---------------------------------------------------------------- recovery plan for Customer Success
+# Deterministic: the AI only words the client draft. These are internal next steps, never sent to the client.
+CLIENT_POINTS = {"at_risk": 40, "sla": 30, "tier_1": 20, "tier_2": 10}  # who the client is
+COMPLAINT_POINTS = 15        # the client complained in the 90 days before dispatch
+SEVERE_DELAY_POINTS = 15     # predicted delay of SEVERE_DELAY_DAYS or more
+SEVERE_DELAY_DAYS = 3
+COMPLAINT_WINDOW_DAYS = 90
+HIGH_PRIORITY, MEDIUM_PRIORITY = 60, 30
+
+
+def _cause_action(ds, cause: str, r) -> dict:
+    region = r.destination_region
+    if cause == "incomplete_address":
+        return {"action": "Call the client today to confirm the full delivery address before the carrier's "
+                          "first attempt.", "owner": "Customer Success"}
+    if cause == "weak_carrier_lane":
+        best = views.carrier_scorecard(ds)["recommended_by_region"][region]
+        return {"action": f"Ask carrier {r.carrier_id} for a tracking update today, and book future {region} "
+                          f"orders with carrier {best['carrier_id']} ({best['on_time_rate']:.0%} on time there).",
+                "owner": "Carrier manager", "recommended_carrier": best["carrier_id"]}
+    if cause == "stock_not_at_nearest":
+        return {"action": f"Flag this client's stock for rebalancing to {r.nearest_warehouse_id}, the nearest "
+                          f"warehouse to {region}; it shipped from {r.fulfilment_warehouse_id} instead.",
+                "owner": "Inventory planning"}
+    if cause == "same_day_after_cutoff":
+        s = get_settings()
+        return {"action": "Remind the client that same-day orders need to reach us by 08:00 (or "
+                          f"{s.same_day_grace_until} at the latest); until {s.same_day_hard_stop} only urgent "
+                          "orders are added, and after that offer next-day at order time.",
+                "owner": "Warehouse"}
+    return {"action": f"Raise the route deviation with carrier {r.carrier_id} and check the driver's route.",
+            "owner": "Carrier manager"}
+
+
+def recovery_plan(ds, delivery_id: str, causes: list[str], predicted_days: int) -> dict:
+    """Who should do what, and how urgently, before the client has to chase."""
+    r = ds.by_id.loc[delivery_id]
+    c = ds.clients.set_index("client_id").loc[r.client_id]
+    at_risk = r.client_id in ds.at_risk_client_ids
+    sla = c.sla_penalty_clause == "Y"
+    parts = [{"rule": rule, "points": pts} for rule, pts, on in (
+        ("At-risk client", CLIENT_POINTS["at_risk"], at_risk), ("SLA penalty clause", CLIENT_POINTS["sla"], sla),
+        ("Tier 1 client", CLIENT_POINTS["tier_1"], c.account_tier == "Tier 1"),
+        ("Tier 2 client", CLIENT_POINTS["tier_2"], c.account_tier == "Tier 2")) if on]
+    cp = ds.complaints
+    since = r.shipped_ts - timedelta(days=COMPLAINT_WINDOW_DAYS)
+    recent = cp[(cp.client_id == r.client_id) & (cp.complaint_date >= since) & (cp.complaint_date <= r.shipped_ts)]
+    if len(recent):
+        parts.append({"rule": f"{len(recent)} complaint{'s' if len(recent) != 1 else ''} in the last "
+                              f"{COMPLAINT_WINDOW_DAYS} days", "points": COMPLAINT_POINTS})
+    if predicted_days >= SEVERE_DELAY_DAYS:
+        parts.append({"rule": f"Predicted {predicted_days} days late", "points": SEVERE_DELAY_POINTS})
+    score = sum(p["points"] for p in parts)
+    priority = "high" if score >= HIGH_PRIORITY else "medium" if score >= MEDIUM_PRIORITY else "normal"
+    escalate = at_risk or priority == "high"
+    exposure = None
+    if sla:
+        exposure = int(round(expected_penalty_per_late(ds, r.client_id)))
+    actions = [{"cause": cause, **_cause_action(ds, cause, r)} for cause in causes]
+    if escalate:
+        why = "at risk of leaving" if at_risk else f"high priority ({score} points)"
+        actions.append({"cause": None, "owner": "Account owner",
+                        "action": f"Call {c.client_name} before they chase: the client is {why}."})
+    return {"priority": priority, "priority_score": score, "priority_parts": parts,
+            "escalate_to_account_owner": bool(escalate), "penalty_exposure_usd": exposure,
+            "penalty_note": ("Estimate: the expected SLA penalty per late delivery for this client (its "
+                             "penalties / its late deliveries)." if exposure is not None
+                             else "No SLA penalty clause in this client's contract."),
+            "actions": actions,
+            "method": ("Rules, not AI. Points: at-risk client {at_risk}, SLA clause {sla}, Tier 1 {tier_1}, Tier 2 {tier_2}, "
+                       .format(**CLIENT_POINTS) + f"plus {COMPLAINT_POINTS} for a complaint "
+                       f"in the last {COMPLAINT_WINDOW_DAYS} days and {SEVERE_DELAY_POINTS} for a predicted delay "
+                       f"of {SEVERE_DELAY_DAYS}+ days. High at {HIGH_PRIORITY}+, medium at {MEDIUM_PRIORITY}+. "
+                       "At-risk clients always go to the account owner.")}
+
+
 def _template(f: dict) -> tuple[str, str]:
     commitment = f["commitment_type"].replace("_", "-")
     days = f["predicted_delay_days"]
@@ -161,6 +240,8 @@ def run_delay_alert(ds, delivery_id: str, llm: LLMClient | None = None) -> dict:
             "delivery_id": delivery_id, "status": "draft", "requires_approval": True,
             "predicted_delay_days": facts["predicted_delay_days"], "predicted_date": facts["predicted_date"],
             "basis": facts["basis"], "facts": facts, "subject": subject, "message": message,
+            "recovery": recovery_plan(ds, delivery_id, [c["cause"] for c in facts["causes"]],
+                                      facts["predicted_delay_days"]),
             "actual_outcome": {"note": "Known only after delivery; not used in the prediction or the message",
                                "delivered_date": clean_value("delivered_date", r.delivered_date),
                                "days_late": int(r.days_late)},

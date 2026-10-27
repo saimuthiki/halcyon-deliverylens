@@ -161,10 +161,12 @@ class WmsOrder(Base):
     fulfilment_warehouse_id: Mapped[str | None] = mapped_column(String(5), nullable=True)
     carrier_id: Mapped[str | None] = mapped_column(String(5), nullable=True)
     carrier_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(30))  # ready_for_pick_list | on_hold_missing_address | needs_review
+    # awaiting_approval -> (a person approves) -> ready_for_pick_list | on_hold_missing_address | needs_review
+    status: Mapped[str] = mapped_column(String(30))
     pick_list_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 # CSV file -> model, in foreign-key-safe insert order.

@@ -2,7 +2,9 @@
 
 AI step   : extract client, items, ship-to address, requested date, commitment type.
 Rule steps: (1) any missing address field -> address_status=incomplete + follow-up email draft;
-            (2) same-day order received at/after 08:00 -> warn + suggest next_day.
+            (2) same-day order received at/after 08:00 -> warn + suggest next_day;
+            (3) the AI's urgency quote must be a whole sentence of the email, or urgency becomes none;
+            "high" needs an operational-impact quote, else it is capped at medium (verify_urgency).
 These two rules target the two biggest process causes of late deliveries.
 """
 import json
@@ -52,6 +54,8 @@ class Extraction(BaseModel):
     requested_date: str | None = None
     commitment_type: Literal["same_day", "next_day", "standard"] = "standard"
     received_at: str | None = None  # "YYYY-MM-DD HH:MM" from the email header, if present
+    urgency: Literal["none", "medium", "high"] = "none"
+    urgency_evidence: str | None = None  # the exact sentence that shows the urgency
 
 
 # ---------------------------------------------------------------- mock / fallback parser
@@ -77,11 +81,72 @@ _ADDRESS_RE = re.compile(
     r"(?P<city>[A-Za-z][A-Za-z .'-]*?)\s*,?\s+(?P<state>[A-Z]{2})\s*,?\s*(?P<postcode>\d{5}(?:-\d{4})?)\b"
     r"(?:\s*,\s*(?P<country>US|USA|United States)\b)?")
 _DATE_RE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+# Urgency keywords for the mock provider. Operational impact is high; "urgent" on its own is only medium.
+_URGENCY_HIGH = re.compile(
+    r"\bline\s+(?:stops|will\s+stop|is\s+down|goes\s+down)\b|\bproduction\s+line\b|\bline\s+down\b"
+    r"|\bby\s+\d{1,2}(?::\d{2})?\s*[ap]\.?m\b|\bstore\s+(?:opens|opening)\b|\bshut\s*down\b", re.I)
+_URGENCY_MEDIUM = re.compile(r"\burgent(?:ly)?\b|\basap\b|\brush\b", re.I)
+_HEADER_LINE = re.compile(r"^(?:From|To|Cc|Subject|Sent|Date|Received):", re.I)
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z][a-z])")
 
 
 def _clean(v: str | None) -> str | None:
     v = (v or "").strip().strip(",")
     return v or None
+
+
+def _sentences(text: str) -> list[str]:
+    out = []
+    for line in text.splitlines():
+        if not _HEADER_LINE.match(line):
+            out += [x.strip() for x in _SENTENCE_SPLIT.split(line) if x.strip()]
+    return out
+
+
+def detect_urgency(text: str) -> tuple[str, str | None]:
+    """Mock provider: (urgency, the sentence that shows it). Headers are ignored."""
+    sentences = _sentences(text)
+    for level, rx in (("high", _URGENCY_HIGH), ("medium", _URGENCY_MEDIUM)):
+        hit = next((x for x in sentences if rx.search(x)), None)
+        if hit:
+            return level, hit
+    return "none", None
+
+
+def _norm(v: str) -> str:
+    return " ".join(v.split()).casefold()
+
+
+MIN_QUOTE_CHARS = 15
+
+
+def _is_whole_sentence_or_line(quote: str, source: str) -> bool:
+    """True when the quote is a whole sentence or a whole line (or a run of them) of the source,
+    case and whitespace ignored; a line break inside a wrapped sentence counts as a space."""
+    words = _norm(quote).rstrip(".!? ").split()
+    if not words:
+        return False
+    text = "\n".join(_norm(line) for line in source.splitlines())
+    rx = re.compile(r"(?:^|(?<=[.!?] ))" + r"[ \n]+".join(map(re.escape, words)) + r"(?:[.!?]+(?= |$)|$)", re.M)
+    return rx.search(text) is not None
+
+
+def verify_urgency(urgency: str, evidence: str | None, source: str) -> tuple[str, str | None, str | None]:
+    """Deterministic evidence check: the quote must be a whole sentence or line of the email (case and
+    whitespace ignored) of at least 15 characters, and "high" is kept only when the quote shows
+    operational impact (_URGENCY_HIGH); otherwise it is capped at "medium".
+    Returns (urgency, evidence, note); an unverified claim becomes "none" with a note."""
+    if urgency not in ("medium", "high"):
+        return "none", None, None
+    if not evidence or not evidence.strip():
+        return "none", None, f"Urgency {urgency!r} dropped: no quote from the email was given."
+    if len(_norm(evidence)) < MIN_QUOTE_CHARS:
+        return "none", None, f"Urgency {urgency!r} dropped: the quote is too short to be evidence."
+    if not _is_whole_sentence_or_line(evidence, source):
+        return "none", None, f"Urgency {urgency!r} dropped: the quote was not found in the email as a whole sentence."
+    if urgency == "high" and not _URGENCY_HIGH.search(evidence):
+        return "medium", evidence, "Urgency 'high' capped at 'medium': the quote shows no operational impact."
+    return urgency, evidence, None
 
 
 def parse_email_mock(text: str) -> Extraction:
@@ -148,9 +213,10 @@ def parse_email_mock(text: str) -> Extraction:
 
     body = _RECEIVED_RE.sub("", text)
     dm = _DATE_RE.search(body)
+    urgency, evidence = detect_urgency(text)
     return Extraction(client_name=client_name, items=items, ship_to=ShipTo(**ship),
                       requested_date=dm.group(1) if dm else None, commitment_type=commitment,
-                      received_at=received_at)
+                      received_at=received_at, urgency=urgency, urgency_evidence=evidence)
 
 
 # ---------------------------------------------------------------- deterministic checks
@@ -208,7 +274,10 @@ SYSTEM = (
     "(string|null), items (list of {sku: string, qty: integer}), ship_to ({name, street, city, state, "
     "postcode, country}, each string|null), requested_date (YYYY-MM-DD|null), commitment_type "
     "(\"same_day\"|\"next_day\"|\"standard\"), received_at (\"YYYY-MM-DD HH:MM\"|null, from the Sent/Date "
-    "header). Use null for anything not in the email. Never invent an address field."
+    "header), urgency (\"none\"|\"medium\"|\"high\": high only when the email states an operational impact such "
+    "as a stopped production line or a fixed deadline; words like URGENT alone are medium), urgency_evidence "
+    "(the exact sentence from the email that shows the urgency, copied word for word, or null). Use null for "
+    "anything not in the email. Never invent an address field."
 )
 
 
@@ -228,5 +297,8 @@ def run_order_intake(email_text: str, received_at: str | None = None, llm: LLMCl
         flags.append("llm_output_invalid_used_parser")
     if parsed.received_at:  # the header timestamp is a fact; trust the parser over the model
         ext.received_at = parsed.received_at
+    ext.urgency, ext.urgency_evidence, note = verify_urgency(ext.urgency, ext.urgency_evidence, email_text)
+    if note:
+        flags.append("urgency_quote_not_verified")
     return {"agent_run_id": resp.run_id, "provider": resp.provider, "model": resp.model,
             "extraction": ext.model_dump(), "checks": run_checks(ext, received_at), "guardrail_flags": flags}

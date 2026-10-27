@@ -47,7 +47,7 @@ Details: [docs/03-what-the-data-says.md](docs/03-what-the-data-says.md).
 | 5 | [The plan to 29 Oct](docs/05-five-day-plan.md) | Gantt chart, who does what, day-by-day tasks |
 | 6 | [AWS setup guide](docs/06-aws-setup-guide.md) | Step-by-step scripts for Monday; placeholders to fill |
 | 7 | [How we work with AI agents](docs/07-how-we-work-with-ai-agents.md) | The agent pipeline across roles, and where the proof lives |
-| 8 | [User guide](docs/08-user-guide.md) | Every screen, every button, every number, the 12 sample emails, blockers |
+| 8 | [User guide](docs/08-user-guide.md) | Every screen, every button, every number, the 17 sample emails, blockers |
 
 Word versions of every document are in [`docs/downloads/`](docs/downloads/).
 
@@ -89,7 +89,7 @@ python analysis/root_cause_analysis.py
 # 2. Backend
 cd backend && python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -m app.loader            # loads the dataset + 12 sample emails into SQLite
+python -m app.loader            # loads the dataset + 17 sample emails into SQLite
 uvicorn app.main:app --reload   # http://localhost:8000/api/docs
 
 # 3. Frontend (new terminal)
@@ -108,6 +108,10 @@ PostgreSQL, CloudWatch, Amplify, EC2**. See [docs/06-aws-setup-guide.md](docs/06
 - [x] Discovery questions asked (round 2 sent 23 Oct); [ ] answers recorded and applied (due Mon 26 Oct)
 - [x] Agent pipeline across roles ([ai-logs/](ai-logs/INDEX.md))
 - [x] AI inside the product (Order Intake, Client Reply, Delay Alert, Ask DeliveryLens agents; live Order desk); mock or Gemini locally, Bedrock from Monday
-- [x] Usable UI and working backend; tests: backend 148, frontend 27, browser E2E 30 ([evidence/](evidence/README.md))
+  - Order desk: 17 sample emails; a person approves every accepted order before it enters the WMS
+  - Late same-day orders: the 08:00 pick list stays. A grace period until 09:00 adds every same-day order; until the 10:00 hard stop only urgent orders are added; after that, next-day. The AI reads urgency and quotes it, code checks the quote, a rule decides; replay on the 4,826 same-day orders received after 08:00 (`POST /api/simulate/late-orders`)
+  - Delay alert adds an internal recovery plan (rules: next steps, owner, priority, escalation, penalty estimate)
+  - Ask DeliveryLens searches the 34 complaints, joined to delivery causes, and says when the data has no answer (no policy records)
+- [x] Usable UI and working backend; tests: backend 226, frontend 55, browser E2E 30 ([evidence/](evidence/README.md))
 - [ ] Deployed on AWS (Monday 26 Oct, once access arrives)
 - [ ] Evidence pack and final AI logs (Wed 28 Oct)

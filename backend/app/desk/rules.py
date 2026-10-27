@@ -4,6 +4,7 @@
 - warehouses by distance from warehouse_region_distance_miles.csv
 - simulated stock (deterministic hash, about 12% out of stock, like the 12% in the data)
 - promise and pick-list dates with the 08:00 cutoff, using the same offsets as the dataset
+- same-day orders after 08:00: grace period, urgent orders only, hard stop (analytics/late_orders.py)
 - carrier: the old spreadsheet (cheapest base rate) against the advisor (best on-time, never a weak lane)
 """
 import hashlib
@@ -66,17 +67,20 @@ def stock_plan(region: str, skus: list[str]) -> dict:
             "stock_by_warehouse": stock}
 
 
-def promise(commitment: str, received_at: datetime, requested_date: date | None = None) -> dict:
+def promise(commitment: str, received_at: datetime, requested_date: date | None = None,
+            added_today: bool = False) -> dict:
     """Pick-list date (08:00 cutoff) and promised date. A same-day order after the cutoff is re-promised
-    as next-day, because today's pick list is already printed."""
+    as next-day, because today's pick list is already printed, unless it was added to today's list (grace
+    period or urgent order)."""
     after = received_at.hour * 60 + received_at.minute >= PICK_LIST_CUTOFF_MINUTES
+    missed = after and not added_today
     received = received_at.date()
-    pick_list = received + timedelta(days=1 if after else 0)
-    effective = "next_day" if commitment == "same_day" and after else commitment
+    pick_list = received + timedelta(days=1 if missed else 0)
+    effective = "next_day" if commitment == "same_day" and missed else commitment
     promised = received + timedelta(days=PROMISE_DAYS[effective])
     if requested_date and requested_date > promised:
         promised = requested_date  # the client asked for later than we could do
-    return {"after_cutoff": after, "pick_list_date": pick_list, "commitment_type": effective,
+    return {"after_cutoff": after, "added_today": added_today, "pick_list_date": pick_list, "commitment_type": effective,
             "requested_commitment": commitment, "re_promised": effective != commitment,
             "promised_date": promised,
             "requested_date_missed": bool(requested_date and requested_date < promised)}

@@ -94,7 +94,7 @@ These are the questions that matter most now that we have the data:
 |---|---|---|
 | 1 | Is "on time" measured against the promised date, as in the data (`on_time` = delivered on or before `promised_date`)? | If they use a different date, every number changes |
 | 2 | Why do 12% of orders arrive with an incomplete address, and 28% of email orders? Who fixes the address, and when? | This is our biggest cause. If nobody checks addresses before picking, our address-check agent is the fix |
-| 3 | Can same-day orders that arrive after 08:00 still be accepted as same-day? Could there be a second pick wave? | Same-day orders after 08:00 are on time only 39% of the time |
+| 3 | Can same-day orders that arrive after 08:00 still be accepted as same-day? Could there be a second pick wave? | Same-day orders after 08:00 are on time only 39% of the time. **Answer from the business owner:** the procedure must not change and the 08:00 pick list stays. So there is no second pick wave; instead a grace period until 09:00 and urgent orders only until 10:00 (see [03](03-what-the-data-says.md)) |
 | 4 | How is stock split between warehouses, and how often is it rebalanced? | 12% of orders ship from a further warehouse because the nearest had no stock |
 | 5 | Carrier D is weak in every region, and Carrier F (the preferred supplier) to the Northeast and Southeast (about 55% on time when nothing else is wrong, vs about 99% for A, B, C). Can carriers be assigned per lane? Does the agreement require volumes? | Carrier choice by lane is worth 7.7 points with no new software |
 | 6 | What exactly will the $680K routing tool change: routes only, or also carrier choice? | It tells us how much of the problem the vendor can fix |

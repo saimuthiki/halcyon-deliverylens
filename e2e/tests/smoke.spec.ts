@@ -8,6 +8,7 @@ const PAGES: { path: string; heading: RegExp }[] = [
   { path: '/why-late', heading: /Five causes account for 28 of the 29 points lost/ },
   { path: '/vendor', heading: /The routing vendor fixes the wrong problem/ },
   { path: '/what-if', heading: /What if we fix part of the problem\?/ },
+  { path: '/late-orders', heading: /grace period saves [\d,]+ late deliveries a year/ },
   { path: '/carriers', heading: /Carrier D is weak in every region/ },
   { path: '/clients', heading: /./ },
   { path: '/stock-routes', heading: /Stock-outs and long routes happen everywhere/ },

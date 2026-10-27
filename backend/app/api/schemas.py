@@ -1,7 +1,10 @@
 """Request bodies (validated at the boundary)."""
-from pydantic import BaseModel, Field, field_validator
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.analytics.causes import CAUSES
+from app.analytics.late_orders import check_times
 
 
 class SimulateRequest(BaseModel):
@@ -19,6 +22,22 @@ class SimulateRequest(BaseModel):
         if bad:
             raise ValueError(f"effectiveness must be between 0 and 1 for {bad}")
         return v
+
+
+class LateOrdersRequest(BaseModel):
+    """Both default to the Order desk's settings (SAME_DAY_GRACE_UNTIL, SAME_DAY_HARD_STOP)."""
+    grace_until: str | None = Field(default=None, description="Every same-day order is added until this time (HH:MM)")
+    hard_stop: str | None = Field(default=None, description="Urgent orders only until this time; after it, tomorrow")
+
+    @model_validator(mode="after")
+    def _check(self):
+        from app.config import get_settings
+
+        s = get_settings()
+        self.grace_until = self.grace_until or s.same_day_grace_until
+        self.hard_stop = self.hard_stop or s.same_day_hard_stop
+        check_times(self.grace_until, self.hard_stop)
+        return self
 
 
 class OrderIntakeRequest(BaseModel):

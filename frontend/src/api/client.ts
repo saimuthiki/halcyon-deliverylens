@@ -30,9 +30,14 @@ import type {
   Health,
   Kpis,
   OrderIntakeResult,
+  LateOrdersAdded,
+  LateOrdersRequest,
+  LateOrdersResponse,
+  RecoveryPlan,
   RoiResponse,
   RoiScenario,
   RouteDeviation,
+  SameDayWindow,
   SimulateResponse,
   StockPlacement,
   VendorAssessment,
@@ -155,6 +160,17 @@ async function withFallback<T>(call: () => Promise<T>, fallback: () => T | Promi
     if (!(err instanceof ApiError)) setStatus('offline');
     return { data: await fallback(), source: 'sample' };
   }
+}
+
+/**
+ * For writes to live data (approving into the WMS): the sample stands in only when the app is already in
+ * offline / sample mode. While live, any error (a network blip too) surfaces, so a person never "approves"
+ * a sample order that the real WMS does not have.
+ */
+async function liveUnlessOffline<T>(call: () => Promise<T>, fallback: () => Promise<T>): Promise<Result<T>> {
+  if (status === 'unknown') await probeApi();
+  if (status === 'offline') return { data: await fallback(), source: 'sample' };
+  return { data: await call(), source: 'live' };
 }
 
 /* ---------- normalisers: backend response -> UI types ----------
@@ -442,6 +458,38 @@ export function normaliseDelayAlert(raw: unknown, deliveryId: string): DelayAler
     basis: typeof r.basis === 'string' ? r.basis : null,
     channel: (r.channel as string) ?? undefined,
     run_id: r.agent_run_id != null ? String(r.agent_run_id) : undefined,
+    recovery: normaliseRecovery(r.recovery),
+  };
+}
+
+/** The recovery plan, or null when the API does not send one. */
+export function normaliseRecovery(raw: unknown): RecoveryPlan | null {
+  const r = obj(raw);
+  if (!Object.keys(r).length) return null;
+  const priority = (['high', 'medium', 'normal'] as const).find((p) => p === r.priority) ?? 'normal';
+  const exposure = r.penalty_exposure_usd;
+  return {
+    priority,
+    priority_score: numOr(r.priority_score, 0),
+    priority_parts: list(r.priority_parts).map((p) => {
+      const o = obj(p);
+      return { rule: strOr(o.rule, ''), points: numOr(o.points, 0) };
+    }),
+    escalate_to_account_owner: r.escalate_to_account_owner === true,
+    penalty_exposure_usd: typeof exposure === 'number' && !Number.isNaN(exposure) ? exposure : null,
+    penalty_note: strOr(r.penalty_note, ''),
+    actions: list(r.actions)
+      .map((a) => {
+        const o = obj(a);
+        return {
+          cause: typeof o.cause === 'string' && o.cause ? (o.cause as CauseKey) : null,
+          action: strOr(o.action, ''),
+          owner: strOr(o.owner, 'Customer Success'),
+          ...(typeof o.recommended_carrier === 'string' ? { recommended_carrier: o.recommended_carrier } : {}),
+        };
+      })
+      .filter((a) => a.action),
+    method: strOr(r.method, ''),
   };
 }
 
@@ -560,6 +608,81 @@ export function normaliseRoutes(raw: unknown): RouteDeviation {
   };
 }
 
+function normaliseAdded(raw: unknown): LateOrdersAdded {
+  const o = obj(raw);
+  return {
+    orders: numOr(o.orders, 0),
+    extra_orders_per_warehouse_day: numOr(o.extra_orders_per_warehouse_day, 0),
+    late_avoided_per_year: numOr(o.late_avoided_per_year, 0),
+    sla_penalties_avoided_usd_per_year: numOr(o.sla_penalties_avoided_usd_per_year, 0),
+    at_risk_late_avoided_per_year: numOr(o.at_risk_late_avoided_per_year, 0),
+  };
+}
+
+const WINDOWS: SameDayWindow[] = ['before_cutoff', 'grace', 'urgent_window', 'after_hard_stop'];
+
+export function normaliseLateOrders(raw: unknown, req: LateOrdersRequest = {}): LateOrdersResponse {
+  const r = obj(raw);
+  const inp = obj(r.inputs);
+  const pop = obj(r.population);
+  const desk = obj(r.order_desk_settings);
+  const grace = strOr(inp.grace_until, req.grace_until ?? mock.LATE_ORDER_DEFAULTS.grace_until);
+  const hard = strOr(inp.hard_stop, req.hard_stop ?? mock.LATE_ORDER_DEFAULTS.hard_stop);
+  const today = numOr(pop.on_time_rate_today, Number.NaN);
+  const ot = obj(r.on_time_rate_after_cutoff_orders);
+  const rules = list(r.rules).map((x) => {
+    const o = obj(x);
+    return {
+      when: strOr(o.when, ''),
+      email: strOr(o.email, ''),
+      client: strOr(o.client, ''),
+      result: o.result === 'today' ? ('today' as const) : ('tomorrow' as const),
+      actor: o.actor === 'AI agent' ? ('AI agent' as const) : ('Rule' as const),
+      note: strOr(o.note, ''),
+    };
+  });
+  return {
+    inputs: { pick_list_cutoff: strOr(inp.pick_list_cutoff, '08:00'), grace_until: grace, hard_stop: hard },
+    population: {
+      after_cutoff_same_day: numOr(pop.after_cutoff_same_day, 0),
+      days: numOr(pop.days, 0),
+      warehouses: numOr(pop.warehouses, 0),
+      on_time_rate_today: today,
+      grace_orders: numOr(pop.grace_orders, 0),
+      urgent_window_orders: numOr(pop.urgent_window_orders, 0),
+      urgent_window_priority_client_orders: numOr(pop.urgent_window_priority_client_orders, 0),
+      after_hard_stop_orders: numOr(pop.after_hard_stop_orders, 0),
+      incomplete_address_excluded: numOr(pop.incomplete_address_excluded, 0),
+    },
+    grace: normaliseAdded(r.grace),
+    urgent_priority_clients_at_most: normaliseAdded(r.urgent_priority_clients_at_most),
+    urgent_other_clients_with_valid_reason: numOr(r.urgent_other_clients_with_valid_reason, 0),
+    on_time_rate_after_cutoff_orders: {
+      today: numOr(ot.today, today),
+      with_grace: numOr(ot.with_grace, Number.NaN),
+      with_grace_and_urgent_at_most: numOr(ot.with_grace_and_urgent_at_most, Number.NaN),
+    },
+    arrivals: list(r.arrivals).map((x) => {
+      const o = obj(x);
+      const from = strOr(o.from, '');
+      return {
+        from,
+        to: strOr(o.to, ''),
+        orders: numOr(o.orders, 0),
+        window: WINDOWS.includes(o.window as SameDayWindow) ? (o.window as SameDayWindow) : mock.sameDayWindow(from, grace, hard),
+      };
+    }),
+    // The rules are fixed in code on both sides, so the UI's copy stands in if the API leaves them out.
+    rules: rules.length ? rules : mock.lateOrderRules(grace, hard),
+    method: strOr(r.method, ''),
+    assumptions: list(r.assumptions).filter((a): a is string => typeof a === 'string'),
+    order_desk_settings: {
+      grace_until: strOr(desk.grace_until, mock.LATE_ORDER_DEFAULTS.grace_until),
+      hard_stop: strOr(desk.hard_stop, mock.LATE_ORDER_DEFAULTS.hard_stop),
+    },
+  };
+}
+
 /* ---------- endpoints ---------- */
 
 const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
@@ -595,6 +718,9 @@ export const api = {
 
   simulate: (fixes: FixLevels) =>
     withFallback(async () => normaliseSimulate(await http<unknown>('/simulate', post({ fixes }))), () => mock.mockSimulate(fixes)),
+
+  lateOrders: (req: LateOrdersRequest = {}) =>
+    withFallback(async () => normaliseLateOrders(await http<unknown>('/simulate/late-orders', post(req)), req), () => mock.mockLateOrders(req)),
 
   vendor: () => withFallback(async () => normaliseVendor(await http<unknown>('/vendor-assessment')), () => mock.mockVendor),
 
@@ -656,10 +782,37 @@ export const api = {
   deskWmsOrders: () =>
     withFallback(async () => list(await http<unknown>('/desk/wms-orders'), 'orders').map(normaliseWmsOrder), async () => (await deskFixtures()).sampleWmsOrders().orders, 'desk'),
 
+  /** A person approves an accepted order into the WMS. Sample approvals only when the app is already offline. */
+  deskApprove: (id: string) =>
+    liveUnlessOffline(
+      async () => normaliseWmsOrder(obj(await http<unknown>(`/desk/approve/${encodeURIComponent(id)}`, agentPost({}))).wms_order),
+      async () => sampleCall((f) => f.sampleApprove(id).wms_order),
+    ),
+
+  deskApproveAll: () =>
+    liveUnlessOffline(
+      async () => {
+        const o = obj(await http<unknown>('/desk/approve-all', agentPost({})));
+        return { approved: numOr(o.approved, 0), wms_order_ids: list(o.wms_order_ids).map(String) };
+      },
+      async () => sampleCall((f) => f.sampleApproveAll()),
+    ),
+
   deskReset: () => withFallback(async () => ({ ok: obj(await http<unknown>('/desk/reset', agentPost({}))).ok !== false }), async () => (await deskFixtures()).sampleReset(), 'desk'),
 };
 
 const deskFixtures = () => import('./deskFixtures');
+
+/** Runs an offline desk action; its errors (404 / 409) surface like the API's. */
+async function sampleCall<T>(fn: (f: Awaited<ReturnType<typeof deskFixtures>>) => T): Promise<T> {
+  const f = await deskFixtures();
+  try {
+    return fn(f);
+  } catch (err) {
+    if (err instanceof f.SampleDeskError) throw new ApiError(err.message, err.status);
+    throw err;
+  }
+}
 
 /* ---------- Order desk normalisers ---------- */
 
@@ -729,6 +882,7 @@ export function normaliseWmsOrder(x: unknown): WmsOrder {
     status: strOr(o.status, ''),
     pick_list_date: strOrNull(o.pick_list_date),
     created_at: strOr(o.created_at, ''),
+    approved_at: strOrNull(o.approved_at),
   };
 }
 

@@ -1,7 +1,7 @@
 /**
  * Offline fixtures for the Order desk.
  *
- * Used only when the DeliveryLens API cannot be reached: the 12 sample client emails, and a
+ * Used only when the DeliveryLens API cannot be reached: the 17 sample client emails, and a
  * pre-computed pipeline trace for each one built from a fixed answer key (`SPEC`). Every result
  * built here is labelled "Sample — API offline" in the UI. Shapes match the /api/desk/* contract
  * in types.ts exactly, so the page code is the same for live and sample data.
@@ -14,6 +14,7 @@ import type {
   DeskProcessAll,
   DeskProcessResult,
   DeskStep,
+  SameDayWindow,
   WmsAddress,
   WmsOrder,
 } from './types';
@@ -40,7 +41,28 @@ interface Spec {
   vague?: string;
   reprom?: boolean;
   stock_moved?: boolean;
+  /** What the AI read about urgency; the quote is checked against the email by code. */
+  urgency?: { level: 'medium' | 'high'; evidence: string };
+  /** Why the client is a priority client (Tier 1 or at risk), as the API words it; null when it is not. */
+  priority_client?: string | null;
+  /** Same-day after 08:00: the window it arrived in, whether it was added to today's pick list and the rule's reason. */
+  late?: { window: Exclude<SameDayWindow, 'before_cutoff'>; added: boolean; rule: string };
 }
+
+/** Step 9 wording for an accepted order, as in backend/app/desk/pipeline.py. */
+export const APPROVAL_LABEL = 'Accepted: waiting for a person to approve it into the WMS.';
+
+/** The Order desk's same-day times (SAME_DAY_GRACE_UNTIL, SAME_DAY_HARD_STOP defaults in backend/app/config.py). */
+const SAME_DAY = { pick_list_cutoff: '08:00', grace_until: '09:00', hard_stop: '10:00' };
+
+const WINDOW_LABELS: Record<SameDayWindow, string> = {
+  before_cutoff: 'Before the 08:00 pick-list cutoff',
+  grace: 'Grace period',
+  urgent_window: 'Urgent orders only',
+  after_hard_stop: 'After the hard stop',
+};
+
+const TIER_1 = 'Tier 1 (at least $1M revenue a year)';
 
 const RECOMMENDED: Record<Region, { carrier: string; avoid: string; rate: number; avoidRate: number }> = {
   Midwest: { carrier: 'C', avoid: 'D', rate: 0.99, avoidRate: 0.55 },
@@ -154,30 +176,33 @@ Client 088`,
   },
   {
     id: 'M04',
-    from_name: 'Marcus Lee',
-    from_email: 'marcus.lee@client-205.example',
-    client_id: 'C205',
-    subject: 'URGENT same-day order',
+    from_name: 'Store Opening Team',
+    from_email: 'urgent@client-078.example',
+    client_id: 'C078',
+    subject: 'URGENT same day - Client 078',
     received_at: '2026-10-23T09:30:00',
-    scenario: 'Same-day at 09:30 (after the 08:00 pick list)',
+    scenario: 'Same-day order received 09:30',
     expected_decision: 'accepted',
-    what_it_demonstrates: 'Same-day after 08:00 is on time only 39% of the time. The promise check accepts the order but re-promises it for the next day and tells the client now.',
+    what_it_demonstrates:
+      "Cause 3 (same-day after the 08:00 cutoff): the email arrives at 09:30, after the 09:00 grace period, so only urgent orders are added. The AI reads a valid reason ('it is for a store opening') and quotes the sentence; code checks the quote, so the order is added to today's pick list and keeps its same-day promise.",
     has_attachment: false,
     status: 'new',
     decision: null,
     body: `Team,
 
-We need this today please, same-day:
-- SKU HX-2200 x 15
+We need this SAME DAY please, it is for a store opening.
+- SKU HX-7777 x 3
 
 Ship to:
-Client 205 Store 12
-88 Market Street
-Newark, NJ 07102
-US
+Name: Client 078 Flagship Store
+Street: 88 Harbor Street
+City: Boston
+State: MA
+Postcode: 02210
+Country: US
 
 Thanks,
-Marcus`,
+Client 078`,
     attachments: [],
   },
   {
@@ -380,6 +405,162 @@ HX-5120,3`,
       },
     ],
   },
+  {
+    id: 'M13',
+    from_name: 'Jordan Reyes',
+    from_email: 'purchasing@client-076.example',
+    client_id: 'C076',
+    subject: 'Same day please - Client 076 - parts for Line 3',
+    received_at: '2026-10-23T09:40:00',
+    scenario: 'Same-day order received 09:40, production line stops at 3pm',
+    expected_decision: 'accepted',
+    what_it_demonstrates:
+      "Urgent window (09:00 to 10:00): the AI reads the urgency and quotes 'Our production line stops at 3pm without these parts.'; code checks the quote is in the email. A valid reason qualifies any client, so the order is added to today's pick list and keeps its same-day promise.",
+    has_attachment: false,
+    status: 'new',
+    decision: null,
+    body: `Hello Halcyon team,
+
+Our production line stops at 3pm without these parts. We need them same-day please.
+- SKU HX-1001 x 6
+- SKU HX-2040 x 4
+
+Ship to:
+Name: Client 076 Receiving Dock
+Street: 4410 Industrial Pkwy
+City: Columbus
+State: OH
+Postcode: 43219
+Country: US
+
+Thanks,
+Jordan Reyes
+Purchasing, Client 076`,
+    attachments: [],
+  },
+  {
+    id: 'M14',
+    from_name: 'Front Desk',
+    from_email: 'orders@client-018.example',
+    client_id: 'C018',
+    subject: 'URGENT!!! order - Client 018',
+    received_at: '2026-10-23T09:15:00',
+    scenario: 'Same-day order received 09:15, "URGENT!!!" only',
+    expected_decision: 'accepted',
+    what_it_demonstrates:
+      "Shouting is not enough: 'URGENT!!!' with no reason is only 'says urgent', and Client 018 is Tier 3 and not at risk, so the order is not added. It is honestly re-promised as next-day.",
+    has_attachment: false,
+    status: 'new',
+    decision: null,
+    body: `Hi,
+
+URGENT!!! URGENT!!! need this today, same-day please.
+- SKU HX-6200 x 10
+
+Ship to:
+Name: Client 018 Stockroom
+Street: 310 Monument Circle
+City: Indianapolis
+State: IN
+Postcode: 46204
+Country: US
+
+Client 018`,
+    attachments: [],
+  },
+  {
+    id: 'M15',
+    from_name: 'Buying Team',
+    from_email: 'buyer@client-003.example',
+    client_id: 'C003',
+    subject: 'URGENT - same-day top-up - Client 003',
+    received_at: '2026-10-23T09:20:00',
+    scenario: 'Same-day order received 09:20, "URGENT" from a Tier 1 client',
+    expected_decision: 'accepted',
+    what_it_demonstrates:
+      "A priority client: 'URGENT' with no reason is enough for a Tier 1 client (at least $1M revenue a year) or an at-risk client, so the order is added to today's pick list.",
+    has_attachment: false,
+    status: 'new',
+    decision: null,
+    body: `Hi team,
+
+This one is URGENT, please ship it same-day.
+- SKU HX-3300 x 12
+
+Ship to:
+Name: Client 003 Main Warehouse
+Street: 900 Commerce Dr
+City: Peoria
+State: IL
+Postcode: 61602
+Country: US
+
+Thanks,
+Buying Team, Client 003`,
+    attachments: [],
+  },
+  {
+    id: 'M16',
+    from_name: 'Riley Chen',
+    from_email: 'orders@client-051.example',
+    client_id: 'C051',
+    subject: 'Same-day order - Client 051',
+    received_at: '2026-10-23T08:35:00',
+    scenario: 'Same-day order received 08:35, not urgent',
+    expected_decision: 'accepted',
+    what_it_demonstrates: "Grace period (08:00 to 09:00): every same-day order with a complete address is still added to today's pick list, urgent or not.",
+    has_attachment: false,
+    status: 'new',
+    decision: null,
+    body: `Hello,
+
+Please deliver these same-day.
+- SKU HX-2040 x 8
+
+Ship to:
+Name: Client 051 Store
+Street: 215 Main St
+City: Madison
+State: WI
+Postcode: 53703
+Country: US
+
+Regards,
+Riley Chen
+Client 051`,
+    attachments: [],
+  },
+  {
+    id: 'M17',
+    from_name: 'Client 190 Supply Chain',
+    from_email: 'supply@client-190.example',
+    client_id: 'C190',
+    subject: 'Same day needed - Client 190 - line parts',
+    received_at: '2026-10-23T10:20:00',
+    scenario: 'Same-day order received 10:20, production line stops',
+    expected_decision: 'accepted',
+    what_it_demonstrates:
+      "Hard stop (10:00): even a valid reason from an at-risk client cannot reach today's pick list after 10:00. The order is re-promised as next-day, and the reply says so honestly.",
+    has_attachment: false,
+    status: 'new',
+    decision: null,
+    body: `Hello,
+
+Our production line stops at 4pm without these parts. We need them same-day please.
+- SKU HX-1001 x 3
+
+Ship to:
+Name: Client 190 Plant
+Street: 77 Peachtree Industrial Blvd
+City: Atlanta
+State: GA
+Postcode: 30303
+Country: US
+
+Thanks,
+Client 190 Supply Chain`,
+    attachments: [],
+  },
 ];
 
 const SPEC: Record<string, Spec> = {
@@ -399,9 +580,12 @@ const SPEC: Record<string, Spec> = {
     pick_list_date: '2026-10-23', region: 'West', nearest: 'W5', fulfilment: 'W5', carrier: 'B', spreadsheet_carrier: 'E', missing: ['street'],
   },
   'M04': {
-    client_id: 'C205', client_name: 'Client 205', ship_to: addr('Client 205 Store 12', '88 Market Street', 'Newark', 'NJ', '07102'),
-    lines: [{ sku: 'HX-2200', qty: 15 }], commitment_type: 'same_day', requested_date: '2026-10-23', promised_date: '2026-10-24',
-    pick_list_date: '2026-10-24', region: 'Northeast', nearest: 'W4', fulfilment: 'W4', carrier: 'E', spreadsheet_carrier: 'F', missing: [], reprom: true,
+    client_id: 'C078', client_name: 'Client 078', ship_to: addr('Client 078 Flagship Store', '88 Harbor Street', 'Boston', 'MA', '02210'),
+    lines: [{ sku: 'HX-7777', qty: 3 }], commitment_type: 'same_day', requested_date: '2026-10-23', promised_date: '2026-10-24',
+    pick_list_date: '2026-10-23', region: 'Northeast', nearest: 'W4', fulfilment: 'W4', carrier: 'E', spreadsheet_carrier: 'F', missing: [],
+    urgency: { level: 'high', evidence: 'We need this SAME DAY please, it is for a store opening.' },
+    priority_client: TIER_1,
+    late: { window: 'urgent_window', added: true, rule: 'the email gives a valid reason for the urgency' },
   },
   'M05': {
     client_id: 'C063', client_name: 'Client 063', ship_to: addr('Client 063 Chicago DC', '2550 S Halsted St', 'Chicago', 'IL', '60608'),
@@ -442,6 +626,49 @@ const SPEC: Record<string, Spec> = {
     lines: [{ sku: 'HX-1001', qty: 24 }, { sku: 'HX-2040', qty: 10 }, { sku: 'HX-5120', qty: 3 }], commitment_type: 'standard', requested_date: '2026-10-27',
     promised_date: '2026-10-27', pick_list_date: '2026-10-23', region: 'Midwest', nearest: 'W1', fulfilment: 'W1', carrier: 'C', spreadsheet_carrier: 'D', missing: [],
   },
+  'M13': {
+    client_id: 'C076', client_name: 'Client 076', ship_to: addr('Client 076 Receiving Dock', '4410 Industrial Pkwy', 'Columbus', 'OH', '43219'),
+    lines: [{ sku: 'HX-1001', qty: 6 }, { sku: 'HX-2040', qty: 4 }], commitment_type: 'same_day', requested_date: '2026-10-23', promised_date: '2026-10-24',
+    pick_list_date: '2026-10-23', region: 'Midwest', nearest: 'W1', fulfilment: 'W1', carrier: 'C', spreadsheet_carrier: 'C', missing: [],
+    urgency: { level: 'high', evidence: 'Our production line stops at 3pm without these parts.' },
+    priority_client: null,
+    late: { window: 'urgent_window', added: true, rule: 'the email gives a valid reason for the urgency' },
+  },
+  'M14': {
+    client_id: 'C018', client_name: 'Client 018', ship_to: addr('Client 018 Stockroom', '310 Monument Circle', 'Indianapolis', 'IN', '46204'),
+    lines: [{ sku: 'HX-6200', qty: 10 }], commitment_type: 'same_day', requested_date: '2026-10-23', promised_date: '2026-10-25',
+    pick_list_date: '2026-10-24', region: 'Midwest', nearest: 'W1', fulfilment: 'W1', carrier: 'C', spreadsheet_carrier: 'C', missing: [], reprom: true,
+    urgency: { level: 'medium', evidence: 'URGENT!!! URGENT!!! need this today, same-day please.' },
+    priority_client: null,
+    late: {
+      window: 'urgent_window',
+      added: false,
+      rule: 'the email says it is urgent but gives no reason, and the client is not a priority client (Tier 1 or at risk)',
+    },
+  },
+  'M15': {
+    client_id: 'C003', client_name: 'Client 003', ship_to: addr('Client 003 Main Warehouse', '900 Commerce Dr', 'Peoria', 'IL', '61602'),
+    lines: [{ sku: 'HX-3300', qty: 12 }], commitment_type: 'same_day', requested_date: '2026-10-23', promised_date: '2026-10-24',
+    pick_list_date: '2026-10-23', region: 'Midwest', nearest: 'W1', fulfilment: 'W1', carrier: 'C', spreadsheet_carrier: 'C', missing: [],
+    urgency: { level: 'medium', evidence: 'This one is URGENT, please ship it same-day.' },
+    priority_client: TIER_1,
+    late: { window: 'urgent_window', added: true, rule: `the email says it is urgent and the client is a priority client (${TIER_1})` },
+  },
+  'M16': {
+    client_id: 'C051', client_name: 'Client 051', ship_to: addr('Client 051 Store', '215 Main St', 'Madison', 'WI', '53703'),
+    lines: [{ sku: 'HX-2040', qty: 8 }], commitment_type: 'same_day', requested_date: '2026-10-23', promised_date: '2026-10-24',
+    pick_list_date: '2026-10-23', region: 'Midwest', nearest: 'W1', fulfilment: 'W1', carrier: 'C', spreadsheet_carrier: 'C', missing: [],
+    priority_client: null,
+    late: { window: 'grace', added: true, rule: 'it arrived in the grace period (08:00 to 09:00)' },
+  },
+  'M17': {
+    client_id: 'C190', client_name: 'Client 190', ship_to: addr('Client 190 Plant', '77 Peachtree Industrial Blvd', 'Atlanta', 'GA', '30303'),
+    lines: [{ sku: 'HX-1001', qty: 3 }], commitment_type: 'same_day', requested_date: '2026-10-23', promised_date: '2026-10-25',
+    pick_list_date: '2026-10-24', region: 'Southeast', nearest: 'W3', fulfilment: 'W3', carrier: 'B', spreadsheet_carrier: 'F', missing: [], reprom: true,
+    urgency: { level: 'high', evidence: 'Our production line stops at 4pm without these parts.' },
+    priority_client: 'at risk of leaving',
+    late: { window: 'after_hard_stop', added: false, rule: 'it arrived after the 10:00 hard stop, when every order goes to tomorrow' },
+  },
 };
 
 export const SAMPLE_LLM = { provider: 'sample', model: 'pre-computed trace' };
@@ -476,12 +703,12 @@ export function sampleTrace(id: string): DeskProcessResult {
         action: 'blocked',
       }, 2),
     );
-    skip(3, 'extract', 'Read the order', 'AI agent', 'Order Intake Agent', 'Not run: the email was blocked.');
-    skip(4, 'identify_client', 'Identify the client', 'Data lookup', 'Client directory', 'Not run: the email was blocked.');
-    skip(5, 'address_check', 'Address check', 'Rule', 'Address rule', 'Not run: the email was blocked.');
-    skip(6, 'promise_check', 'Promise check', 'Rule', '08:00 cutoff rule', 'Not run: the email was blocked.');
-    skip(7, 'stock_check', 'Stock check', 'Data lookup', 'Stock by warehouse', 'Not run: the email was blocked.');
-    skip(8, 'carrier_choice', 'Carrier choice', 'Rule', 'Carrier advisor', 'Not run: the email was blocked.');
+    skip(3, 'extract', 'Read the order', 'AI agent', 'Order Intake Agent', 'Skipped: the email was blocked by the guardrail.');
+    skip(4, 'identify_client', 'Identify the client', 'Data lookup', 'Client directory', 'Skipped: the email was blocked by the guardrail.');
+    skip(5, 'address_check', 'Address check', 'Rule', 'Address rule', 'Skipped: the email was blocked by the guardrail.');
+    skip(6, 'promise_check', 'Promise check', 'Rule', 'Same-day cutoff rule', 'Skipped: the email was blocked by the guardrail.');
+    skip(7, 'stock_check', 'Stock check', 'Data lookup', 'Stock by warehouse', 'Skipped: the email was blocked by the guardrail.');
+    skip(8, 'carrier_choice', 'Carrier choice', 'Rule', 'Carrier advisor', 'Skipped: the email was blocked by the guardrail.');
     steps.push(step(9, 'decision', 'Decision', 'Rule', 'Decision rule', 'fail', 'Blocked. Nothing was sent to the warehouse system.', { decision: 'blocked' }, 1));
     skip(10, 'client_message', 'Message to the client', 'AI agent', 'Order Intake Agent', 'No reply drafted to a suspicious sender; flagged for the security inbox.');
     return finish(msg, 'blocked', 'The email contains instructions aimed at the AI (prompt injection). It was stopped by the guardrail and nothing reached the warehouse system.', steps, null, null);
@@ -493,7 +720,15 @@ export function sampleTrace(id: string): DeskProcessResult {
   steps.push(
     step(3, 'extract', 'Read the order', 'AI agent', 'Order Intake Agent', s.vague ? 'warn' : 'pass',
       s.vague ? `Found ${s.lines[0].sku} but no number: "${s.vague}". The agent does not guess a quantity.` : `Read ${s.lines.length} line${s.lines.length === 1 ? '' : 's'} (${linesText})${msg.has_attachment ? ' from the CSV attachment' : ''} and the ship-to address.`,
-      { lines: s.lines.map((l) => ({ sku: l.sku, qty: l.qty ?? 'unclear' })), ship_to: s.ship_to, commitment_type: s.commitment_type, requested_date: s.requested_date, source: msg.has_attachment ? 'attachment' : 'email body' },
+      {
+        lines: s.lines.map((l) => ({ sku: l.sku, qty: l.qty ?? 'unclear' })),
+        ship_to: s.ship_to,
+        commitment_type: s.commitment_type,
+        requested_date: s.requested_date,
+        source: msg.has_attachment ? 'attachment' : 'email body',
+        urgency: s.urgency?.level ?? 'none',
+        urgency_evidence: s.urgency?.evidence ?? null,
+      },
       1180),
   );
   steps.push(step(4, 'identify_client', 'Identify the client', 'Data lookup', 'Client directory', 'pass', `Sender domain matches ${s.client_name} (${s.client_id}).`, { client_id: s.client_id, client_name: s.client_name, matched_on: 'sender domain' }, 3));
@@ -505,26 +740,63 @@ export function sampleTrace(id: string): DeskProcessResult {
       { required: ['name', 'street', 'city', 'state', 'postcode'], missing: s.missing, complete: addressOk }, 1),
   );
 
-  const promise = s.commitment_type === 'same_day'
-    ? s.reprom
-      ? step(6, 'promise_check', 'Promise check', 'Rule', '08:00 cutoff rule', 'warn', `Same-day order at ${time(msg.received_at)}, after the 08:00 pick list. Re-promised for ${s.promised_date} (same-day after 08:00 is on time 39% of the time).`, { received: time(msg.received_at), cutoff: '08:00', requested_date: s.requested_date, promised_date: s.promised_date }, 1)
-      : step(6, 'promise_check', 'Promise check', 'Rule', '08:00 cutoff rule', 'pass', `Same-day order at ${time(msg.received_at)}, before the 08:00 pick list. Makes today’s pick list.`, { received: time(msg.received_at), cutoff: '08:00', promised_date: s.promised_date }, 1)
-    : step(6, 'promise_check', 'Promise check', 'Rule', '08:00 cutoff rule', 'pass', `${s.commitment_type === 'next_day' ? 'Next-day' : 'Standard'} delivery by ${s.promised_date} can be met.`, { received: time(msg.received_at), cutoff: '08:00', promised_date: s.promised_date }, 1);
-  steps.push(promise);
-
-  steps.push(
-    s.stock_moved
-      ? step(7, 'stock_check', 'Stock check', 'Data lookup', 'Stock by warehouse', 'warn', `${WAREHOUSE_NAMES[s.nearest!]} (${s.nearest}) has no ${s.lines[0].sku}. Ships from ${WAREHOUSE_NAMES[s.fulfilment!]} (${s.fulfilment}), about 1,600 miles instead of 160.`, { nearest_warehouse: s.nearest, nearest_in_stock: false, fulfilment_warehouse: s.fulfilment, extra_miles: 1440 }, 6)
-      : step(7, 'stock_check', 'Stock check', 'Data lookup', 'Stock by warehouse', 'pass', `In stock at the nearest warehouse, ${WAREHOUSE_NAMES[s.nearest!]} (${s.nearest}).`, { nearest_warehouse: s.nearest, nearest_in_stock: true, fulfilment_warehouse: s.fulfilment }, 5),
-  );
+  // Step 6: the 08:00 pick-list cutoff, then the grace period, urgent orders only, and the hard stop.
+  const received = time(msg.received_at);
+  const window: SameDayWindow =
+    received < SAME_DAY.pick_list_cutoff ? 'before_cutoff' : received < SAME_DAY.grace_until ? 'grace' : received < SAME_DAY.hard_stop ? 'urgent_window' : 'after_hard_stop';
+  const late = s.commitment_type === 'same_day' ? s.late : undefined;
+  const added = late?.added === true;
+  const commitment = s.reprom ? 'next_day' : s.commitment_type;
+  const quote = s.urgency && window === 'urgent_window' ? ` ("${s.urgency.evidence}")` : '';
+  const at = `Same-day order received at ${received}, after the 08:00 pick-list cutoff`;
+  const promiseDetails = {
+    after_cutoff: received >= SAME_DAY.pick_list_cutoff,
+    added_today: added,
+    pick_list_date: s.pick_list_date,
+    commitment_type: commitment,
+    requested_commitment: s.commitment_type,
+    re_promised: s.reprom === true,
+    promised_date: s.promised_date,
+    requested_date_missed: false,
+    received_at: msg.received_at.slice(0, 16).replace('T', ' '),
+    ...SAME_DAY,
+    window,
+    window_label: WINDOW_LABELS[window],
+    added_after_cutoff: added,
+    same_day_rule: late?.rule ?? null,
+    priority_client: s.priority_client ?? null,
+    urgency: s.urgency?.level ?? 'none',
+    urgency_evidence: s.urgency?.evidence ?? null,
+  };
 
   const rec = RECOMMENDED[s.region!];
   const switched = s.spreadsheet_carrier !== s.carrier;
-  steps.push(
-    step(8, 'carrier_choice', 'Carrier choice', 'Rule', 'Carrier advisor', switched ? 'warn' : 'pass',
-      switched ? `The rate card would pick Carrier ${s.spreadsheet_carrier}, a weak lane to the ${s.region} (about ${Math.round(rec.avoidRate * 100)}% on time). Advisor picks Carrier ${s.carrier} (about ${Math.round(rec.rate * 100)}%).` : `Carrier ${s.carrier} is a strong carrier to the ${s.region}. Same as the rate card.`,
-      { region: s.region, spreadsheet_choice: s.spreadsheet_carrier, advisor_choice: s.carrier, weak_lane_avoided: switched }, 2),
-  );
+  // An order on hold or waiting for a person skips steps 6 to 8, as in backend/app/desk/pipeline.py.
+  const held: DeskDecision | null = !addressOk ? 'on_hold' : s.vague ? 'needs_review' : null;
+  if (held) {
+    const why = held === 'on_hold' ? 'Skipped: the order is on hold until the client sends the missing address details.' : 'Skipped: the order waits for a person to confirm it.';
+    skip(6, 'promise_check', 'Promise check', 'Rule', 'Same-day cutoff rule', why);
+    skip(7, 'stock_check', 'Stock check', 'Data lookup', 'Stock by warehouse', why);
+    skip(8, 'carrier_choice', 'Carrier choice', 'Rule', 'Carrier advisor', why);
+  } else {
+    steps.push(
+      late
+        ? added
+          ? step(6, 'promise_check', 'Promise check', 'Rule', 'Same-day cutoff rule', 'pass', `${at}: added to today's pick list because ${late.rule}${quote}. The same-day promise is kept.`, promiseDetails, 1)
+          : step(6, 'promise_check', 'Promise check', 'Rule', 'Same-day cutoff rule', 'warn', `${at}: not added to today's list because ${late.rule}${quote}. Re-promised as next-day for ${s.promised_date} (same-day orders after the cutoff are on time only 39% of the time).`, promiseDetails, 1)
+        : step(6, 'promise_check', 'Promise check', 'Rule', 'Same-day cutoff rule', 'pass', `Received at ${received}, so it goes on ${window === 'before_cutoff' ? "today's" : "tomorrow's"} pick list (${s.pick_list_date}); ${commitment.replace('_', '-')} delivery promised for ${s.promised_date}.`, promiseDetails, 1),
+    );
+    steps.push(
+      s.stock_moved
+        ? step(7, 'stock_check', 'Stock check', 'Data lookup', 'Stock by warehouse', 'warn', `${WAREHOUSE_NAMES[s.nearest!]} (${s.nearest}) has no ${s.lines[0].sku}. Ships from ${WAREHOUSE_NAMES[s.fulfilment!]} (${s.fulfilment}), about 1,600 miles instead of 160.`, { nearest_warehouse: s.nearest, nearest_in_stock: false, fulfilment_warehouse: s.fulfilment, extra_miles: 1440 }, 6)
+        : step(7, 'stock_check', 'Stock check', 'Data lookup', 'Stock by warehouse', 'pass', `In stock at the nearest warehouse, ${WAREHOUSE_NAMES[s.nearest!]} (${s.nearest}).`, { nearest_warehouse: s.nearest, nearest_in_stock: true, fulfilment_warehouse: s.fulfilment }, 5),
+    );
+    steps.push(
+      step(8, 'carrier_choice', 'Carrier choice', 'Rule', 'Carrier advisor', switched ? 'warn' : 'pass',
+        switched ? `The rate card would pick Carrier ${s.spreadsheet_carrier}, a weak lane to the ${s.region} (about ${Math.round(rec.avoidRate * 100)}% on time). Advisor picks Carrier ${s.carrier} (about ${Math.round(rec.rate * 100)}%).` : `Carrier ${s.carrier} is a strong carrier to the ${s.region}. Same as the rate card.`,
+        { region: s.region, spreadsheet_choice: s.spreadsheet_carrier, advisor_choice: s.carrier, weak_lane_avoided: switched }, 2),
+    );
+  }
 
   let decision: DeskDecision;
   let reason: string;
@@ -536,15 +808,18 @@ export function sampleTrace(id: string): DeskProcessResult {
     reason = `Quantity unclear ("${s.vague}"). A person confirms the quantity with the client; the AI does not guess.`;
   } else {
     decision = 'accepted';
-    reason = s.reprom
-      ? `Accepted for the next pick list. Same-day was not possible after 08:00, so it is promised for ${s.promised_date}.`
+    reason = added
+      ? `Accepted. Once approved, on today’s pick list (${s.pick_list_date}) at ${s.fulfilment}, added after the 08:00 cutoff, Carrier ${s.carrier}; the same-day promise is kept.`
+      : s.reprom
+      ? `Accepted with warnings: ${steps.filter((x) => x.step >= 6 && x.status === 'warn').map((x) => x.summary).join(' ')}`
       : s.stock_moved
-        ? `Accepted. Ships from ${s.fulfilment} because ${s.nearest} has no stock; expect a longer trip.`
-        : `Accepted. On the ${s.pick_list_date} 08:00 pick list at ${s.fulfilment}, Carrier ${s.carrier}.`;
+        ? `Accepted. Once approved, ships from ${s.fulfilment} because ${s.nearest} has no stock; expect a longer trip.`
+        : `Accepted. Once approved, on the ${s.pick_list_date} 08:00 pick list at ${s.fulfilment}, Carrier ${s.carrier}.`;
   }
-  steps.push(step(9, 'decision', 'Decision', 'Rule', 'Decision rule', decision === 'accepted' ? 'pass' : 'warn', reason, { decision }, 1));
+  const status = decision === 'accepted' ? 'awaiting_approval' : decision === 'on_hold' ? 'on_hold_missing_address' : decision;
+  const label = decision === 'accepted' ? `${APPROVAL_LABEL} ${reason}` : reason;
+  steps.push(step(9, 'decision', 'Decision', 'Rule', 'Decision rule', decision === 'accepted' ? 'pass' : 'warn', label, { decision, reason, wms_status: status }, 1));
 
-  const status = decision === 'accepted' ? 'ready_for_pick_list' : decision;
   const wms: WmsOrder = {
     wms_order_id: `WMS-${msg.id}`,
     message_id: msg.id,
@@ -552,7 +827,7 @@ export function sampleTrace(id: string): DeskProcessResult {
     client_name: s.client_name,
     ship_to: s.ship_to,
     lines: s.lines.map((l) => ({ sku: l.sku, qty: l.qty ?? 0 })),
-    commitment_type: s.commitment_type,
+    commitment_type: commitment,
     requested_date: s.requested_date,
     promised_date: s.promised_date,
     destination_region: s.region,
@@ -563,6 +838,7 @@ export function sampleTrace(id: string): DeskProcessResult {
     status,
     pick_list_date: decision === 'accepted' ? s.pick_list_date : null,
     created_at: '2026-10-23T08:00:00',
+    approved_at: null,
   };
 
   const greet = `Hello ${msg.from_name.split(' ')[0]},`;
@@ -574,9 +850,11 @@ export function sampleTrace(id: string): DeskProcessResult {
   } else if (decision === 'needs_review') {
     kind = 'clarification';
     draft = `${greet}\n\nThanks for your order of ${s.lines[0].sku}. How many units would you like? We will confirm the delivery date as soon as we have the quantity.\n\nKind regards,\nHalcyon Customer Success`;
+  } else if (added) {
+    draft = `${greet}\n\nWe have your order (${linesText}). It is on the pick list for ${s.pick_list_date} and will be delivered by ${s.promised_date}.\n\nYour order reached us at ${received}, after today's 08:00 pick-list cutoff, and we have added it to today's pick list to keep your same-day delivery.\n\nKind regards,\nHalcyon Customer Success`;
   } else if (s.reprom) {
     kind = 'new_date';
-    draft = `${greet}\n\nWe have your order (${linesText}). It arrived after today's 08:00 pick list, so we cannot deliver it today. It is booked for delivery on ${s.promised_date}. If that does not work, reply and we will look at options.\n\nKind regards,\nHalcyon Customer Success`;
+    draft = `${greet}\n\nWe have your order (${linesText}). It reached us at ${received}, after today's 08:00 pick-list cutoff, so we cannot ship it same-day. It is booked as next-day delivery on ${s.promised_date}. If that does not work, reply and we will look at options.\n\nKind regards,\nHalcyon Customer Success`;
   } else
     draft = `${greet}\n\nWe have your order (${linesText}). It is on the pick list for ${s.pick_list_date} and will be delivered by ${s.promised_date}.\n\nKind regards,\nHalcyon Customer Success`;
 
@@ -640,6 +918,28 @@ export function sampleProcessAll(): DeskProcessAll {
 
 export function sampleWmsOrders(): { orders: WmsOrder[] } {
   return { orders: [...offlineOrders.values()].sort((a, b) => a.message_id.localeCompare(b.message_id)) };
+}
+
+/** A person approves an accepted order into the WMS (offline: kept in this browser tab only). */
+export function sampleApprove(id: string): { wms_order: WmsOrder } {
+  const o = offlineOrders.get(id);
+  if (!o) throw new SampleDeskError(`No WMS order for ${id}`, 404);
+  if (o.status !== 'awaiting_approval') throw new SampleDeskError(`WMS order for ${id} is not awaiting approval`, 409);
+  const approved = { ...o, status: 'ready_for_pick_list', approved_at: new Date().toISOString() };
+  offlineOrders.set(id, approved);
+  return { wms_order: approved };
+}
+
+export function sampleApproveAll(): { approved: number; wms_order_ids: string[] } {
+  const ids = sampleWmsOrders().orders.filter((o) => o.status === 'awaiting_approval').map((o) => o.message_id);
+  ids.forEach((id) => sampleApprove(id));
+  return { approved: ids.length, wms_order_ids: ids.map((id) => `WMS-${id}`) };
+}
+
+export class SampleDeskError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
 }
 
 export function sampleReset(): { ok: true } {

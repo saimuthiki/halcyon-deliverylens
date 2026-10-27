@@ -22,13 +22,19 @@ import type {
   CauseKey,
   CausesResponse,
   DelayAlertResult,
+  RecoveryPlan,
   DeliveryDetail,
   DeliverySummary,
   FixLevels,
   Kpis,
+  LateOrdersAdded,
+  LateOrdersRequest,
+  LateOrdersResponse,
+  LateOrdersRule,
   OrderIntakeResult,
   RoiResponse,
   RouteDeviation,
+  SameDayWindow,
   SimulateResponse,
   StockPlacement,
   TimelineEvent,
@@ -36,6 +42,7 @@ import type {
 } from './types';
 import { BENCHMARK, CAUSE_META, causeShort } from '../lib/causes';
 import { simulateExact, type ComboModel } from '../lib/calc';
+import * as LO from './lateOrdersSnapshot';
 import { pct, usd } from '../lib/format';
 
 const F = FINDINGS;
@@ -337,6 +344,7 @@ export function mockDelayAlert(deliveryId: string): DelayAlertResult {
       predicted_delay_days: null,
       predicted_date: null,
       basis: 'No known cause on this delivery, so no forecast was made.',
+      recovery: null,
     };
   }
   const worst = [...d.causes].sort((a, b) => (CAUSE_DELAY_DAYS[b] ?? 0) - (CAUSE_DELAY_DAYS[a] ?? 0))[0];
@@ -357,6 +365,71 @@ Halcyon Customer Success`,
     predicted_delay_days: days,
     predicted_date: date,
     basis: `Late deliveries with "${causeShort(worst).toLowerCase()}" arrived a median of ${days} day${days === 1 ? '' : 's'} late in the last 6 months.`,
+    recovery: mockRecovery(d, days),
+  };
+}
+
+/** Best on-time carrier per region (the carrier advisor's pick), for the offline recovery plan. */
+const BEST_CARRIER: Record<string, string> = { Midwest: 'C', Northeast: 'E', Southeast: 'B', West: 'B' };
+
+/** Expected SLA penalty per late delivery: the client's penalties / its late deliveries (as the API). */
+function expectedPenaltyPerLate(c: { penalties_usd: number; deliveries: number; on_time_rate: number }): number {
+  const late = Math.round(c.deliveries * (1 - c.on_time_rate));
+  return late > 0 ? Math.round(c.penalties_usd / late) : 0;
+}
+
+/**
+ * Offline stand-in for the API's recovery plan (backend/app/agents/delay_alert.py recovery_plan): the same
+ * rules and wording, but the sample knows only the at-risk clients' details, so other clients score on the
+ * predicted delay alone.
+ */
+export function mockRecovery(d: DeliverySummary, predictedDays: number): RecoveryPlan {
+  const client = AT_RISK_CLIENTS.find((c) => c.client_id === d.client_id);
+  const parts: RecoveryPlan['priority_parts'] = [];
+  const sla = !!client && client.penalties_usd > 0;
+  if (client) parts.push({ rule: 'At-risk client', points: 40 });
+  if (sla) parts.push({ rule: 'SLA penalty clause', points: 30 });
+  if (client?.tier === 'Tier 1') parts.push({ rule: 'Tier 1 client', points: 20 });
+  if (client?.tier === 'Tier 2') parts.push({ rule: 'Tier 2 client', points: 10 });
+  if (predictedDays >= 3) parts.push({ rule: `Predicted ${predictedDays} days late`, points: 15 });
+  const score = parts.reduce((t, p) => t + p.points, 0);
+  const priority = score >= 60 ? 'high' : score >= 30 ? 'medium' : 'normal';
+  const escalate = !!client || priority === 'high';
+  const region = d.destination_region;
+  const best = BEST_CARRIER[region] ?? 'C';
+  const forCause = (cause: CauseKey): RecoveryPlan['actions'][number] => {
+    switch (cause) {
+      case 'incomplete_address':
+        return { cause, owner: 'Customer Success', action: "Call the client today to confirm the full delivery address before the carrier's first attempt." };
+      case 'weak_carrier_lane':
+        return { cause, owner: 'Carrier manager', recommended_carrier: best, action: `Ask carrier ${d.carrier_id} for a tracking update today, and book future ${region} orders with carrier ${best}.` };
+      case 'stock_not_at_nearest':
+        return { cause, owner: 'Inventory planning', action: `Flag this client's stock for rebalancing to ${d.nearest_warehouse_id ?? 'the nearest warehouse'}, the nearest warehouse to ${region}; it shipped from ${d.fulfilment_warehouse_id ?? 'a further one'} instead.` };
+      case 'same_day_after_cutoff':
+        return { cause, owner: 'Warehouse', action: 'Remind the client that same-day orders need to reach us by 08:00 (or 09:00 at the latest); until 10:00 only urgent orders are added, and after that offer next-day at order time.' };
+      default:
+        return { cause, owner: 'Carrier manager', action: `Raise the route deviation with carrier ${d.carrier_id} and check the driver's route.` };
+    }
+  };
+  const actions = d.causes.map(forCause);
+  if (escalate)
+    actions.push({
+      cause: null,
+      owner: 'Account owner',
+      action: `Call ${client?.client_name ?? d.client_id} before they chase: the client is ${client ? 'at risk of leaving' : `high priority (${score} points)`}.`,
+    });
+  return {
+    priority,
+    priority_score: score,
+    priority_parts: parts,
+    escalate_to_account_owner: escalate,
+    penalty_exposure_usd: sla && client ? expectedPenaltyPerLate(client) : null,
+    penalty_note: sla
+      ? 'Sample estimate: the expected SLA penalty per late delivery for this client (its penalties / its late deliveries).'
+      : 'No SLA penalty clause known for this client in the sample.',
+    actions,
+    method:
+      'Rules, not AI. Points: at-risk client 40, SLA clause 30, Tier 1 20, Tier 2 10, plus 15 for a complaint in the last 90 days and 15 for a predicted delay of 3+ days. High at 60+, medium at 30+. At-risk clients always go to the account owner.',
   };
 }
 
@@ -470,3 +543,70 @@ export const mockRuns: AgentRun[] = [
     model: 'claude (Bedrock)',
   },
 ];
+
+/* ---------------- late same-day orders (offline snapshot of the API) ---------------- */
+
+/** The times the page offers (half-hour steps, 08:00 to 14:00) and the API defaults (backend/app/analytics/late_orders.py). */
+export const LATE_ORDER_TIMES: string[] = LO.TIMES;
+export const LATE_ORDER_DEFAULTS = LO.DEFAULTS;
+const PICK_LIST_CUTOFF = '08:00';
+
+const toMinutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/** Which window an arrival time falls in, as the API decides it. */
+export function sameDayWindow(at: string, graceUntil: string, hardStop: string): SameDayWindow {
+  const m = toMinutes(at);
+  if (m < toMinutes(PICK_LIST_CUTOFF)) return 'before_cutoff';
+  if (m < toMinutes(graceUntil)) return 'grace';
+  if (m < toMinutes(hardStop)) return 'urgent_window';
+  return 'after_hard_stop';
+}
+
+/** The decision table, in the order it is applied (same wording as decision_rules in the API). */
+export function lateOrderRules(g: string, h: string): LateOrdersRule[] {
+  return [
+    { when: 'Before 08:00', email: 'Any', client: 'Any', result: 'today', actor: 'Rule', note: 'The normal pick list.' },
+    { when: `08:00 to ${g}`, email: 'Any', client: 'Any', result: 'today', actor: 'Rule', note: 'Grace period.' },
+    { when: `${g} to ${h}`, email: 'Urgent with a valid reason', client: 'Any', result: 'today', actor: 'AI agent', note: 'The AI quotes the sentence (for example a stopped line); code checks it is in the email.' },
+    { when: `${g} to ${h}`, email: 'Says urgent, no reason', client: 'Tier 1 or at risk', result: 'today', actor: 'AI agent', note: 'Priority clients only.' },
+    { when: `${g} to ${h}`, email: 'Says urgent, no reason', client: 'Other clients', result: 'tomorrow', actor: 'Rule', note: "Shouting 'URGENT' is not enough." },
+    { when: `${g} to ${h}`, email: 'Not urgent', client: 'Any', result: 'tomorrow', actor: 'Rule', note: 'Even for priority clients.' },
+    { when: `From ${h}`, email: 'Any', client: 'Any', result: 'tomorrow', actor: 'Rule', note: 'Hard stop.' },
+  ];
+}
+
+function addedFrom(values: number[]): LateOrdersAdded {
+  const a = {} as LateOrdersAdded;
+  LO.ADDED_FIELDS.forEach((f, i) => (a[f] = values[i]));
+  return a;
+}
+
+/**
+ * Offline stand-in for POST /api/simulate/late-orders: a saved snapshot of the API's own replay for every
+ * pair of times the page offers, from frontend/scripts/generate_late_orders_snapshot.py. An invalid or
+ * missing pair falls back to the defaults.
+ */
+export function mockLateOrders(req: LateOrdersRequest = {}): LateOrdersResponse {
+  let g = req.grace_until ?? LO.DEFAULTS.grace_until;
+  let h = req.hard_stop ?? LO.DEFAULTS.hard_stop;
+  if (!LO.PAIRS[`${g}|${h}`]) ({ grace_until: g, hard_stop: h } = LO.DEFAULTS);
+  const [pop, grace, urgent, others, [withGrace, atMost]] = LO.PAIRS[`${g}|${h}`];
+  const population = { ...LO.FIXED } as LateOrdersResponse['population'];
+  LO.POPULATION_FIELDS.forEach((f, i) => (population[f] = pop[i]));
+  return {
+    inputs: { pick_list_cutoff: PICK_LIST_CUTOFF, grace_until: g, hard_stop: h },
+    population,
+    grace: addedFrom(grace),
+    urgent_priority_clients_at_most: addedFrom(urgent),
+    urgent_other_clients_with_valid_reason: others,
+    on_time_rate_after_cutoff_orders: { today: LO.FIXED.on_time_rate_today, with_grace: withGrace, with_grace_and_urgent_at_most: atMost },
+    arrivals: LO.ARRIVALS.map((a) => ({ ...a, window: sameDayWindow(a.from, g, h) })),
+    rules: lateOrderRules(g, h),
+    method: LO.METHOD,
+    assumptions: ['Sample: a saved snapshot of the API’s replay, not a live run. Start the API for live figures.', ...LO.ASSUMPTIONS],
+    order_desk_settings: { ...LO.DEFAULTS },
+  };
+}

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import errors
 from app.api.routes import router
+from app.analytics.late_orders import check_times
 from app.config import get_settings
 from app.db import init_db
 
@@ -34,6 +35,8 @@ logging.basicConfig(level=logging.INFO, handlers=[_handler])
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()  # creates missing tables (agent_runs etc.); data is loaded by `python -m app.loader`
+    s = get_settings()
+    check_times(s.same_day_grace_until, s.same_day_hard_stop)  # fail at start-up on a bad SAME_DAY_* setting
     yield
 
 

@@ -26,7 +26,7 @@ PROCESS_CAUSES = frozenset({"incomplete_address", "same_day_after_cutoff", "stoc
 # Realistic case: share of each cause we expect a fix to remove (our assumptions, as in the analysis).
 REALISTIC_EFFECTIVENESS = {
     "incomplete_address": 0.80,     # intake agent catches most gaps; some clients reply late
-    "same_day_after_cutoff": 0.70,  # second pick wave or honest next-day promise for most
+    "same_day_after_cutoff": 0.70,  # grace period, urgent orders until the hard stop, or honest next-day promise
     "stock_not_at_nearest": 0.50,   # monthly instead of quarterly rebalancing
     "weak_carrier_lane": 0.90,      # reassign the 7 lanes; some capacity limits remain
     "route_deviation": 0.50,        # route discipline / small routing pilot
@@ -36,7 +36,7 @@ REALISTIC_EFFECTIVENESS = {
 # from the rate card (see roi.carrier_switch_cost).
 FIX_COST_USD_PER_YEAR = {
     "incomplete_address": 60_000,     # build + run the intake agent (Bedrock usage, support)
-    "same_day_after_cutoff": 65_000,  # second pick wave: ~2 extra hours/day at 5 warehouses
+    "same_day_after_cutoff": 65_000,  # adding late orders to the pick list: ~2 extra hours/day at 5 warehouses (estimate)
     "stock_not_at_nearest": 50_000,   # extra inter-warehouse transfers
     "weak_carrier_lane": None,        # pricier carriers on the 7 weak lanes
     "route_deviation": 100_000,       # small routing pilot on high-deviation lanes

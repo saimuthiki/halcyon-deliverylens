@@ -24,10 +24,10 @@ flowchart LR
   subgraph FIX["What DeliveryLens does"]
     F1["Order Intake Agent (AI)<br/>reads the order, checks the address,<br/>asks the client for missing parts"]
     F2["Carrier Advisor<br/>best carrier for each region"]
-    F3["Same-day Promise Check<br/>warns at intake, suggests next day<br/>or a second pick wave"]
+    F3["Same-day Promise Check<br/>08:00 pick list stays;<br/>grace until 09:00, urgent only<br/>until 10:00, then next day"]
     F4["Stock Placement view<br/>which regions run out most"]
     F5["Route Deviation watch<br/>the only part routing software fixes"]
-    F6["Delay Alert Agent (AI)<br/>drafts a message to the client<br/>before they have to chase"]
+    F6["Delay Alert Agent (AI)<br/>drafts a message to the client<br/>before they have to chase,<br/>+ a recovery plan for the team"]
   end
   C1 --> F1
   C2 --> F2
@@ -209,10 +209,11 @@ sequenceDiagram
   API->>GR: Remove personal data from the log,<br/>check for prompt tricks
   API->>AI: "Extract client, items, address, date"
   AI-->>API: Structured order (JSON)
-  API->>API: Rules: missing address fields?<br/>same-day after 08:00?
+  API->>API: Rules: missing address fields?<br/>same-day after 08:00? urgency quote in the email?
   API->>DB: Save agent run (model, time, tokens)
   API-->>UI: Order + warnings + draft reply to client
   CS->>UI: Review, then send the reply
+  CS->>UI: Approve the order into the WMS
 ```
 
 **What this shows:** the life of one AI call, using the Order Intake Agent as the example. AI
@@ -220,34 +221,53 @@ does the reading; simple rules do the checking; a person approves before anythin
 
 | Agent | What it does | Example |
 |---|---|---|
-| **Order Intake Agent** | Reads an email order, finds missing address parts, flags same-day-after-08:00 | "Postcode missing. Draft: 'Please confirm the postcode for order ORD-1234.'" |
-| **Delay Alert Agent** | Writes a message to the client before they chase | "Your order D012345 will arrive 1 day late because the nearest warehouse ran out; it ships from W2 today." |
-| **Ask DeliveryLens** | Answers leaders' questions with numbers from our analysis | "Which carrier is worst in the Southeast?" → "Carrier F: 54% on time to the Southeast when nothing else is wrong; A, B and C are about 99%." |
+| **Order Intake Agent** | Reads an email order, finds missing address parts, flags same-day-after-08:00, reads urgency and quotes the sentence | "Postcode missing. Draft: 'Please confirm the postcode for order ORD-1234.'" |
+| **Delay Alert Agent** | Writes a message to the client before they chase. A rule adds an internal recovery plan (next step per cause, owner, priority, escalation, SLA penalty estimate) that is never sent to the client | "Your order D012345 will arrive 1 day late because the nearest warehouse ran out; it ships from W2 today." |
+| **Ask DeliveryLens** | Answers leaders' questions with numbers from our analysis, including a search of the 34 past complaints | "Which carrier is worst in the Southeast?" → "Carrier F: 54% on time to the Southeast when nothing else is wrong; A, B and C are about 99%." |
+
+**AI step or rule? (the newer parts)**
+
+| Step | Who does it |
+|---|---|
+| Read how urgent an email is, and quote the sentence | AI |
+| Check the quote is really in the email (if not, urgency counts as none) | Rule |
+| Grace period, urgent window and hard stop: is a late same-day order added to today's pick list? | Rule |
+| Recovery plan: next steps, owner, priority, escalation, penalty estimate | Rule |
+| Find and count complaints, join them to delivery causes | Data lookup |
+| Write the answer about the complaints | AI |
+| Release an accepted order into the WMS | A person |
 
 **Safety rules for all agents:**
 - AI never calculates the KPIs; the code does.
 - Personal data is hidden in the logs, and prompt-injection attempts are blocked.
-- A person approves every message before it goes out.
+- A person approves every message before it goes out, and every accepted order before it enters
+  the WMS.
+- An AI quote is checked by code before it counts.
 - Every call is logged.
 
 ## 4.8 The screens
 
 ```mermaid
 flowchart TB
-  NAV["Left menu"] --> S1["Overview<br/>71% vs 94%, money at risk"]
+  NAV["Left menu"] --> S0["How it works<br/>the process, today vs<br/>with DeliveryLens"]
+  NAV --> S1["Overview<br/>71% vs 94%, money at risk"]
   NAV --> S2["Why late<br/>waterfall of the 5 causes,<br/>click → example deliveries"]
   NAV --> S3["Vendor decision<br/>routing only 80.2% vs<br/>our plan 90.2% (ceiling 99%)<br/>+ business case"]
   NAV --> S4["What-if simulator<br/>sliders per fix → new on-time %"]
+  NAV --> S4b["Late same-day orders<br/>grace period and urgent window,<br/>replayed on history"]
   NAV --> S5["Carriers<br/>carrier × region heatmap,<br/>best carrier per region"]
   NAV --> S6["At-risk clients<br/>the 9 clients, $14.2M"]
+  NAV --> S6b["Stock & routes<br/>stock-outs, route deviation"]
+  NAV --> S6c["Order desk (live)<br/>17 emails → approved<br/>WMS orders"]
   NAV --> S7["Order intake agent<br/>paste email → checked order"]
   NAV --> S8["Ask DeliveryLens<br/>questions in plain English"]
   NAV --> S9["Agent activity<br/>log of every AI call"]
 ```
 
-**What this shows:** the nine screens.
-- **Leaders** mostly use the first four: overview, why late, vendor decision, simulator.
-- **Teams** use carriers, at-risk clients, order intake and ask.
+**What this shows:** the 13 screens.
+- **Leaders** mostly use the decision screens: overview, why late, vendor decision, simulator and
+  late same-day orders.
+- **Teams** use carriers, at-risk clients, stock & routes, the order desk, order intake and ask.
 - **Agent activity** is our evidence for the judges.
 
 ## 4.9 Security in one picture
@@ -280,4 +300,7 @@ flowchart LR
 | Maths in plain Python, AI only for reading and writing text | Numbers are always correct and repeatable; the AI cannot invent a KPI |
 | Claude through Bedrock | Data stays in AWS; no API keys; requested |
 | "Mock" AI mode | The app works and tests pass even before Bedrock access arrives |
+| AI reads urgency, a rule decides if a late same-day order goes today | The AI can be talked into "URGENT!!!"; a checked quote and a fixed rule cannot. "Urgent" with no reason counts only for Tier 1 or at-risk clients |
+| A person approves orders before the WMS | The step that commits stock and a truck stays with a person |
+| Complaint search with plain filters, no vector database | 34 short complaints in 4 fixed categories: a filter and a join to the delivery data are exact and explainable; a vector search would add a service and fuzzy matches for no gain |
 | Caddy for HTTPS on EC2 | Browsers block an HTTPS page from calling a plain HTTP API; Caddy fixes this with no domain needed (`<ip>.sslip.io`) |

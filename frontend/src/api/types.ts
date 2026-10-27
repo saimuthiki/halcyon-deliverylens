@@ -315,6 +315,27 @@ export interface DelayAlertResult {
   basis?: string | null;
   channel?: string;
   run_id?: string;
+  /** Internal next steps for Customer Success (rules, not AI). Never sent to the client. Absent on older APIs. */
+  recovery?: RecoveryPlan | null;
+}
+
+export interface RecoveryAction {
+  /** The cause this action fixes; null for actions not tied to one cause (e.g. the account-owner call). */
+  cause: CauseKey | null;
+  action: string;
+  owner: string;
+  recommended_carrier?: string;
+}
+
+export interface RecoveryPlan {
+  priority: 'high' | 'medium' | 'normal';
+  priority_score: number;
+  priority_parts: { rule: string; points: number }[];
+  escalate_to_account_owner: boolean;
+  penalty_exposure_usd: number | null;
+  penalty_note: string;
+  actions: RecoveryAction[];
+  method: string;
 }
 
 export interface AskResult {
@@ -416,10 +437,12 @@ export interface WmsOrder {
   fulfilment_warehouse_id: string | null;
   carrier_id: string | null;
   carrier_reason: string | null;
-  /** 'ready_for_pick_list' | 'on_hold' | 'needs_review' */
+  /** 'awaiting_approval' (accepted, a person must approve) | 'ready_for_pick_list' | 'on_hold_missing_address' | 'needs_review' */
   status: string;
   pick_list_date: string | null;
   created_at: string;
+  /** When a person approved it into the WMS; null until then. */
+  approved_at: string | null;
 }
 
 /** The reply drafted for the client. The API may send a plain string; the normaliser turns it into this. */
@@ -447,4 +470,60 @@ export interface DeskProcessAll {
   processed: number;
   matches_expected: number;
   results: { message_id: string; decision: DeskDecision; expected_decision: DeskDecision; matches_expected: boolean }[];
+}
+
+/* ---------- /api/simulate/late-orders (same-day orders after the 08:00 pick list) ---------- */
+/** Where an order's arrival time falls: the 08:00 list, the grace period, urgent orders only, or after the hard stop. */
+export type SameDayWindow = 'before_cutoff' | 'grace' | 'urgent_window' | 'after_hard_stop';
+
+/** Both optional; the API defaults to the Order desk settings (SAME_DAY_GRACE_UNTIL, SAME_DAY_HARD_STOP). */
+export interface LateOrdersRequest {
+  grace_until?: string; // "HH:MM", half-hour steps, 08:00 <= grace_until <= hard_stop <= 14:00
+  hard_stop?: string;
+}
+
+/** Orders added to today's pick list, and what that is worth. Orders are over the days in the data. */
+export interface LateOrdersAdded {
+  orders: number;
+  extra_orders_per_warehouse_day: number;
+  late_avoided_per_year: number;
+  sla_penalties_avoided_usd_per_year: number;
+  at_risk_late_avoided_per_year: number;
+}
+
+export interface LateOrdersRule {
+  when: string;
+  email: string;
+  client: string;
+  result: 'today' | 'tomorrow';
+  actor: DeskActor;
+  note: string;
+}
+
+export interface LateOrdersResponse {
+  inputs: { pick_list_cutoff: string; grace_until: string; hard_stop: string };
+  population: {
+    after_cutoff_same_day: number;
+    days: number;
+    warehouses: number;
+    on_time_rate_today: number;
+    grace_orders: number;
+    urgent_window_orders: number;
+    urgent_window_priority_client_orders: number;
+    after_hard_stop_orders: number;
+    incomplete_address_excluded: number;
+  };
+  /** Exact for the history: every complete same-day order in the grace period is added. */
+  grace: LateOrdersAdded;
+  /** Upper bound: history has no email text, so every priority-client order counts as if it said urgent. */
+  urgent_priority_clients_at_most: LateOrdersAdded;
+  /** Other clients' orders in the urgent window: added only with a valid reason, which history cannot show. */
+  urgent_other_clients_with_valid_reason: number;
+  on_time_rate_after_cutoff_orders: { today: number; with_grace: number; with_grace_and_urgent_at_most: number };
+  arrivals: { from: string; to: string; orders: number; window: SameDayWindow }[];
+  rules: LateOrdersRule[];
+  method: string;
+  assumptions: string[];
+  /** The times the Order desk uses today. */
+  order_desk_settings: { grace_until: string; hard_stop: string };
 }

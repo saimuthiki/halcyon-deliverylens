@@ -11,6 +11,7 @@ const OrderDesk = lazy(() => import('./pages/OrderDesk'));
 const WhyLate = lazy(() => import('./pages/WhyLate'));
 const Vendor = lazy(() => import('./pages/Vendor'));
 const Simulator = lazy(() => import('./pages/Simulator'));
+const LateOrders = lazy(() => import('./pages/LateOrders'));
 const Carriers = lazy(() => import('./pages/Carriers'));
 const Clients = lazy(() => import('./pages/Clients'));
 const StockRoutes = lazy(() => import('./pages/StockRoutes'));
@@ -34,6 +35,8 @@ export default function App() {
           <Route path="/why-late" element={<WhyLate />} />
           <Route path="/vendor" element={<Vendor />} />
           <Route path="/what-if" element={<Simulator />} />
+          <Route path="/late-orders" element={<LateOrders />} />
+          <Route path="/pick-wave" element={<Navigate to="/late-orders" replace />} />
           <Route path="/carriers" element={<Carriers />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/stock-routes" element={<StockRoutes />} />

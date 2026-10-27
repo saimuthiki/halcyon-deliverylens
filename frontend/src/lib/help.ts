@@ -29,13 +29,14 @@ export const HELP: Record<string, HelpContent> = {
   '/order-desk': {
     intro: 'A live demo of DeliveryLens doing the job staff do by hand today: reading client order emails and entering them into the warehouse system (WMS).',
     items: [
-      { term: 'Inbox (left)', text: 'Twelve sample client emails, each built to show one situation. The chip shows what DeliveryLens should decide; the status shows whether it has been run.', example: 'Email 02 "Missing postcode" should end On hold.' },
+      { term: 'Inbox (left)', text: 'Seventeen sample client emails, each built to show one situation. The chip shows what DeliveryLens should decide; the status shows whether it has been run.', example: 'Email 02 "Missing postcode" should end On hold.' },
       { term: 'Selected email (middle)', text: 'The email exactly as the client sent it: sender, time, subject, body and any attachment.', example: 'Email 12 has its order lines in a CSV file, not in the body.' },
-      { term: 'Run DeliveryLens on this email', text: 'Sends the email through the 10-step pipeline. Run all 12 does every email and counts how many match the expected result.' },
+      { term: 'Run DeliveryLens on this email', text: 'Sends the email through the 10-step pipeline. Run all does every email and counts how many match the expected result.' },
       { term: 'Pipeline trace', text: 'Each step in order: who did it (AI agent, Rule, Data lookup or Guardrail), whether it passed, warned, failed or was skipped, a one-line reason and how long it took. Select Details to see the raw values.', example: 'Email 09: the carrier step warns that the rate card would pick Carrier F (54% on time to the Southeast) and picks Carrier B instead.' },
-      { term: 'Decision card', text: 'Accepted (goes onto the pick list), On hold (waiting for the client), Needs review (a person decides) or Blocked (unsafe). The tick shows it matches the expected result.', example: 'Email 04 is accepted but re-promised for the next day, because it arrived at 09:30, after the 08:00 pick list.' },
+      { term: 'Late same-day orders (step 6)', text: 'The 08:00 pick list stays. A same-day order from 08:00 to 09:00 (the grace period) is still added to today’s list. From 09:00 to 10:00 only urgent orders are added: a valid reason in the email from any client, or "urgent" with no reason from a priority client (Tier 1 or at risk). From 10:00 it goes to tomorrow. The AI urgency quote is shown in purple; code checks it is in the email.', example: 'Email 13 (09:40, "Our production line stops at 3pm") is added; email 14 (09:15, "URGENT!!!" from a Tier 3 client) goes to tomorrow; email 17 (10:20) goes to tomorrow even with a valid reason.' },
+      { term: 'Decision card',text: 'Accepted (every check passed; a person presses Approve into WMS before it goes onto the pick list), On hold (waiting for the client), Needs review (a person decides) or Blocked (unsafe). The tick shows it matches the expected result.', example: 'Email 14 is accepted but re-promised for the next day, because it arrived at 09:15 with no reason for its urgency.' },
       { term: 'Draft to the client', text: 'A reply written by the AI for a person to approve. Nothing is sent automatically.' },
-      { term: 'Warehouse system (WMS) table', text: 'The orders DeliveryLens has created in the warehouse system, with warehouse, carrier and pick-list date. Reset demo empties it and marks every email as new again.', example: 'Email 08 ships from W1 (Midwest 1) because W5 (West) has no stock.' },
+      { term: 'Warehouse system (WMS) table', text: 'The orders DeliveryLens has created in the warehouse system, with warehouse, carrier and pick-list date. Accepted orders show Awaiting approval until a person approves them (one by one, or Approve all accepted); then they read Ready for pick list. Reset demo empties it and marks every email as new again.', example: 'Email 08 ships from W1 (Midwest 1) because W5 (West) has no stock.' },
       { term: 'AI model', text: 'Which language model is answering: Mock (canned answers, no key needed), Gemini or Bedrock. Offline, the page shows pre-computed sample traces, labelled as such.' },
     ],
   },
@@ -72,6 +73,19 @@ export const HELP: Record<string, HelpContent> = {
       { term: 'Presets', text: 'One click to set every slider: Realistic plan, Routing vendor only, Process fixes only, Ceiling (all fully fixed), or Reset to nothing fixed.' },
       { term: 'Projected on-time gauge', text: 'Where on-time delivery lands with these settings, and how far from the 94% benchmark.' },
       { term: 'Points per cause, penalties avoided', text: 'What each fix adds, and the late deliveries and SLA penalties avoided over the 6 months.', example: 'The three process fixes fully working reach 86.7%, still 7.3 points short.' },
+    ],
+  },
+  '/late-orders': {
+    intro: 'Same-day orders that arrive after the 08:00 pick list wait for tomorrow today. The 08:00 pick list stays; this page tests how long to keep adding late orders to it, and which ones.',
+    items: [
+      { term: 'Grace until', text: 'Every same-day order with a complete address that arrives from 08:00 to this time is still added to today’s pick list.', example: '09:00 gives a one-hour grace period.' },
+      { term: 'Hard stop', text: 'From the end of the grace period to this time only urgent orders are added. From the hard stop every order goes to tomorrow. It cannot be earlier than the grace period end.', example: 'Grace until 09:00 and hard stop 10:00: urgent orders only from 09:00 to 10:00.' },
+      { term: 'Order desk settings', text: 'The Order desk uses the times set in SAME_DAY_GRACE_UNTIL and SAME_DAY_HARD_STOP. Changing the times here only tests them; it does not change the Order desk.' },
+      { term: 'Arrivals by half hour', text: 'How many same-day orders arrived in each half hour after 08:00 over the six months, coloured by what happens to them: teal is added (grace), purple is urgent only (the AI reads the email), orange is tomorrow.' },
+      { term: 'Decision table', text: 'The rules in the order they are applied. AI agent rows depend on the AI’s reading of the email; the AI must quote the sentence and code checks the quote. Rule rows are fixed in code.', example: '"URGENT!!!" with no reason from a Tier 3 client at 09:15 goes to tomorrow.' },
+      { term: 'Grace period vs urgent window', text: 'The grace period figures are exact for the history. The urgent window figures are an upper bound ("at most"): history has no email text, so every priority-client order is counted as if it said urgent. Other clients’ orders need a valid reason and are counted but not added.' },
+      { term: 'Extra orders per warehouse a day', text: 'How many more orders each warehouse adds to today’s pick list on an average day. It shows whether the warehouse can absorb them.', example: 'About 0.8 a day for a one-hour grace period.' },
+      { term: 'Method and assumptions', text: 'How the replay works and what it leaves out.' },
     ],
   },
   '/carriers': {

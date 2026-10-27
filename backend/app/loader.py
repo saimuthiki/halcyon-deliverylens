@@ -15,7 +15,7 @@ from sqlalchemy import Date, DateTime, Float, Integer, delete, func, insert, ins
 from sqlalchemy.engine import Engine
 
 from app.config import get_settings
-from app.db import Base, get_engine
+from app.db import Base, ensure_columns, get_engine
 from app.models import CSV_TABLES, Delivery
 
 log = logging.getLogger(__name__)
@@ -56,6 +56,7 @@ def load_all(engine: Engine | None = None, data_dir: Path | None = None) -> dict
     engine = engine or get_engine()
     data_dir = Path(data_dir or get_settings().data_dir)
     Base.metadata.create_all(engine)
+    ensure_columns(engine)
     frames = {model: pd.read_csv(data_dir / name, dtype={"email_format_id": "Int64"})
               for name, model in CSV_TABLES}
     counts = {}
@@ -83,6 +84,17 @@ def is_loaded(engine: Engine | None = None) -> bool:
         return conn.execute(select(func.count()).select_from(Delivery)).scalar_one() > 0
 
 
+def refresh_inbox(engine: Engine) -> int:
+    """--if-empty path: create any missing tables (e.g. inbox / WMS added after the first load), then
+    replace the sample inbox. Returns the number of messages."""
+    from app import models  # noqa: F401
+    from app.desk.inbox import load_inbox
+
+    Base.metadata.create_all(engine)
+    ensure_columns(engine)
+    return load_inbox(engine)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Load Halcyon CSVs into the DeliveryLens database")
     parser.add_argument("--data-dir", type=Path, default=None)
@@ -90,7 +102,9 @@ def main() -> None:
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     if args.if_empty and is_loaded():
-        print("Data already loaded; skipping (--if-empty).")
+        # The sample inbox ships with the code, so refresh it on every deploy (it resets the Order desk demo).
+        print(f"Data already loaded; skipping the CSVs (--if-empty). Inbox refreshed: {refresh_inbox(get_engine())} "
+              "messages.")
         return
     counts = load_all(data_dir=args.data_dir)
     for table, n in counts.items():

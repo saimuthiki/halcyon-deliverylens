@@ -1,0 +1,22 @@
+From: "Client 190 Supply Chain" <supply@client-190.example>
+To: orders@halcyon-logistics.example
+Subject: Same day needed - Client 190 - line parts
+Date: Fri, 23 Oct 2026 10:20:00 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Hello,
+
+Our production line stops at 4pm without these parts. We need them same-day please.
+- SKU HX-1001 x 3
+
+Ship to:
+Name: Client 190 Plant
+Street: 77 Peachtree Industrial Blvd
+City: Atlanta
+State: GA
+Postcode: 30303
+Country: US
+
+Thanks,
+Client 190 Supply Chain

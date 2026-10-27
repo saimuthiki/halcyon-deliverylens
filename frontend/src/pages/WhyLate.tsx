@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronRight, Mail } from 'lucide-react';
+import { ChevronRight, Mail, PhoneCall } from 'lucide-react';
 import { api } from '../api/client';
-import type { CauseKey, CauseRow } from '../api/types';
+import type { CauseKey, CauseRow, RecoveryPlan } from '../api/types';
 import { useAction, useApi } from '../lib/useApi';
 import { buildWaterfall } from '../lib/calc';
 import { BENCHMARK, CAUSE_META, causeShort } from '../lib/causes';
@@ -11,6 +11,7 @@ import PageHeader, { SectionTitle } from '../components/PageHeader';
 import Waterfall from '../components/Waterfall';
 import Drawer from '../components/Drawer';
 import CauseChip from '../components/CauseChip';
+import { ActorBadge } from '../components/Actor';
 import { ErrorState, LoadingBlock, SampleResponseNotice, SourceTag } from '../components/States';
 
 export default function WhyLate() {
@@ -311,10 +312,68 @@ export function DeliveryDetailView({ id }: { id: string }) {
               <div className="mb-2 font-semibold">{alert.data.subject}</div>
               <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-ink">{alert.data.body}</pre>
             </div>
+            {alert.data.recovery && <RecoveryPlanView plan={alert.data.recovery} />}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+const PRIORITY_CHIP: Record<RecoveryPlan['priority'], { label: string; cls: string }> = {
+  high: { label: 'High priority', cls: 'border-late/30 bg-late-tint text-late' },
+  medium: { label: 'Medium priority', cls: 'border-line bg-paper text-ink' },
+  normal: { label: 'Normal priority', cls: 'border-line bg-paper text-ink' },
+};
+
+/** Internal next steps for Customer Success: rules, not AI, and never part of the client draft. */
+export function RecoveryPlanView({ plan }: { plan: RecoveryPlan }) {
+  const chip = PRIORITY_CHIP[plan.priority] ?? PRIORITY_CHIP.normal;
+  return (
+    <section className="rounded-md border border-line px-4 py-3" aria-labelledby="recovery-title" data-testid="recovery-plan">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 id="recovery-title" className="text-[15px] font-semibold">
+          Recovery plan for the team <span className="font-normal text-slate">(not sent to the client)</span>
+        </h4>
+        <span className="flex items-center gap-1.5">
+          <span className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-sm font-medium ${chip.cls}`} data-testid="recovery-priority">
+            {chip.label}
+          </span>
+          <ActorBadge actor="Rule" />
+        </span>
+      </div>
+      <p className="num mt-2 text-sm text-ink-soft" data-testid="recovery-score">
+        Score {plan.priority_score}
+        {plan.priority_parts.length > 0 && <> = {plan.priority_parts.map((p) => `${p.rule} ${p.points}`).join(' + ')}</>}
+      </p>
+      {plan.escalate_to_account_owner && (
+        <p className="mt-2 flex items-center gap-1.5 text-[15px] font-semibold text-late" data-testid="recovery-escalate">
+          <PhoneCall className="h-4 w-4 shrink-0" aria-hidden="true" />
+          Escalate to the account owner today.
+        </p>
+      )}
+      <p className="mt-2 text-[15px]" data-testid="recovery-penalty">
+        <span className="text-slate">SLA penalty exposure: </span>
+        <span className="num font-semibold">{plan.penalty_exposure_usd != null ? usd(plan.penalty_exposure_usd) : 'none'}</span>
+        {plan.penalty_note && <span className="block text-sm text-slate">{plan.penalty_note}</span>}
+      </p>
+      {plan.actions.length > 0 && (
+        <ol className="mt-3 flex flex-col gap-2 border-t border-line pt-3" aria-label="Next steps">
+          {plan.actions.map((a, i) => (
+            <li key={i} className="text-[15px]" data-testid="recovery-action">
+              <p className="text-ink">{a.action}</p>
+              <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-slate">
+                <span>
+                  Owner: <span className="font-medium text-ink">{a.owner}</span>
+                </span>
+                {a.cause && <CauseChip cause={a.cause} />}
+              </p>
+            </li>
+          ))}
+        </ol>
+      )}
+      {plan.method && <p className="mt-3 text-sm text-slate">{plan.method}</p>}
+    </section>
   );
 }
 

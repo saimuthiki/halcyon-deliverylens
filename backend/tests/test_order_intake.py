@@ -122,3 +122,92 @@ def test_warehouse_timezone_defaults_to_chicago():
 
     cutoff = run_checks(parse_email_mock("SKU HX-1 x 1"))["cutoff"]
     assert cutoff["timezone"] == "America/Chicago"
+
+
+# ---------------------------------------------------------------- urgency (mock keywords + evidence check)
+def test_operational_impact_is_high_urgency_with_the_sentence_as_evidence():
+    from app.agents.order_intake import parse_email_mock
+
+    ext = parse_email_mock("Subject: order\n\nHello,\nOur production line stops at 3pm without these parts. "
+                           "Please ship same-day.\nSKU HX-1 x 2")
+    assert ext.urgency == "high"
+    assert ext.urgency_evidence == "Our production line stops at 3pm without these parts."
+
+
+def test_shouting_urgent_alone_is_only_medium():
+    from app.agents.order_intake import parse_email_mock
+
+    ext = parse_email_mock("URGENT!!! URGENT!!! need this today, same-day please.\nSKU HX-1 x 2")
+    assert ext.urgency == "medium"
+    assert ext.urgency_evidence == "URGENT!!! URGENT!!! need this today, same-day please."
+
+
+def test_no_urgency_words_means_none():
+    from app.agents.order_intake import parse_email_mock
+
+    ext = parse_email_mock("Next day please.\nSKU HX-1 x 2")
+    assert ext.urgency == "none" and ext.urgency_evidence is None
+
+
+def test_urgency_in_the_headers_is_ignored():
+    from app.agents.order_intake import parse_email_mock
+
+    ext = parse_email_mock('From: "Store Opening Team" <urgent@client-078.example>\nSubject: URGENT\n\n'
+                           "Next day please.\nSKU HX-1 x 2")
+    assert ext.urgency == "none"
+
+
+def test_store_opening_and_deadline_are_high():
+    from app.agents.order_intake import detect_urgency
+
+    assert detect_urgency("We need this SAME DAY please, it is for a store opening.")[0] == "high"
+    assert detect_urgency("Must arrive by 2pm or the crew stands idle.")[0] == "high"
+    assert detect_urgency("Our line is down.")[0] == "high"
+
+
+def test_evidence_must_appear_in_the_email():
+    from app.agents.order_intake import verify_urgency
+
+    body = "Hi team,\nOur   production line\nstops at 3pm without these parts.\nThanks"
+    ok = verify_urgency("high", "our production line stops at 3PM without these parts", body)
+    assert ok == ("high", "our production line stops at 3PM without these parts", None)
+    level, ev, note = verify_urgency("high", "The plant explodes at noon.", body)
+    assert (level, ev) == ("none", None) and "not found" in note
+    level, ev, note = verify_urgency("medium", None, body)
+    assert (level, ev) == ("none", None) and note
+    assert verify_urgency("none", "anything", body) == ("none", None, None)
+
+
+def test_short_quote_is_not_evidence():
+    from app.agents.order_intake import verify_urgency
+
+    body = "Hi team,\nOur production line stops at 3pm without these parts.\nThanks"
+    level, ev, note = verify_urgency("high", "e", body)
+    assert (level, ev) == ("none", None) and note
+
+
+def test_quote_must_be_a_whole_sentence_or_line():
+    from app.agents.order_intake import verify_urgency
+
+    body = "Hi team,\nOur production line stops at 3pm without these parts. We need them today.\nThanks"
+    level, ev, note = verify_urgency("high", "production line stops at 3pm", body)
+    assert (level, ev) == ("none", None) and note
+    assert verify_urgency("high", "Our production line stops at 3pm without these parts.", body)[0] == "high"
+    assert verify_urgency("medium", "we need them today", body)[0] == "medium"
+
+
+def test_high_claim_without_operational_impact_is_capped_at_medium():
+    from app.agents.order_intake import verify_urgency
+
+    body = "Hello,\nPlease send the usual monthly restock order.\nThanks"
+    level, ev, note = verify_urgency("high", "Please send the usual monthly restock order.", body)
+    assert level == "medium" and ev == "Please send the usual monthly restock order." and "medium" in note
+
+
+def test_run_order_intake_reports_verified_urgency():
+    from app.agents.order_intake import run_order_intake
+
+    r = run_order_intake("Client: Client 007\nOur production line stops at 3pm without these parts.\n"
+                         "Same-day please. SKU HX-1 x 3")
+    assert r["extraction"]["urgency"] == "high"
+    assert r["extraction"]["urgency_evidence"] == "Our production line stops at 3pm without these parts."

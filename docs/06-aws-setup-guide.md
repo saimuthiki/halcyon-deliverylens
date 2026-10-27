@@ -66,11 +66,11 @@ flowchart LR
 | 3 | `bash infra/scripts/02-s3.sh` | Private, encrypted bucket; uploads `data/halcyon-dataset` to `raw/` | `aws s3 ls s3://deliverylens-data-<account>/raw/halcyon-dataset/` |
 | 4 | `bash infra/scripts/03-ecr.sh` | Image repository with scan-on-push | Prints the image URI |
 | 5 | `bash infra/scripts/04-network.sh` | API: 443/80 open, 22 from your IP only. DB: 5432 from the API only | Save the printed API security group ID as GitHub secret `EC2_SG_ID` (the deploy job opens SSH for itself only while it deploys, then closes it) |
-| 6 | `bash infra/scripts/05-secrets-rds.sh` | Creates PostgreSQL (private, encrypted) and stores the connection string, model IDs and a demo password in Secrets Manager | Prints the RDS endpoint |
+| 6 | `bash infra/scripts/05-secrets-rds.sh` | Creates PostgreSQL (private, encrypted) and stores the connection string, model IDs and a demo password in Secrets Manager. The secret does not set `SAME_DAY_GRACE_UNTIL` or `SAME_DAY_HARD_STOP`, so the defaults (09:00 and 10:00) apply; add them to the secret only to change the times | Prints the RDS endpoint |
 | 7 | Push to `main` (GitHub Actions builds and pushes), or build by hand, see below | The API image lands in ECR | `aws ecr list-images --repository-name deliverylens-api` |
 | 8 | `bash infra/scripts/06-ec2.sh` | Starts the server, installs Docker, attaches a fixed IP | Prints `https://<ip-with-dashes>.sslip.io` |
 | 9 | `bash infra/scripts/07-deploy.sh` | Copies the compose file, pulls the secret and the image, starts API + Caddy, loads the data once | Ends with the `/api/health` JSON |
-| 10 | Amplify console → New app → GitHub → `halcyon-deliverylens`, branch `main` | Builds `frontend/` using `amplify.yml`. Set env var `VITE_API_URL=https://<ip-with-dashes>.sslip.io` | Open the Amplify URL; the Overview page shows 71% |
+| 10 | Amplify console → New app → GitHub → `Evoke-Hackathon-2026/InfinityStacks`, branch `main` | Builds `frontend/` using `amplify.yml`. Set env var `VITE_API_URL=https://<ip-with-dashes>.sslip.io` | Open the Amplify URL; the Overview page shows 71% |
 | 11 | `bash infra/scripts/08-cloudwatch.sh` | Log retention, error metric, 3 alarms, dashboard | Open the printed dashboard link |
 
 Build and push the image by hand (only if GitHub Actions is not set up yet):

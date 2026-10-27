@@ -6,6 +6,7 @@ import {
   Building2,
   Gauge,
   Inbox,
+  Clock,
   Mail,
   Map as MapIcon,
   Menu,
@@ -39,6 +40,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { to: '/why-late', label: 'Why deliveries are late', icon: SearchCheck },
       { to: '/vendor', label: 'Vendor decision', icon: Scale },
       { to: '/what-if', label: 'What-if simulator', icon: Gauge },
+      { to: '/late-orders', label: 'Late same-day orders', icon: Clock },
     ],
   },
   {

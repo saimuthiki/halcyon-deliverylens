@@ -9,11 +9,16 @@ always gets the same decision once its fields are read.
  3 extract          AI agent     Order Intake Agent reads client, lines, address, dates, confidence
  4 identify_client  Data lookup  sender domain or name -> clients table
  5 address_check    Rule         street, city, state, postcode required (country defaults to US)
- 6 promise_check    Rule         08:00 pick-list cutoff; same-day after it becomes next-day
+ 6 promise_check    Rule         08:00 pick-list cutoff; a same-day order after it is still added to today's
+                                 list in the grace period, or until the hard stop if it is urgent (a valid
+                                 reason, or "urgent" from a Tier 1 or at-risk client); otherwise next-day
  7 stock_check      Data lookup  nearest warehouse; ship from the next nearest with stock if needed
  8 carrier_choice   Rule         old spreadsheet (cheapest) vs advisor (best on-time, never a weak lane)
  9 decision         Rule         accepted / on_hold / needs_review / blocked -> the WMS order row
 10 client_message   AI agent     Client Reply Agent drafts the confirmation or follow-up (for approval)
+
+An accepted order is written as awaiting_approval: a person approves it (approve_order) before it is
+released to the WMS pick list as ready_for_pick_list.
 """
 import json
 import re
@@ -25,8 +30,10 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import delete, select, update
 
 from app.agents.llm_client import LLMClient, extract_json, log_blocked
-from app.agents.order_intake import parse_email_mock
+from app.agents.order_intake import parse_email_mock, verify_urgency
+from app.analytics.late_orders import same_day_decision
 from app.analytics.store import get_dataset
+from app.config import get_settings
 from app.db import get_session
 from app.desk import rules
 from app.guardrails import check_input
@@ -40,12 +47,25 @@ DEFAULT_COUNTRY = "US"
 MIN_CONFIDENCE = 0.6
 DRAFT_NOTE = "DRAFT: for Customer Success to review and approve before sending."
 FIELD_WORDS = {"street": "street address", "city": "city", "state": "state", "postcode": "postcode (ZIP)"}
-STATUS_FOR = {"accepted": "ready_for_pick_list", "on_hold": "on_hold_missing_address",
+AWAITING, RELEASED = "awaiting_approval", "ready_for_pick_list"
+STATUS_FOR = {"accepted": AWAITING, "on_hold": "on_hold_missing_address",
               "needs_review": "needs_review"}
 
 
 class MessageNotFound(KeyError):
     pass
+
+
+class NotAwaitingApproval(ValueError):
+    pass
+
+
+class AlreadyApproved(ValueError):
+    """The message's WMS order is already ready_for_pick_list; re-processing would cancel the approval."""
+
+
+def _approved(s, message_id: str) -> bool:
+    return s.scalar(select(WmsOrder.status).where(WmsOrder.message_id == message_id)) == RELEASED
 
 
 # ---------------------------------------------------------------- extraction (AI step)
@@ -70,6 +90,8 @@ class DeskExtraction(BaseModel):
     requested_date: str | None = None
     commitment_type: Literal["same_day", "next_day", "standard"] = "standard"
     confidence: float = Field(default=0.0, ge=0, le=1)
+    urgency: Literal["none", "medium", "high"] = "none"
+    urgency_evidence: str | None = None
 
 
 EXTRACT_SYSTEM = (
@@ -79,8 +101,11 @@ EXTRACT_SYSTEM = (
     "the email gives no SKU code or no number, put the client's exact words in sku or qty instead of guessing), "
     "ship_to ({name, street, city, state, postcode, country}, each string|null; state as the 2-letter code), "
     "requested_date (YYYY-MM-DD|null), commitment_type (\"same_day\"|\"next_day\"|\"standard\"), confidence "
-    "(number 0-1: how sure you are that the SKUs and quantities are exactly what the client wants). Use null "
-    "for anything not in the email. Never invent an address field.")
+    "(number 0-1: how sure you are that the SKUs and quantities are exactly what the client wants), urgency "
+    "(\"none\"|\"medium\"|\"high\": high only when the email states an operational impact such as a stopped "
+    "production line or a fixed deadline; words like URGENT alone are medium), urgency_evidence (the exact "
+    "sentence from the email that shows the urgency, copied word for word, or null). Use null for anything not "
+    "in the email. Never invent an address field.")
 
 _SKU_TOKEN = re.compile(r"\b([A-Z]{2,4}-\d{3,5})\b")
 
@@ -104,7 +129,8 @@ def parse_desk_mock(text: str) -> DeskExtraction:
     items = [DeskItem(sku=i.sku, qty=i.qty) for i in base.items] or _table_items(text)
     return DeskExtraction(client_name=base.client_name, items=items,
                           ship_to=DeskShipTo(**base.ship_to.model_dump()), requested_date=base.requested_date,
-                          commitment_type=base.commitment_type, confidence=0.92 if items else 0.2)
+                          commitment_type=base.commitment_type, confidence=0.92 if items else 0.2,
+                          urgency=base.urgency, urgency_evidence=base.urgency_evidence)
 
 
 def _as_qty(v) -> int | None:
@@ -124,6 +150,11 @@ def _as_date(v: str | None) -> date | None:
         return date.fromisoformat(v) if v else None
     except ValueError:
         return None
+
+
+def email_content(m: InboxMessage) -> str:
+    """Body and attachment text: where an urgency quote must be found (headers do not count)."""
+    return "\n".join([m.body or ""] + [a.get("text", "") for a in m.attachments_json or []])
 
 
 def email_as_text(m: InboxMessage) -> str:
@@ -148,7 +179,10 @@ def _reply_template(kind: str, f: dict) -> tuple[str, str]:
     if kind == "confirmation":
         lines = "\n".join(f"- {i['sku']} x {i['qty']}" for i in f["lines"])
         change = ""
-        if f.get("re_promised"):
+        if f.get("added_after_cutoff"):
+            change = (f"\n\nYour order reached us at {f['received_time']}, after today's 08:00 pick-list cutoff, "
+                      "and we have added it to today's pick list to keep your same-day delivery.")
+        elif f.get("re_promised"):
             change = (f"\n\nYour order reached us at {f['received_time']}, after today's 08:00 pick-list cutoff, so "
                       "we cannot ship it same-day. We have booked it as next-day instead.")
         far = ""
@@ -237,6 +271,8 @@ def process_message(message_id: str, llm: LLMClient | None = None) -> dict:
         m = s.get(InboxMessage, message_id)
         if m is None:
             raise MessageNotFound(message_id)
+        if _approved(s, message_id):
+            raise AlreadyApproved(message_id)
         s.expunge(m)
 
     t = Trace()
@@ -284,6 +320,10 @@ def process_message(message_id: str, llm: LLMClient | None = None) -> dict:
         ext = DeskExtraction.model_validate(extract_json(resp.text))
     except (ValueError, ValidationError, json.JSONDecodeError):
         ext, flags = parsed, flags + ["llm_output_invalid_used_parser"]
+    ext.urgency, ext.urgency_evidence, urgency_note = verify_urgency(ext.urgency, ext.urgency_evidence,
+                                                                     email_content(m))
+    if urgency_note:
+        flags.append("urgency_quote_not_verified")
     lines = [{"sku": (i.sku or "").strip().upper(), "qty": _as_qty(i.qty)} for i in ext.items]
     unclear = [i.model_dump() for i, ln in zip(ext.items, lines) if not ln["qty"] or not _SKU_TOKEN.fullmatch(ln["sku"])]
     lines = [ln for ln in lines if ln["qty"] and _SKU_TOKEN.fullmatch(ln["sku"])]
@@ -297,7 +337,8 @@ def process_message(message_id: str, llm: LLMClient | None = None) -> dict:
     ext_details = {"extraction": ext.model_dump(), "lines": lines, "unclear_lines": unclear,
                    "confidence": ext.confidence, "provider": resp.provider, "model": resp.model,
                    "agent_run_id": resp.run_id, "guardrail_flags": flags,
-                   "read_attachments": atts}
+                   "read_attachments": atts, "urgency": ext.urgency, "urgency_evidence": ext.urgency_evidence,
+                   "urgency_note": urgency_note}
     if review:
         decision, reason = "needs_review", "A person must check the order lines: " + "; ".join(review) + "."
         t.add("extract", "Read the order", "AI agent", "warn",
@@ -307,7 +348,10 @@ def process_message(message_id: str, llm: LLMClient | None = None) -> dict:
         t.add("extract", "Read the order", "AI agent", "pass",
               f"The {EXTRACT_AGENT_NAME} read {len(lines)} order line{'s' if len(lines) != 1 else ''} and the "
               f"delivery address (confidence {ext.confidence:.0%})"
-              + (" including the attached file." if atts else "."), ext_details, EXTRACT_AGENT_NAME, t0)
+              + (" including the attached file." if atts else ".")
+              + (f" Urgency {ext.urgency}: \"{ext.urgency_evidence}\" (quote checked in the email)."
+                 if ext.urgency != "none" else "")
+              + (f" {urgency_note}" if urgency_note else ""), ext_details, EXTRACT_AGENT_NAME, t0)
     ship_to = ext.ship_to.model_dump()
     order.update(lines=lines, ship_to=ship_to, requested_date=_as_date(ext.requested_date),
                  commitment_type=ext.commitment_type)
@@ -352,7 +396,7 @@ def process_message(message_id: str, llm: LLMClient | None = None) -> dict:
         for key, title, actor, agent in _LATER_STEPS[3:6]:
             t.skip(key, title, actor, why, agent)
     else:
-        _plan_order(t, order, ship_to, client, received)
+        _plan_order(t, order, ship_to, client, received, ext.urgency, ext.urgency_evidence)
         if order.get("_review"):
             decision, reason = "needs_review", order.pop("_review")
 
@@ -362,7 +406,10 @@ def process_message(message_id: str, llm: LLMClient | None = None) -> dict:
     warns = [s["summary"] for s in t.steps if s["status"] == "warn"]
     if decision == "accepted" and warns:
         reason = "Accepted with warnings: " + " ".join(warns)
-    labels = {"accepted": f"Accepted: WMS order WMS-{m.id} is on the {order.get('pick_list_date')} pick list.",
+    on_list = (f"today's pick list ({order.get('pick_list_date')}), added after the 08:00 cutoff"
+               if order.get("_added_after_cutoff") else f"the {order.get('pick_list_date')} pick list")
+    labels = {"accepted": f"Accepted: waiting for a person to approve it into the WMS. Once approved, WMS order "
+                          f"WMS-{m.id} goes on {on_list}.",
               "on_hold": f"On hold: WMS order WMS-{m.id} waits for the missing address details.",
               "needs_review": f"Needs review: WMS order WMS-{m.id} is parked for a person to check."}
     t.add("decision", "Decision", "Rule", "pass" if decision == "accepted" else "warn", labels[decision],
@@ -375,6 +422,7 @@ def process_message(message_id: str, llm: LLMClient | None = None) -> dict:
              "lines": lines, "missing": missing, "received_time": f"{received:%H:%M}",
              "pick_list_date": _iso(order.get("pick_list_date")), "promised_date": _iso(order.get("promised_date")),
              "commitment_type": order.get("commitment_type"), "re_promised": order.get("_re_promised", False),
+             "added_after_cutoff": order.get("_added_after_cutoff", False),
              "ships_from_further": order.get("_ships_from_further", False),
              "fulfilment_warehouse_name": order.get("_fulfilment_warehouse_name")}
     draft = draft_reply(llm, kind, facts)
@@ -403,21 +451,40 @@ def _iso(d) -> str | None:
     return d.isoformat() if d else None
 
 
-def _plan_order(t: Trace, order: dict, ship_to: dict, client: dict | None, received: datetime) -> None:
+def _plan_order(t: Trace, order: dict, ship_to: dict, client: dict | None, received: datetime,
+                urgency: str = "none", urgency_evidence: str | None = None) -> None:
     """Steps 6-8 for an order that passed the address check."""
-    # 6 promise check
+    # 6 promise check: the 08:00 cutoff, then the grace period, the urgent window and the hard stop
     t0 = time.perf_counter()
-    p = rules.promise(order["commitment_type"], received, order.get("requested_date"))
+    requested = order["commitment_type"]
+    cfg = get_settings()
+    grace, hard = cfg.same_day_grace_until, cfg.same_day_hard_stop
+    c = client or {}
+    rule = same_day_decision(received.hour * 60 + received.minute, tier=c.get("account_tier"),
+                             at_risk=bool(c.get("at_risk")), urgency=urgency, grace_until=grace, hard_stop=hard)
+    late_same_day = requested == "same_day" and rule["window"] != "before_cutoff"
+    added = late_same_day and rule["added_today"]
+    p = rules.promise(requested, received, order.get("requested_date"), added_today=added)
     order.update(commitment_type=p["commitment_type"], promised_date=p["promised_date"],
-                 pick_list_date=p["pick_list_date"], _re_promised=p["re_promised"])
+                 pick_list_date=p["pick_list_date"], _re_promised=p["re_promised"], _added_after_cutoff=added)
     details = {**p, "received_at": f"{received:%Y-%m-%d %H:%M}", "pick_list_cutoff": "08:00",
-               "pick_list_date": _iso(p["pick_list_date"]), "promised_date": _iso(p["promised_date"])}
+               "pick_list_date": _iso(p["pick_list_date"]), "promised_date": _iso(p["promised_date"]),
+               "grace_until": grace, "hard_stop": hard, "window": rule["window"],
+               "window_label": rule["window_label"], "added_after_cutoff": added,
+               "same_day_rule": rule["reason"] if late_same_day else None,
+               "priority_client": rule["priority_client"], "urgency": urgency, "urgency_evidence": urgency_evidence}
     when = "today's" if not p["after_cutoff"] else "tomorrow's"
-    if p["re_promised"]:
+    at = f"Same-day order received at {received:%H:%M}, after the 08:00 pick-list cutoff"
+    quote = f' ("{urgency_evidence}")' if urgency_evidence and rule["window"] == "urgent_window" else ""
+    if added:
+        t.add("promise_check", "Check the promise date", "Rule", "pass",
+              f"{at}: added to today's pick list because {rule['reason']}{quote}. The same-day promise is kept.",
+              details, started=t0)
+    elif p["re_promised"]:
         t.add("promise_check", "Check the promise date", "Rule", "warn",
-              f"Same-day order received at {received:%H:%M}, after the 08:00 pick-list cutoff: re-promised as "
-              f"next-day for {_iso(p['promised_date'])} (same-day orders after the cutoff are on time only 39% "
-              "of the time).", details, started=t0)
+              f"{at}: not added to today's list because {rule['reason']}{quote}. Re-promised as next-day for "
+              f"{_iso(p['promised_date'])} (same-day orders after the cutoff are on time only 39% of the time).",
+              details, started=t0)
     else:
         t.add("promise_check", "Check the promise date", "Rule", "warn" if p["requested_date_missed"] else "pass",
               f"Received at {received:%H:%M}, so it goes on {when} pick list ({_iso(p['pick_list_date'])}); "
@@ -485,6 +552,8 @@ def _finish(m: InboxMessage, t: Trace, decision: str, reason: str, order: dict |
     """Write the outcome in one transaction: replace this message's WMS order, mark the message processed."""
     wms = None
     with get_session() as s:
+        if _approved(s, m.id):  # approved while this run was in flight: keep the approval
+            raise AlreadyApproved(m.id)
         s.execute(delete(WmsOrder).where(WmsOrder.message_id == m.id))
         if order is not None:
             row = WmsOrder(**_wms_row(m, order))
@@ -508,7 +577,32 @@ def wms_order_dict(o: WmsOrder) -> dict:
             "nearest_warehouse_id": o.nearest_warehouse_id, "fulfilment_warehouse_id": o.fulfilment_warehouse_id,
             "carrier_id": o.carrier_id, "carrier_reason": o.carrier_reason, "status": o.status,
             "pick_list_date": _iso(o.pick_list_date),
-            "created_at": o.created_at.isoformat() if o.created_at else None}
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "approved_at": o.approved_at.isoformat() if o.approved_at else None}
+
+
+def approve_order(message_id: str) -> dict:
+    """A person approves an accepted order: it is released to the WMS pick list. Nothing else changes."""
+    with get_session() as s:
+        o = s.scalars(select(WmsOrder).where(WmsOrder.message_id == message_id)).first()
+        if o is None:
+            raise MessageNotFound(message_id)
+        if o.status != AWAITING:
+            raise NotAwaitingApproval(o.status)
+        o.status, o.approved_at = RELEASED, datetime.now(timezone.utc)
+        s.commit()
+        return wms_order_dict(o)
+
+
+def approve_all() -> dict:
+    with get_session() as s:
+        rows = s.scalars(select(WmsOrder).where(WmsOrder.status == AWAITING).order_by(WmsOrder.message_id)).all()
+        now = datetime.now(timezone.utc)
+        for o in rows:
+            o.status, o.approved_at = RELEASED, now
+        ids = [o.wms_order_id for o in rows]
+        s.commit()
+    return {"approved": len(ids), "wms_order_ids": ids}
 
 
 def process_all(llm: LLMClient | None = None) -> dict:
@@ -517,7 +611,10 @@ def process_all(llm: LLMClient | None = None) -> dict:
         ids = s.scalars(select(InboxMessage.id).where(InboxMessage.status == "new").order_by(InboxMessage.id)).all()
     results, counts = [], {"accepted": 0, "on_hold": 0, "needs_review": 0, "blocked": 0}
     for mid in ids:
-        t = process_message(mid, llm)
+        try:
+            t = process_message(mid, llm)
+        except AlreadyApproved:
+            continue  # its order is already on the pick list; reset the demo to run it again
         counts[t["decision"]] += 1
         results.append({"message_id": mid, "decision": t["decision"], "expected_decision": t["expected_decision"],
                         "matches_expected": t["matches_expected"], "decision_reason": t["decision_reason"],
