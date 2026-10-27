@@ -1,9 +1,8 @@
-name: Deploy API to AWS
+name: Deploy to AWS
 
-# Runs after CI passes on main. Does nothing until the AWS GitHub secrets are set
-# (see docs/06-aws-setup-guide.md): AWS_DEPLOY_ROLE_ARN, AWS_REGION, AWS_ACCOUNT_ID,
-# EC2_HOST (elastic IP), EC2_SSH_KEY (private key of the deliverylens key pair),
-# EC2_SG_ID (the deliverylens-api-sg security group id; SSH is opened to this runner only during the deploy).
+# Runs after CI passes on main: every push to main updates the live API (EC2) and website (Amplify).
+# No GitHub secrets are needed: GitHub signs in to AWS with OIDC (role deliverylens-github-deploy,
+# trusted for this repository's main branch only), and the API is restarted through Systems Manager, not SSH.
 on:
   workflow_run:
     workflows: [CI]
@@ -15,73 +14,97 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: deploy-aws
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "781547812451"
+  DEPLOY_ROLE: arn:aws:iam::781547812451:role/deliverylens-github-deploy
+  ECR_REPO: deliverylens-api
+  EC2_INSTANCE_ID: i-0cb69a787b44017c0
+  API_URL: https://35-175-32-49.sslip.io
+  AMPLIFY_APP_ID: d19tzovsk3zuvo
+  AMPLIFY_BRANCH: main
+  SITE_URL: https://main.d19tzovsk3zuvo.amplifyapp.com
+
 jobs:
-  deploy:
+  api:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    env:
-      ECR_REPO: deliverylens-api
     steps:
-      - name: Check AWS secrets are configured
-        id: gate
-        env:
-          ROLE: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          HOST: ${{ secrets.EC2_HOST }}
-        run: |
-          if [ -z "$ROLE" ] || [ -z "$HOST" ]; then
-            echo "AWS secrets not set yet - skipping deploy."; echo "ready=false" >> "$GITHUB_OUTPUT"
-          else echo "ready=true" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/checkout@v4
-        if: steps.gate.outputs.ready == 'true'
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: aws-actions/configure-aws-credentials@v4
-        if: steps.gate.outputs.ready == 'true'
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ env.DEPLOY_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
       - name: Build and push the API image to ECR
-        if: steps.gate.outputs.ready == 'true'
         env:
-          REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
           SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
+          REGISTRY="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
           aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
           docker build -f backend/Dockerfile -t "$REGISTRY/$ECR_REPO:$SHA" -t "$REGISTRY/$ECR_REPO:latest" .
           docker push "$REGISTRY/$ECR_REPO:$SHA"
           docker push "$REGISTRY/$ECR_REPO:latest"
-      - name: Open SSH to this runner only (closed again below)
-        if: steps.gate.outputs.ready == 'true'
-        id: ssh_open
-        env:
-          SG: ${{ secrets.EC2_SG_ID }}
+      - name: Restart the API on EC2 with the new image (Systems Manager)
         run: |
-          IP=$(curl -fsS https://checkip.amazonaws.com)
-          echo "ip=$IP" >> "$GITHUB_OUTPUT"
-          aws ec2 authorize-security-group-ingress --group-id "$SG" \
-            --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=$IP/32,Description=github-deploy}]"
-      - name: Restart the API on EC2 with the new image
-        if: steps.gate.outputs.ready == 'true'
-        env:
-          HOST: ${{ secrets.EC2_HOST }}
-          KEY: ${{ secrets.EC2_SSH_KEY }}
-        run: |
-          install -m 600 /dev/null key.pem && printf '%s\n' "$KEY" > key.pem
-          ssh -i key.pem -o StrictHostKeyChecking=accept-new "ec2-user@$HOST" \
-            'cd /home/ec2-user && aws ecr get-login-password --region $(grep AWS_REGION .env | cut -d= -f2) | docker login --username AWS --password-stdin $(grep IMAGE .env | cut -d= -f2 | cut -d/ -f1) && docker compose -f docker-compose.prod.yml pull api && docker compose -f docker-compose.prod.yml up -d api'
-          rm -f key.pem
-      - name: Close SSH again
-        if: always() && steps.ssh_open.outputs.ip != ''
-        env:
-          SG: ${{ secrets.EC2_SG_ID }}
-          IP: ${{ steps.ssh_open.outputs.ip }}
-        run: |
-          aws ec2 revoke-security-group-ingress --group-id "$SG" \
-            --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=$IP/32}]"
+          SCRIPT='cd /home/ec2-user && set -a && . ./.env && set +a && aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${IMAGE%%/*}" && docker compose -f docker-compose.prod.yml pull api && docker compose -f docker-compose.prod.yml up -d api && docker image prune -f'
+          CMD_ID=$(aws ssm send-command --instance-ids "$EC2_INSTANCE_ID" --document-name AWS-RunShellScript \
+            --comment "deploy ${GITHUB_SHA::7}" \
+            --parameters "$(jq -n --arg s "sudo -u ec2-user bash -c '$SCRIPT'" '{commands: [$s]}')" \
+            --query Command.CommandId --output text)
+          echo "SSM command $CMD_ID"
+          for i in $(seq 1 60); do
+            STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in Success) break ;; Failed|Cancelled|TimedOut) break ;; esac
+            sleep 5
+          done
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
+            --query '[StandardOutputContent,StandardErrorContent]' --output text | tail -20
+          [ "$STATUS" = Success ] || { echo "Deploy command ended with $STATUS"; exit 1; }
       - name: Smoke test
-        if: steps.gate.outputs.ready == 'true'
-        env:
-          HOST: ${{ secrets.EC2_HOST }}
         run: |
-          sleep 10
-          curl -fsS "https://${HOST//./-}.sslip.io/api/health"
+          for i in $(seq 1 12); do curl -fsS "$API_URL/api/health" && exit 0; sleep 10; done
+          echo "API did not become healthy"; exit 1
+
+  website:
+    needs: api
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build the website against the live API
+        working-directory: frontend
+        env:
+          VITE_API_URL: ${{ env.API_URL }}
+        run: |
+          npm ci
+          npm run build
+          cd dist && zip -qr ../../site.zip .
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Upload to Amplify
+        run: |
+          read -r JOB_ID URL < <(aws amplify create-deployment --app-id "$AMPLIFY_APP_ID" --branch-name "$AMPLIFY_BRANCH" \
+            --query '[jobId,zipUploadUrl]' --output text)
+          curl -fsS -X PUT -H "Content-Type: application/zip" --upload-file site.zip "$URL"
+          aws amplify start-deployment --app-id "$AMPLIFY_APP_ID" --branch-name "$AMPLIFY_BRANCH" --job-id "$JOB_ID" >/dev/null
+          for i in $(seq 1 60); do
+            STATUS=$(aws amplify get-job --app-id "$AMPLIFY_APP_ID" --branch-name "$AMPLIFY_BRANCH" --job-id "$JOB_ID" \
+              --query job.summary.status --output text)
+            case "$STATUS" in SUCCEED) echo "Website live: $SITE_URL"; exit 0 ;; FAILED|CANCELLED) echo "Amplify job $STATUS"; exit 1 ;; esac
+            sleep 5
+          done
+          echo "Amplify job still $STATUS"; exit 1

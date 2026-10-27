@@ -62,6 +62,13 @@ def tool_carrier_scorecard(ds):
     text = ("Best carrier by region: " + "; ".join(f"{r}: carrier {v['carrier_id']} ({_pct(v['on_time_rate'])} on time)"
                                                    for r, v in recs.items())
             + f". Weak carrier lanes: {lanes}.")
+    pen = ds.deliveries.groupby("carrier_id").penalty_usd.sum()
+    overall = sorted(sc["carriers"], key=lambda c: c["on_time_rate"])
+    text += " Overall on time and SLA penalties by carrier, worst first: " + "; ".join(
+        f"carrier {c['carrier_id']} {_pct(c['on_time_rate'])} on time, ${pen.get(c['carrier_id'], 0):,.0f} penalties"
+        for c in overall) + "."
+    nums.update({f"carrier_{c['carrier_id']}": f"{_pct(c['on_time_rate'])}, ${pen.get(c['carrier_id'], 0):,.0f}"
+                 for c in overall})
     return text, nums
 
 

@@ -1,13 +1,60 @@
 {
   "Version": "2012-10-17",
   "Statement": [
-    {"Effect": "Allow", "Action": "ecr:GetAuthorizationToken", "Resource": "*"},
-    {"Effect": "Allow",
-     "Action": ["ecr:BatchCheckLayerAvailability", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload", "ecr:PutImage", "ecr:BatchGetImage"],
-     "Resource": "arn:aws:ecr:__REGION__:__ACCOUNT__:repository/__ECR_REPO__"},
-    {"Sid": "TemporarySshForDeploy", "Effect": "Allow",
-     "Action": ["ec2:AuthorizeSecurityGroupIngress", "ec2:RevokeSecurityGroupIngress"],
-     "Resource": "arn:aws:ec2:__REGION__:__ACCOUNT__:security-group/*",
-     "Condition": {"StringEquals": {"aws:ResourceTag/project": "__PROJECT__"}}}
+    {
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:BatchGetImage"
+      ],
+      "Resource": "arn:aws:ecr:__REGION__:__ACCOUNT__:repository/__ECR_REPO__"
+    },
+    {
+      "Sid": "DeployApiViaSsm",
+      "Effect": "Allow",
+      "Action": "ssm:SendCommand",
+      "Resource": "arn:aws:ec2:__REGION__:__ACCOUNT__:instance/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/project": "__PROJECT__"
+        }
+      }
+    },
+    {
+      "Sid": "DeployApiViaSsmDocument",
+      "Effect": "Allow",
+      "Action": "ssm:SendCommand",
+      "Resource": "arn:aws:ssm:__REGION__::document/AWS-RunShellScript"
+    },
+    {
+      "Sid": "ReadDeployResult",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetCommandInvocation",
+        "ssm:ListCommandInvocations",
+        "ec2:DescribeInstances"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DeployWebsite",
+      "Effect": "Allow",
+      "Action": [
+        "amplify:CreateDeployment",
+        "amplify:StartDeployment",
+        "amplify:GetJob",
+        "amplify:ListApps"
+      ],
+      "Resource": "arn:aws:amplify:__REGION__:__ACCOUNT__:apps/*"
+    }
   ]
 }

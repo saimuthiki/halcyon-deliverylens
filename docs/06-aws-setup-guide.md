@@ -62,10 +62,10 @@ flowchart LR
 | Step | Run | What happens | How to check |
 |---|---|---|---|
 | 1 | `bash infra/scripts/00-check-access.sh` | Prints your identity, the Claude models you can use, and OK/FAIL for each service | Every line says OK. Post any FAIL in the infra Teams group |
-| 2 | `bash infra/scripts/01-iam.sh` | Creates the two IAM roles with least privilege | Prints the GitHub deploy role ARN; save it as GitHub secret `AWS_DEPLOY_ROLE_ARN` |
+| 2 | `bash infra/scripts/01-iam.sh` | Creates the two IAM roles with least privilege | Prints the GitHub deploy role ARN; put it in `DEPLOY_ROLE` at the top of `.github/workflows/deploy.yml` (no GitHub secrets are needed) |
 | 3 | `bash infra/scripts/02-s3.sh` | Private, encrypted bucket; uploads `data/halcyon-dataset` to `raw/` | `aws s3 ls s3://deliverylens-data-<account>/raw/halcyon-dataset/` |
 | 4 | `bash infra/scripts/03-ecr.sh` | Image repository with scan-on-push | Prints the image URI |
-| 5 | `bash infra/scripts/04-network.sh` | API: 443/80 open, 22 from your IP only. DB: 5432 from the API only | Save the printed API security group ID as GitHub secret `EC2_SG_ID` (the deploy job opens SSH for itself only while it deploys, then closes it) |
+| 5 | `bash infra/scripts/04-network.sh` | API: 443/80 open, 22 from your IP only. DB: 5432 from the API only | Nothing to save: deploys go through Systems Manager, not SSH |
 | 6 | `bash infra/scripts/05-secrets-rds.sh` | Creates PostgreSQL (private, encrypted) and stores the connection string, model IDs and a demo password in Secrets Manager. The secret does not set `SAME_DAY_GRACE_UNTIL` or `SAME_DAY_HARD_STOP`, so the defaults (09:00 and 10:00) apply; add them to the secret only to change the times | Prints the RDS endpoint |
 | 7 | Push to `main` (GitHub Actions builds and pushes), or build by hand, see below | The API image lands in ECR | `aws ecr list-images --repository-name deliverylens-api` |
 | 8 | `bash infra/scripts/06-ec2.sh` | Starts the server, installs Docker, attaches a fixed IP | Prints `https://<ip-with-dashes>.sslip.io` |
@@ -95,16 +95,18 @@ sequenceDiagram
   Dev->>GH: git push
   GH->>GA: run CI: tests + build
   GA->>ECR: push API image (OIDC role, no stored keys)
-  GA->>EC2: deploy step: pull image, restart
-  GH->>AMP: Amplify sees the push
-  AMP->>AMP: build and publish the web app
+  GA->>EC2: Systems Manager command: pull image, restart
+  GA->>AMP: upload the built website, publish
 ```
 
 **What this shows:** after setup, a `git push` to `main` updates everything.
 1. GitHub Actions runs the tests, builds the API image and pushes it to ECR.
-2. GitHub Actions opens SSH for its own IP only, tells the EC2 server to pull the new image and
-   restart, then closes SSH again.
-3. Amplify rebuilds the website on its own.
+2. GitHub Actions tells the EC2 server, through Systems Manager (no SSH, no stored keys), to pull the
+   new image and restart, then checks `/api/health`.
+3. GitHub Actions builds the website with `VITE_API_URL` set to the live API and uploads it to Amplify.
+
+Alarm emails go to `ALERT_EMAILS` in `infra/config.env` (set by `08-cloudwatch.sh`); each person
+clicks **Confirm subscription** in the email from AWS once.
 
 Nobody copies files by hand.
 
