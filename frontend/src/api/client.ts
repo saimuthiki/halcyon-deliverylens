@@ -11,7 +11,17 @@
  */
 import * as mock from './mockData';
 import type {
+  AccountPlanResult,
+  CarrierClaimResult,
+  CarrierClaimsSummary,
+  MorningNoteResult,
+  RiskBacktest,
+  RiskBoard,
+  AddressConfirmationView,
   AgentRun,
+  ClientReplyResult,
+  WeeklyBriefResult,
+  WeeklyBriefSent,
   AskResult,
   AtRiskClient,
   CarrierScorecard,
@@ -798,10 +808,90 @@ export const api = {
       async () => sampleCall((f) => f.sampleApproveAll()),
     ),
 
+  /* ---------- Account plans, weekly brief, address confirmation: live API only ---------- */
+
+  accountPlan: (client_id: string) =>
+    withFallback(
+      async () => await http<AccountPlanResult>('/agents/account-plan', agentPost({ client_id }), AGENT_TIMEOUT_MS),
+      () => needsLiveApi('Save plans'),
+      'agent',
+    ),
+
+  carrierClaims: () => withFallback(async () => await http<CarrierClaimsSummary>('/carriers/claims'), () => needsLiveApi('Penalty claims'), 'agent'),
+
+  carrierClaim: (carrier_id: string, month?: string) =>
+    withFallback(
+      async () => await http<CarrierClaimResult>('/agents/carrier-claim', agentPost(month ? { carrier_id, month } : { carrier_id }), AGENT_TIMEOUT_MS),
+      () => needsLiveApi('The claim letter'),
+      'agent',
+    ),
+
+  riskBoard: (q: { day?: string; warehouse?: string; sort?: 'risk' | 'money'; limit?: number } = {}) => {
+    const p = new URLSearchParams();
+    if (q.day) p.set('day', q.day);
+    if (q.warehouse) p.set('warehouse', q.warehouse);
+    if (q.sort) p.set('sort', q.sort);
+    if (q.limit) p.set('limit', String(q.limit));
+    const qs = p.toString();
+    return withFallback(async () => await http<RiskBoard>(`/risk-board${qs ? `?${qs}` : ''}`), () => needsLiveApi('The risk board'), 'agent');
+  },
+
+  riskBacktest: () => withFallback(async () => await http<RiskBacktest>('/risk-board/backtest'), () => needsLiveApi('The backtest'), 'agent'),
+
+  morningNote: (day?: string, warehouse?: string) =>
+    withFallback(
+      async () =>
+        await http<MorningNoteResult>('/agents/morning-note', agentPost({ ...(day ? { day } : {}), ...(warehouse ? { warehouse } : {}) }), AGENT_TIMEOUT_MS),
+      () => needsLiveApi('The morning note'),
+      'agent',
+    ),
+
+  briefWeeks: () =>
+    withFallback(async () => await http<{ weeks: string[]; latest: string }>('/briefs/weeks'), () => needsLiveApi('The weekly brief'), 'agent'),
+
+  weeklyBrief: (week_of?: string) =>
+    withFallback(
+      async () => await http<WeeklyBriefResult>('/agents/weekly-brief', agentPost(week_of ? { week_of } : {}), AGENT_TIMEOUT_MS),
+      () => needsLiveApi('The weekly brief'),
+      'agent',
+    ),
+
+  sendWeeklyBrief: (week_of?: string) =>
+    liveUnlessOffline(
+      async () => await http<WeeklyBriefSent>('/briefs/weekly/send', agentPost(week_of ? { week_of } : {}), AGENT_TIMEOUT_MS),
+      async () => needsLiveApi('Sending the brief'),
+    ),
+
+  addressConfirmation: (token: string) =>
+    withFallback(async () => await http<AddressConfirmationView>(`/desk/confirm/${encodeURIComponent(token)}`), () => needsLiveApi('Address confirmation'), 'agent'),
+
+  confirmAddress: (token: string) =>
+    liveUnlessOffline(
+      async () => {
+        const o = obj(await http<unknown>(`/desk/confirm/${encodeURIComponent(token)}`, agentPost({}), DESK_TIMEOUT_MS));
+        return { confirmation: o.confirmation as AddressConfirmationView, trace: o.trace ? normaliseDeskProcess(o.trace) : null };
+      },
+      async () => needsLiveApi('Address confirmation'),
+    ),
+
+  clientReply: (message_id: string, text: string) =>
+    liveUnlessOffline(
+      async (): Promise<ClientReplyResult> => {
+        const o = obj(await http<unknown>(`/desk/reply/${encodeURIComponent(message_id)}`, agentPost({ text }), DESK_TIMEOUT_MS));
+        return { reply: o.reply as ClientReplyResult['reply'], trace: o.trace ? normaliseDeskProcess(o.trace) : null };
+      },
+      async () => needsLiveApi('Reading the client reply'),
+    ),
+
   deskReset: () => withFallback(async () => ({ ok: obj(await http<unknown>('/desk/reset', agentPost({}))).ok !== false }), async () => (await deskFixtures()).sampleReset(), 'desk'),
 };
 
 const deskFixtures = () => import('./deskFixtures');
+
+/** These features have no offline sample: say so plainly instead of showing made-up output. */
+function needsLiveApi(what: string): never {
+  throw new ApiError(`${what} needs the live API, which cannot be reached right now.`, 0);
+}
 
 /** Runs an offline desk action; its errors (404 / 409) surface like the API's. */
 async function sampleCall<T>(fn: (f: Awaited<ReturnType<typeof deskFixtures>>) => T): Promise<T> {

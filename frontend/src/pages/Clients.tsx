@@ -1,6 +1,9 @@
+import { useState } from 'react';
+import { FileText } from 'lucide-react';
 import { api } from '../api/client';
 import type { AtRiskClient } from '../api/types';
 import { useApi } from '../lib/useApi';
+import SavePlanDrawer from '../components/SavePlanDrawer';
 import { num, pct, usd } from '../lib/format';
 import { BENCHMARK, causeShort } from '../lib/causes';
 import PageHeader, { SectionTitle } from '../components/PageHeader';
@@ -30,6 +33,7 @@ export default function Clients() {
 }
 
 function ClientsBody({ rows }: { rows: AtRiskClient[] }) {
+  const [planFor, setPlanFor] = useState<AtRiskClient | null>(null);
   const sorted = [...rows].sort((a, b) => b.annual_revenue_usd - a.annual_revenue_usd);
   const total = sorted.reduce((s, r) => s + r.annual_revenue_usd, 0);
   const max = Math.max(...sorted.map((r) => r.annual_revenue_usd));
@@ -58,7 +62,10 @@ function ClientsBody({ rows }: { rows: AtRiskClient[] }) {
                 <th className="th whitespace-nowrap text-right">On time</th>
                 <th className="th whitespace-nowrap text-right">Penalties, 6 mo</th>
                 <th className="th whitespace-nowrap">Orders by</th>
-                <th className="th pr-5 sm:pr-6">Main causes of their late deliveries</th>
+                <th className="th">Main causes of their late deliveries</th>
+                <th className="th pr-5 sm:pr-6">
+                  <span className="sr-only">Save plan</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -79,12 +86,18 @@ function ClientsBody({ rows }: { rows: AtRiskClient[] }) {
                   <td className={`td num text-right font-semibold ${r.on_time_rate < BENCHMARK ? 'text-late' : 'text-route-dark'}`}>{pct(r.on_time_rate)}</td>
                   <td className="td num text-right">{usd(r.penalties_usd)}</td>
                   <td className="td">{r.channel}</td>
-                  <td className="td pr-5 sm:pr-6">
+                  <td className="td">
                     <div className="flex flex-wrap gap-1.5">
                       {r.main_causes.map((c) => (
                         <CauseChip key={c} cause={c} />
                       ))}
                     </div>
+                  </td>
+                  <td className="td pr-5 sm:pr-6">
+                    <button type="button" className="btn-secondary min-h-[36px] whitespace-nowrap px-3 text-sm" onClick={() => setPlanFor(r)}>
+                      <FileText className="h-4 w-4" aria-hidden="true" />
+                      Save plan
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -95,7 +108,7 @@ function ClientsBody({ rows }: { rows: AtRiskClient[] }) {
                 <td className="td num">{usd(total)}</td>
                 <td className="td num text-right text-late">{pct(weighted)}</td>
                 <td className="td num text-right">{usd(penalties)}</td>
-                <td className="td" colSpan={2}>
+                <td className="td" colSpan={3}>
                   <span className="font-normal text-ink-soft">{num(deliveries)} deliveries in 6 months</span>
                 </td>
               </tr>
@@ -103,6 +116,8 @@ function ClientsBody({ rows }: { rows: AtRiskClient[] }) {
           </table>
         </div>
       </section>
+
+      <SavePlanDrawer client={planFor} onClose={() => setPlanFor(null)} />
 
       {topCause && (
         <section className="panel panel-pad" aria-labelledby="pattern-title">

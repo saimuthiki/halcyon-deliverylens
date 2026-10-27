@@ -52,3 +52,26 @@ class DelayAlertRequest(BaseModel):
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=2000)
+
+
+class AccountPlanRequest(BaseModel):
+    client_id: str = Field(pattern=r"^C\d{3}$", examples=["C190"])
+
+
+class WeeklyBriefRequest(BaseModel):
+    week_of: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$",
+                                description="Monday of the week (YYYY-MM-DD); default the latest week in the data")
+
+
+class ClientReplyRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=5000, description="The client's reply to the address confirmation email")
+
+
+class CarrierClaimRequest(BaseModel):
+    carrier_id: str = Field(pattern=r"^[A-Z]$", examples=["D"])
+    month: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}$", description="Delivered in this month (YYYY-MM)")
+
+
+class MorningNoteRequest(BaseModel):
+    day: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    warehouse: str | None = Field(default=None, pattern=r"^W\d$")

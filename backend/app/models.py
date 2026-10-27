@@ -169,6 +169,38 @@ class WmsOrder(Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ClientAddress(Base):
+    """A delivery address learned from an order that passed the address check (the seed history is a CSV)."""
+    __tablename__ = "client_addresses"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    client_id: Mapped[str] = mapped_column(String(10), index=True)
+    site_name: Mapped[str] = mapped_column(String(200), default="")
+    street: Mapped[str] = mapped_column(String(200))
+    city: Mapped[str] = mapped_column(String(100))
+    state: Mapped[str] = mapped_column(String(10))
+    postcode: Mapped[str] = mapped_column(String(20))
+    source_message_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class AddressConfirmation(Base):
+    """An address filled from the client's history, waiting for the client to confirm it (link or reply)."""
+    __tablename__ = "address_confirmations"
+    message_id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    client_id: Mapped[str] = mapped_column(String(10))
+    suggested_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    missing_json: Mapped[list] = mapped_column(JSON, default=list)
+    final_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # the address the client confirmed
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | confirmed | corrected | unclear
+    channel: Mapped[str | None] = mapped_column(String(20), nullable=True)  # link | reply
+    reply_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # redacted
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 # CSV file -> model, in foreign-key-safe insert order.
 CSV_TABLES = [
     ("clients.csv", Client),

@@ -2,10 +2,15 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select, text
 
+from app.agents.account_plan import NotAtRisk, run_account_plan
 from app.agents.ask import run_ask
+from app.agents.carrier_claims import NothingToClaim, UnknownCarrier, claims_summary, run_carrier_claim
+from app.agents.morning_note import run_morning_note
 from app.agents.delay_alert import run_delay_alert
 from app.agents.llm_client import LLMClient
 from app.agents.order_intake import run_order_intake
+from app.agents.weekly_brief import NotConfigured, TooSoon, UnknownWeek, available_weeks, run_weekly_brief, send_brief
+from app.desk import address_book
 from app.desk.inbox import message_detail, message_summary
 from app.desk.pipeline import (AlreadyApproved, MessageNotFound, NotAwaitingApproval, approve_all, approve_order,
                                process_all, process_message, reset_desk, wms_order_dict)
@@ -14,13 +19,16 @@ from app.storage import archive_json
 from app.analytics import views
 from app.analytics.causes import CAUSES
 from app.analytics.late_orders import simulate_late_orders
+from app.analytics.risk_board import UnknownDay, backtest, risk_board
 from app.analytics.roi import roi_view
 from app.analytics.simulator import simulate
 from app.analytics.store import get_dataset
 from app.analytics.vendor import vendor_assessment
 from app.api.errors import ApiError
 from app.api.security import agent_guard
-from app.api.schemas import AskRequest, DelayAlertRequest, OrderIntakeRequest, LateOrdersRequest, SimulateRequest
+from app.api.schemas import (AccountPlanRequest, AskRequest, CarrierClaimRequest, ClientReplyRequest, DelayAlertRequest,
+                             LateOrdersRequest, MorningNoteRequest, OrderIntakeRequest, SimulateRequest,
+                             WeeklyBriefRequest)
 from app.config import get_settings
 from app.db import get_engine, get_session
 from app.models import AgentRun, Delivery, InboxMessage, WmsOrder
@@ -139,6 +147,89 @@ def ask(body: AskRequest):
     return run_ask(get_dataset(), body.question)
 
 
+@router.get("/carriers/claims", tags=["analytics"])
+def carrier_claims():
+    """SLA penalties Halcyon paid for delays the carrier alone caused, per carrier."""
+    return claims_summary(get_dataset())
+
+
+@router.post("/agents/carrier-claim", tags=["agents"], dependencies=AGENT_GUARD)
+def carrier_claim(body: CarrierClaimRequest):
+    """Carrier Claims Agent: the claim pack and a draft claim letter for one carrier (nothing is sent)."""
+    try:
+        return run_carrier_claim(get_dataset(), body.carrier_id, body.month)
+    except UnknownCarrier:
+        raise ApiError(404, f"Carrier {body.carrier_id!r} not found") from None
+    except NothingToClaim:
+        raise ApiError(404, f"Nothing to claim from carrier {body.carrier_id}"
+                            + (f" for {body.month}" if body.month else "")) from None
+
+
+@router.get("/risk-board", tags=["analytics"])
+def get_risk_board(day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+                   warehouse: str | None = Query(None, pattern=r"^W\d$"),
+                   limit: int = Query(20, ge=1, le=100), sort: str = Query("risk", pattern="^(risk|money)$")):
+    """Morning risk board: today's pick list scored for late risk from history, with the fixes still possible."""
+    try:
+        return risk_board(get_dataset(), day, warehouse, limit, sort)
+    except UnknownDay:
+        raise ApiError(404, f"No risk board for {day}") from None
+
+
+@router.get("/risk-board/backtest", tags=["analytics"])
+def get_risk_backtest():
+    return backtest(get_dataset())
+
+
+@router.post("/agents/morning-note", tags=["agents"], dependencies=AGENT_GUARD)
+def morning_note(body: MorningNoteRequest | None = None):
+    """Morning Note Agent: the 08:00 huddle message from the risk board."""
+    try:
+        return run_morning_note(get_dataset(), body.day if body else None, body.warehouse if body else None)
+    except UnknownDay:
+        raise ApiError(404, f"No risk board for {body.day}") from None
+
+
+@router.post("/agents/account-plan", tags=["agents"], dependencies=AGENT_GUARD)
+def account_plan(body: AccountPlanRequest):
+    """Account Save Agent: a save plan for one of the clients threatening to leave (a draft, nothing is sent)."""
+    try:
+        return run_account_plan(get_dataset(), body.client_id)
+    except NotAtRisk:
+        raise ApiError(422, f"Client {body.client_id!r} is not one of the clients threatening to leave") from None
+    except KeyError:
+        raise ApiError(404, f"Client {body.client_id!r} not found") from None
+
+
+@router.get("/briefs/weeks", tags=["agents"])
+def brief_weeks():
+    weeks = available_weeks(get_dataset())
+    return {"weeks": weeks, "latest": weeks[-1]}
+
+
+@router.post("/agents/weekly-brief", tags=["agents"], dependencies=AGENT_GUARD)
+def weekly_brief(body: WeeklyBriefRequest | None = None):
+    """Weekly Brief Agent: the one-page Monday email to the COO and CFO (preview)."""
+    try:
+        return run_weekly_brief(get_dataset(), body.week_of if body else None)
+    except UnknownWeek:
+        raise ApiError(404, f"No deliveries in the week of {body.week_of}") from None
+
+
+@router.post("/briefs/weekly/send", tags=["agents"], dependencies=AGENT_GUARD)
+def weekly_brief_send(body: WeeklyBriefRequest | None = None):
+    """Send the brief now to the confirmed subscribers of the brief topic (never to an address from the request)."""
+    try:
+        result = run_weekly_brief(get_dataset(), body.week_of if body else None)
+        return {**send_brief(result), "brief": result["brief"], "guardrail_flags": result["guardrail_flags"]}
+    except UnknownWeek:
+        raise ApiError(404, f"No deliveries in the week of {body.week_of}") from None
+    except NotConfigured:
+        raise ApiError(409, "Email sending is not set up on this server (WEEKLY_BRIEF_TOPIC_ARN)") from None
+    except TooSoon as e:
+        raise ApiError(429, f"The brief was sent a moment ago; try again in {e.args[0] // 60 + 1} minutes") from None
+
+
 @router.get("/agents/runs", tags=["agents"], dependencies=AGENT_GUARD)
 def agent_runs(limit: int = Query(50, ge=1, le=500)):
     with get_session() as s:
@@ -205,6 +296,43 @@ def desk_approve(message_id: str):
         raise ApiError(404, f"No WMS order for message {message_id!r}") from None
     except NotAwaitingApproval as e:
         raise ApiError(409, f"WMS order for {message_id!r} is {e.args[0]}, not awaiting approval") from None
+
+
+@router.get("/desk/confirm/{token}", tags=["desk"])
+def desk_confirmation(token: str):
+    """What the client's one-click confirmation page shows."""
+    view = address_book.confirmation_view(token)
+    if view is None:
+        raise ApiError(404, "This confirmation link is not valid")
+    return view
+
+
+@router.post("/desk/confirm/{token}", tags=["desk"], dependencies=AGENT_GUARD)
+def desk_confirm(token: str):
+    """The client confirms the address on file with one click; the order is processed again with it."""
+    try:
+        mid = address_book.confirm_by_link(token)
+    except address_book.ConfirmationNotFound:
+        raise ApiError(404, "This confirmation link is not valid") from None
+    return {"confirmation": address_book.confirmation_view(token), "trace": _reprocess(mid)}
+
+
+@router.post("/desk/reply/{message_id}", tags=["desk"], dependencies=AGENT_GUARD)
+def desk_reply(message_id: str, body: ClientReplyRequest):
+    """The client's reply to the address confirmation email, read by the Reply Reader Agent."""
+    try:
+        result = address_book.read_reply(message_id, body.text)
+    except address_book.ConfirmationNotFound:
+        raise ApiError(404, f"No address confirmation is waiting for message {message_id!r}") from None
+    trace = _reprocess(message_id) if result["outcome"] in ("confirmed", "corrected") else None
+    return {"reply": result, "trace": trace}
+
+
+def _reprocess(message_id: str) -> dict | None:
+    try:
+        return process_message(message_id)
+    except AlreadyApproved:
+        return None
 
 
 @router.post("/desk/reset", tags=["desk"], dependencies=AGENT_GUARD)

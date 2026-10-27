@@ -8,7 +8,8 @@ always gets the same decision once its fields are read.
  2 guardrail        Guardrail    prompt-injection screen; stop if blocked
  3 extract          AI agent     Order Intake Agent reads client, lines, address, dates, confidence
  4 identify_client  Data lookup  sender domain or name -> clients table
- 5 address_check    Rule         street, city, state, postcode required (country defaults to US)
+ 5 address_check    Rule         street, city, state, postcode required (country defaults to US); a missing detail
+                                 is filled from the client's delivery history only after the client confirms it
  6 promise_check    Rule         08:00 pick-list cutoff; a same-day order after it is still added to today's
                                  list in the grace period, or until the hard stop if it is urgent (a valid
                                  reason, or "urgent" from a Tier 1 or at-risk client); otherwise next-day
@@ -35,7 +36,7 @@ from app.analytics.late_orders import same_day_decision
 from app.analytics.store import get_dataset
 from app.config import get_settings
 from app.db import get_session
-from app.desk import rules
+from app.desk import address_book, rules
 from app.guardrails import check_input
 from app.models import InboxMessage, WmsOrder
 
@@ -197,6 +198,16 @@ def _reply_template(kind: str, f: dict) -> tuple[str, str]:
                 f"Hello {who},\n\nThank you for your order ({f['subject']}). Before we can put it on the pick list "
                 f"we need these delivery details:\n{listed}\n\nPlease reply with them. Orders with a complete "
                 f"address go on the next pick list, so a quick reply keeps your delivery on time.{sign}")
+    if kind == "address_confirm":
+        a = f["suggested_address"]
+        listed = ", ".join(FIELD_WORDS[x] for x in f["missing"])
+        return ("Please confirm the delivery address for your order",
+                f"Hello {who},\n\nThank you for your order ({f['subject']}). The email did not include the {listed}, "
+                f"but we have delivered to this address for you before:\n\n{f.get('site_name') or ''}\n"
+                f"{a['street']}\n{a['city']}, {a['state']} {a['postcode']}\n\n"
+                f"If that is right, confirm with one click: {f['confirm_url']}\n"
+                "or simply reply \"Yes\". If it should go somewhere else, reply with the correct address. "
+                f"Your order goes on the next pick list as soon as you confirm.{sign}")
     return ("Please confirm the items for your order",
             f"Hello {who},\n\nThank you for your order ({f['subject']}). We want to ship exactly what you need, "
             "but we could not tell the item codes and quantities for certain. Please reply with the SKU and "
@@ -218,6 +229,9 @@ def draft_reply(llm: LLMClient, kind: str, facts: dict) -> dict:
     if kind == "confirmation" and facts["promised_date"] not in body:
         body += f"\n\n(Promised delivery date: {facts['promised_date']})"
         flags.append("fact_appended_promised_date")
+    if kind == "address_confirm" and facts["confirm_url"] not in body:
+        body += f"\n\nConfirm with one click: {facts['confirm_url']}"
+        flags.append("fact_appended_confirm_url")
     if kind == "follow_up":
         absent = [x for x in facts["missing"] if x not in body.lower() and FIELD_WORDS[x] not in body.lower()]
         if absent:
@@ -378,20 +392,50 @@ def process_message(message_id: str, llm: LLMClient | None = None) -> dict:
         ship_to["country"] = DEFAULT_COUNTRY
         assumptions.append(f"Country not given; assumed {DEFAULT_COUNTRY}.")
     missing = [f for f in REQUIRED_ADDRESS if not ship_to.get(f)]
-    if missing:
-        t.add("address_check", "Check the address", "Rule", "fail",
-              f"Address incomplete: missing {', '.join(FIELD_WORDS[x] for x in missing)}. The order is held "
-              "before picking (incomplete addresses are on time only 35% of the time).",
-              {"missing": missing, "ship_to": ship_to, "assumptions": assumptions}, started=t0)
+    confirmed = address_book.confirmed_address(m.id) if missing else None
+    suggestion = None
+    if confirmed:
+        filled = list(missing)
+        ship_to.update({f: confirmed["address"][f] for f in REQUIRED_ADDRESS})
+        how = "with one click on the confirmation link" if confirmed["channel"] == "link" else "by email reply"
+        what = "confirmed" if confirmed["status"] == "confirmed" else "corrected"
+        t.add("address_check", "Check the address", "Rule", "pass",
+              f"Address complete: the client {what} it {how} ({ship_to['street']}, {ship_to['city']}, "
+              f"{ship_to['state']} {ship_to['postcode']}). The {', '.join(FIELD_WORDS[x] for x in filled)} came "
+              "from their delivery history.",
+              {"missing": [], "filled_from_history": filled, "confirmation": confirmed, "ship_to": ship_to,
+               "assumptions": assumptions}, started=t0)
+        missing = []
+    elif missing:
+        # Only when the address is the one problem: a person reviewing the order handles the rest.
         if decision == "accepted":
-            decision, reason = "on_hold", f"Address incomplete: missing {', '.join(missing)}."
+            suggestion = address_book.suggest(client["client_id"] if client else None, ship_to)
+        details = {"missing": missing, "ship_to": ship_to, "assumptions": assumptions}
+        if suggestion:
+            token = address_book.request_confirmation(m.id, client["client_id"], suggestion, missing)
+            suggestion = {**suggestion, "token": token, "confirm_url": address_book.confirm_url(token)}
+            a = suggestion["address"]
+            details["suggestion"] = suggestion
+            t.add("address_check", "Check the address", "Rule", "warn",
+                  f"Address incomplete: missing {', '.join(FIELD_WORDS[x] for x in missing)}. Found it in the "
+                  f"client's delivery history: {suggestion['deliveries_to_site']} past deliveries to "
+                  f"{a['street']}, {a['city']}, {a['state']} {a['postcode']}, the only site on file that matches "
+                  f"the {', '.join(suggestion['matched_on'])} in the email. Held until the client confirms it with "
+                  "one click or a one-line reply.", details, started=t0)
+        else:
+            t.add("address_check", "Check the address", "Rule", "fail",
+                  f"Address incomplete: missing {', '.join(FIELD_WORDS[x] for x in missing)}. The order is held "
+                  "before picking (incomplete addresses are on time only 35% of the time).", details, started=t0)
+        if decision == "accepted":
+            decision, reason = "on_hold", f"Address incomplete: missing {', '.join(missing)}." + (
+                " Waiting for the client to confirm the address on file." if suggestion else "")
     else:
         t.add("address_check", "Check the address", "Rule", "pass",
               f"Street, city, state and postcode are all present ({ship_to['city']}, {ship_to['state']}).",
               {"missing": [], "ship_to": ship_to, "assumptions": assumptions}, started=t0)
 
     if decision != "accepted":
-        why = {"on_hold": "Skipped: the order is on hold until the client sends the missing address details.",
+        why = {"on_hold": "Skipped: the order is on hold until the client confirms or sends the missing address details.",
                "needs_review": "Skipped: the order waits for a person to confirm it."}[decision]
         for key, title, actor, agent in _LATER_STEPS[3:6]:
             t.skip(key, title, actor, why, agent)
@@ -418,6 +462,8 @@ def process_message(message_id: str, llm: LLMClient | None = None) -> dict:
     # 10 client message (AI)
     t0 = time.perf_counter()
     kind = {"accepted": "confirmation", "on_hold": "follow_up", "needs_review": "clarification"}[decision]
+    if decision == "on_hold" and suggestion:
+        kind = "address_confirm"
     facts = {"to": m.from_email, "client_name": order.get("client_name") or ext.client_name, "subject": m.subject,
              "lines": lines, "missing": missing, "received_time": f"{received:%H:%M}",
              "pick_list_date": _iso(order.get("pick_list_date")), "promised_date": _iso(order.get("promised_date")),
@@ -425,14 +471,20 @@ def process_message(message_id: str, llm: LLMClient | None = None) -> dict:
              "added_after_cutoff": order.get("_added_after_cutoff", False),
              "ships_from_further": order.get("_ships_from_further", False),
              "fulfilment_warehouse_name": order.get("_fulfilment_warehouse_name")}
+    if kind == "address_confirm":
+        facts.update(suggested_address=suggestion["address"], site_name=suggestion["site_name"],
+                     confirm_url=suggestion["confirm_url"])
     draft = draft_reply(llm, kind, facts)
     words = {"confirmation": "an order confirmation", "follow_up": "a follow-up asking for the missing details",
+             "address_confirm": "a one-click request to confirm the address on file",
              "clarification": "a reply asking the client to confirm the items"}[kind]
     t.add("client_message", "Draft the reply", "AI agent", "pass",
           f"The {REPLY_AGENT_NAME} drafted {words}; a person approves it before it is sent.",
           {"kind": kind, "agent_run_id": draft["agent_run_id"], "guardrail_flags": draft["guardrail_flags"]},
           REPLY_AGENT_NAME, t0)
-    return _finish(m, t, decision, reason, order, draft, llm)
+    if decision == "accepted":
+        address_book.learn(order.get("client_id"), ship_to, m.id)
+    return _finish(m, t, decision, reason, order, draft, llm, address_confirmed=bool(confirmed))
 
 
 _LATER_STEPS = [
@@ -548,7 +600,7 @@ def _wms_row(m: InboxMessage, order: dict) -> dict:
 
 
 def _finish(m: InboxMessage, t: Trace, decision: str, reason: str, order: dict | None, draft: dict | None,
-            llm: LLMClient) -> dict:
+            llm: LLMClient, address_confirmed: bool = False) -> dict:
     """Write the outcome in one transaction: replace this message's WMS order, mark the message processed."""
     wms = None
     with get_session() as s:
@@ -566,7 +618,9 @@ def _finish(m: InboxMessage, t: Trace, decision: str, reason: str, order: dict |
     return {"message_id": m.id, "decision": decision, "decision_reason": reason, "steps": t.steps,
             "wms_order": wms, "client_email_draft": draft, "llm_provider": llm.provider,
             "llm_model": llm.model_for("fast"), "expected_decision": m.expected_decision,
-            "matches_expected": decision == m.expected_decision}
+            # An on-hold sample email is accepted once the client confirms the address: that is the expected path.
+            "matches_expected": decision == m.expected_decision or (
+                address_confirmed and m.expected_decision == "on_hold" and decision == "accepted")}
 
 
 def wms_order_dict(o: WmsOrder) -> dict:
@@ -628,4 +682,5 @@ def reset_desk() -> dict:
         cleared = s.execute(delete(WmsOrder)).rowcount
         s.execute(update(InboxMessage).values(status="new", decision=None, processed_at=None))
         s.commit()
+    address_book.clear()
     return {"wms_orders_cleared": cleared, "status": "reset"}

@@ -9,6 +9,8 @@ import {
   Clock,
   Mail,
   Map as MapIcon,
+  Newspaper,
+  Siren,
   Menu,
   MessageSquareText,
   Scale,
@@ -49,6 +51,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { to: '/carriers', label: 'Carriers', icon: Truck },
       { to: '/clients', label: 'At-risk clients', icon: Building2 },
       { to: '/stock-routes', label: 'Stock & routes', icon: Warehouse },
+      { to: '/risk-board', label: 'Morning risk board', icon: Siren },
     ],
   },
   {
@@ -56,6 +59,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { to: '/order-desk', label: 'Order desk (live)', icon: Mail },
       { to: '/order-intake', label: 'Order intake agent', icon: Inbox },
+      { to: '/weekly-brief', label: 'Weekly brief (COO, CFO)', icon: Newspaper },
       { to: '/ask', label: 'Ask DeliveryLens', icon: MessageSquareText },
       { to: '/activity', label: 'Agent activity', icon: Activity },
     ],

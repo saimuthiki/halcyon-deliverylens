@@ -12,6 +12,8 @@ aws s3 rb "s3://$BUCKET" --force >/dev/null 2>&1 || true
 for sg in "$SG_DB" "$SG_API"; do id=$(aws ec2 describe-security-groups --filters Name=group-name,Values="$sg" --query 'SecurityGroups[0].GroupId' --output text); [[ "$id" != None ]] && aws ec2 delete-security-group --group-id "$id" || true; done
 aws cloudwatch delete-dashboards --dashboard-names "$PROJECT" || true
 aws cloudwatch delete-alarms --alarm-names "$PROJECT-api-errors" "$PROJECT-ec2-status" "$PROJECT-ec2-cpu" || true
-TOPIC=$(aws sns list-topics --query "Topics[?ends_with(TopicArn, ':$PROJECT-alarms')].TopicArn" --output text); [[ -n "$TOPIC" ]] && aws sns delete-topic --topic-arn "$TOPIC" || true
+for t in alarms weekly-brief; do
+  TOPIC=$(aws sns list-topics --query "Topics[?ends_with(TopicArn, ':$PROJECT-$t')].TopicArn" --output text); [[ -n "$TOPIC" ]] && aws sns delete-topic --topic-arn "$TOPIC" || true
+done
 aws amplify list-apps --query "apps[?name=='$PROJECT'].appId" --output text | xargs -r -n1 aws amplify delete-app --app-id >/dev/null || true
 log "Done. IAM roles ($EC2_ROLE, $DEPLOY_ROLE) are left in place; delete them in the console if needed."

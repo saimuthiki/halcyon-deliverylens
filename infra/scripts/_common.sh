@@ -10,6 +10,7 @@ if grep -q '<[A-Z_]*>' <(grep -v '^#' "$INFRA/config.env" | sed 's/#.*//'); then
   echo "infra/config.env still has <PLACEHOLDERS>:"; grep -n '<[A-Z_]*>' "$INFRA/config.env" | grep -v '^\s*[0-9]*:#'; exit 1
 fi
 export AWS_REGION AWS_DEFAULT_REGION="$AWS_REGION"
+export PYTHONUTF8=1 PYTHONIOENCODING=utf-8  # aws.exe on Windows: print non-ASCII server output
 export MSYS_NO_PATHCONV=1  # Git Bash on Windows: keep /dev/xvda and /aws/service/... as written
 BUCKET="${PROJECT}-data-${AWS_ACCOUNT_ID}"
 ECR_REPO="${PROJECT}-api"

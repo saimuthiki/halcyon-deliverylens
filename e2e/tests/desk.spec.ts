@@ -36,7 +36,9 @@ test.describe('Order desk (live)', () => {
     await expect(steps).toHaveCount(10);
     const keys = await steps.evaluateAll((els) => els.map((e) => e.getAttribute('data-key')));
     expect(keys).toEqual(['receive', 'guardrail', 'extract', 'identify_client', 'address_check', 'promise_check', 'stock_check', 'carrier_choice', 'decision', 'client_message']);
-    await expect(page.locator('[data-testid="trace-step"][data-key="address_check"]')).toHaveAttribute('data-status', 'fail');
+    // The postcode is found in the client's delivery history and held for their one-click confirmation.
+    await expect(page.locator('[data-testid="trace-step"][data-key="address_check"]')).toHaveAttribute('data-status', 'warn');
+    await expect(page.getByTestId('address-confirm')).toContainText('400 Foundry Road');
 
     // Expand a step's details.
     const extract = page.locator('[data-testid="trace-step"][data-key="extract"]');

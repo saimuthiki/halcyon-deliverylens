@@ -527,3 +527,216 @@ export interface LateOrdersResponse {
   /** The times the Order desk uses today. */
   order_desk_settings: { grace_until: string; hard_stop: string };
 }
+
+/* ---------- Account Save Agent ---------- */
+export interface AccountPlanCause {
+  cause: CauseKey;
+  label: string;
+  late_deliveries: number;
+  share_of_their_late: number;
+  fix: string;
+  owner: string;
+}
+
+export interface AccountPlanResult {
+  agent_run_id: number | null;
+  provider: string;
+  model: string;
+  client_id: string;
+  facts: {
+    client_name: string;
+    account_tier: string;
+    annual_revenue_usd: number;
+    deliveries: number;
+    late_deliveries: number;
+    on_time_rate: number;
+    company_on_time_rate: number;
+    projected_on_time_rate_with_fixes: number;
+    sla_penalties_paid_usd: number;
+    sla_penalty_clause: boolean;
+    causes_of_their_late_deliveries: AccountPlanCause[];
+    complaints: { total: number; most_recent: { date: string; category: string; text: string }[] };
+    on_time_by_month: { month: string; on_time_rate: number }[];
+  };
+  plan: { summary: string; talking_points: string[]; agenda: string[]; email_subject: string; email_body: string };
+  guardrail_flags: string[];
+  method: string;
+}
+
+/* ---------- Weekly Brief Agent ---------- */
+export interface WeeklyBriefResult {
+  agent_run_id: number | null;
+  provider: string;
+  model: string;
+  week_of: string;
+  facts: {
+    week_of: string;
+    week_end: string;
+    deliveries: number;
+    late_deliveries: number;
+    on_time_rate: number;
+    previous_week_on_time_rate: number | null;
+    change_points: number | null;
+    target_on_time_rate: number;
+    gap_to_target_points: number;
+    sla_penalties_usd: number;
+    redelivery_cost_usd: number;
+    at_risk_clients: { deliveries: number; on_time_rate: number | null };
+    top_actions: { cause: CauseKey; action: string; owner: string }[];
+    trend: { week_of: string; on_time_rate: number | null }[];
+  };
+  brief: { subject: string; headline: string; body: string };
+  guardrail_flags: string[];
+  delivery: { configured: boolean; confirmed_subscribers: number | null; pending_subscribers?: number; schedule?: string; note?: string };
+  method: string;
+}
+
+export interface WeeklyBriefSent {
+  sent: boolean;
+  message_id: string;
+  week_of: string;
+  subject: string;
+}
+
+/* ---------- Address confirmation (Order desk) ---------- */
+export interface AddressSuggestion {
+  address: { street: string; city: string; state: string; postcode: string; country?: string };
+  site_name: string;
+  matched_on: string[];
+  deliveries_to_site: number;
+  last_delivered: string | null;
+  sites_on_file: number;
+  token: string;
+  confirm_url: string;
+}
+
+export interface AddressConfirmationView {
+  message_id: string;
+  subject: string;
+  status: 'pending' | 'confirmed' | 'corrected' | 'unclear';
+  site_name: string | null;
+  address: AddressSuggestion['address'] | null;
+  missing: string[];
+  confirmed_at: string | null;
+}
+
+export interface ClientReplyResult {
+  reply: { outcome: 'confirmed' | 'corrected' | 'unclear' | 'blocked' | 'already_confirmed'; reason?: string; fields_from_reply?: Record<string, string> };
+  trace: DeskProcessResult | null;
+}
+
+/* ---------- Carrier Claims Agent ---------- */
+export interface CarrierClaimsRow {
+  carrier_id: string;
+  carrier_name: string;
+  penalties_paid_usd: number;
+  claimable_deliveries: number;
+  claimable_usd: number;
+  with_route_deviation: number;
+  shared_fault_deliveries: number;
+  shared_fault_usd: number;
+  by_month: { month: string; deliveries: number; claimable_usd: number }[];
+}
+
+export interface CarrierClaimsSummary {
+  carriers: CarrierClaimsRow[];
+  total_claimable_usd: number;
+  total_penalties_paid_usd: number;
+  period: [string, string];
+  rule: string;
+  contract_note: string;
+}
+
+export interface ClaimLine {
+  delivery_id: string;
+  order_id: string;
+  client_id: string;
+  region: string;
+  handed_over: string;
+  promised_date: string;
+  delivered_date: string;
+  days_late: number;
+  penalty_usd: number;
+  planned_route_km: number;
+  actual_route_km: number | null;
+  route_deviation: number | null;
+  evidence: string[];
+}
+
+export interface CarrierClaimResult {
+  agent_run_id: number | null;
+  pack: {
+    carrier_id: string;
+    carrier_name: string;
+    month: string | null;
+    period: [string, string];
+    deliveries: number;
+    claim_usd: number;
+    days_late_total: number;
+    with_route_deviation: number;
+    lines: ClaimLine[];
+    contract_note: string;
+  };
+  letter: { subject: string; body: string };
+  guardrail_flags: string[];
+  method: string;
+}
+
+/* ---------- Morning risk board ---------- */
+export interface RiskFix {
+  cause: CauseKey;
+  action: string;
+  owner: string;
+  risk_after: number | null;
+}
+
+export interface RiskRow {
+  delivery_id: string;
+  client_id: string;
+  at_risk_client: boolean;
+  commitment_type: string;
+  region: string;
+  carrier_id: string;
+  warehouse_id: string;
+  causes: CauseKey[];
+  risk: number;
+  risk_after_fixes: number;
+  money_at_risk_usd: number;
+  fixes: RiskFix[];
+  hindsight: { late: boolean; days_late: number };
+}
+
+export interface RiskBoard {
+  day: string;
+  days: string[];
+  warehouse: string | null;
+  sort: 'risk' | 'money';
+  shipments: number;
+  expected_late: number;
+  expected_late_after_fixes: number;
+  fixable_shipments: number;
+  by_warehouse: Record<string, number>;
+  history: { deliveries: number; late_rate: number; through: string };
+  top: RiskRow[];
+  hindsight: { late_in_top: number; top: number; late_all: number };
+  method: string;
+}
+
+export interface RiskBacktest {
+  test_shipments: number;
+  test_days: number;
+  late_rate: number;
+  auc: number;
+  top_per_day: number;
+  top_precision: number;
+  meaning: string;
+  trained_on: string;
+  tested_on: string;
+}
+
+export interface MorningNoteResult {
+  agent_run_id: number | null;
+  day: string;
+  note: { subject: string; body: string };
+  guardrail_flags: string[];
+}

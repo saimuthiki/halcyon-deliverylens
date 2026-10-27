@@ -40,6 +40,8 @@ class Settings:
     inbox_dir: Path = DEFAULT_INBOX_DIR
     same_day_grace_until: str = "09:00"  # same-day orders after 08:00: all added until this time
     same_day_hard_stop: str = "10:00"  # then urgent orders only until this time; after it, tomorrow
+    weekly_brief_topic_arn: str = ""  # SNS topic for the Monday brief; empty = preview only
+    public_site_url: str = "http://localhost:5173"  # the web app, for links in client emails
 
 
 @lru_cache
@@ -63,4 +65,6 @@ def get_settings() -> Settings:
         inbox_dir=Path(os.getenv("INBOX_DIR", str(DEFAULT_INBOX_DIR))),
         same_day_grace_until=os.getenv("SAME_DAY_GRACE_UNTIL", "09:00").strip(),
         same_day_hard_stop=os.getenv("SAME_DAY_HARD_STOP", "10:00").strip(),
+        weekly_brief_topic_arn=os.getenv("WEEKLY_BRIEF_TOPIC_ARN", "").strip(),
+        public_site_url=(os.getenv("PUBLIC_SITE_URL", "").strip() or "http://localhost:5173").rstrip("/"),
     )

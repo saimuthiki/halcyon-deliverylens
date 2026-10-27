@@ -89,3 +89,61 @@ def check_input(text: str) -> GuardrailResult:
     if _has_base64_block(_ZERO_WIDTH_RE.sub("", text)):
         return GuardrailResult(True, ["encoded_payload"], "Input contains a long encoded block that cannot be checked")
     return GuardrailResult()
+
+
+# ---------------------------------------------------------------- numbers in AI-written text
+_NUMBER_RE = re.compile(r"(?<![\w.])\$?\d[\d,]*(?:\.\d+)?(?:\s?(?:%|percent|points?|pts|[kKmM]\b))?")
+
+
+def _number_forms(value) -> set[str]:
+    """The ways a fact may legitimately be written: 0.712 -> 71.2%, 71%; 14200000 -> $14.2M, 14,200,000."""
+    out: set[str] = set()
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return out
+    v = float(value)
+    for x in {v, abs(v)}:
+        out |= {f"{x:g}", f"{x:,.0f}", f"{x:.0f}", f"{x:.1f}", f"{x:,.2f}", f"{round(x):d}"}
+        if 0 < x <= 1:  # a rate
+            out |= {f"{x * 100:.0f}", f"{x * 100:.1f}", f"{x * 100:g}"}
+        if x >= 1000:
+            out |= {f"{x / 1000:.0f}", f"{x / 1000:.1f}", f"{x / 1000:g}"}
+        if x >= 1_000_000:
+            out |= {f"{x / 1e6:.1f}", f"{x / 1e6:.2f}", f"{x / 1e6:g}", f"{x / 1e6:.0f}"}
+    return out
+
+
+def _walk_numbers(value, out: set[str]) -> None:
+    if isinstance(value, dict):
+        for v in value.values():
+            _walk_numbers(v, out)
+    elif isinstance(value, (list, tuple)):
+        for v in value:
+            _walk_numbers(v, out)
+    elif isinstance(value, str):
+        for m in re.finditer(r"\d[\d,]*(?:\.\d+)?", value):
+            raw = m.group(0).replace(",", "")
+            out.add(raw)
+            out |= _number_forms(float(raw))
+    else:
+        out |= _number_forms(value)
+
+
+def allowed_numbers(facts) -> set[str]:
+    """Every number form an AI text may use, given the facts it was handed."""
+    out: set[str] = set()
+    _walk_numbers(facts, out)
+    return {s.replace(",", "") for s in out}
+
+
+def unverified_numbers(text: str, facts, extra: set[str] | None = None) -> list[str]:
+    """Numbers in `text` that do not come from `facts` (small counts 0-10 and years are always allowed)."""
+    allowed = allowed_numbers(facts) | (extra or set())
+    bad = []
+    for m in _NUMBER_RE.finditer(text):
+        core = re.sub(r"[^\d.]", "", m.group(0).split()[0] if " " in m.group(0) else m.group(0)).strip(".")
+        if not core:
+            continue
+        if core in allowed or (core.isdigit() and (int(core) <= 10 or 2000 <= int(core) <= 2100)):
+            continue
+        bad.append(m.group(0))
+    return bad

@@ -1,0 +1,7 @@
+client_id,site_name,street,city,state,postcode,deliveries_to_site,last_delivered
+C263,Client 263 Plant 2,400 Foundry Road,Dayton,OH,45402,38,2026-09-24
+C263,Client 263 Plant 1,1180 Webster Street,Dayton,OH,45404,52,2026-09-25
+C263,Client 263 Distribution,77 Commerce Park Drive,Springfield,OH,45502,11,2026-08-29
+C042,Client 042 Goods In,250 West Spring Street,Columbus,OH,43215,27,2026-09-22
+C042,Client 042 Warehouse,4100 Fisher Road,Columbus,OH,43228,9,2026-07-14
+C042,Client 042 Cincinnati,615 Vine Street,Cincinnati,OH,45202,14,2026-09-03

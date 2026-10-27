@@ -20,7 +20,8 @@ SECRET=$(cat <<JSON
 {"DATABASE_URL":"postgresql+psycopg://deliverylens:${PASS}@${HOST}:5432/deliverylens",
  "LLM_PROVIDER":"bedrock","AWS_REGION":"${AWS_REGION}",
  "BEDROCK_MODEL_FAST":"${BEDROCK_MODEL_FAST}","BEDROCK_MODEL_SMART":"${BEDROCK_MODEL_SMART}",
- "CORS_ORIGINS":"${AMPLIFY_ORIGIN}","S3_BUCKET":"${BUCKET}","DEMO_PASSWORD":"${DEMO_PASS}"}
+ "CORS_ORIGINS":"${AMPLIFY_ORIGIN}","S3_BUCKET":"${BUCKET}","DEMO_PASSWORD":"${DEMO_PASS}",
+ "PUBLIC_SITE_URL":"${AMPLIFY_ORIGIN}","WEEKLY_BRIEF_TOPIC_ARN":"$(cat "$STATE/brief_topic_arn" 2>/dev/null || true)"}
 JSON
 )
 if aws secretsmanager describe-secret --secret-id "$SECRET_NAME" >/dev/null 2>&1; then

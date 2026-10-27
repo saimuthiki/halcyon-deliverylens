@@ -18,12 +18,32 @@ const StockRoutes = lazy(() => import('./pages/StockRoutes'));
 const OrderIntake = lazy(() => import('./pages/OrderIntake'));
 const Ask = lazy(() => import('./pages/Ask'));
 const Activity = lazy(() => import('./pages/Activity'));
+const WeeklyBrief = lazy(() => import('./pages/WeeklyBrief'));
+const RiskBoard = lazy(() => import('./pages/RiskBoard'));
+const ConfirmAddress = lazy(() => import('./pages/ConfirmAddress'));
 
 export default function App() {
   useEffect(() => {
     void probeApi();
   }, []);
 
+  return (
+    <Routes>
+      {/* The page a client opens from our email: no app navigation around it. */}
+      <Route
+        path="/confirm-address/:token"
+        element={
+          <Suspense fallback={<LoadingBlock label="Loading" />}>
+            <ConfirmAddress />
+          </Suspense>
+        }
+      />
+      <Route path="*" element={<AppPages />} />
+    </Routes>
+  );
+}
+
+function AppPages() {
   return (
     <Layout>
       <Suspense fallback={<LoadingBlock label="Loading page" />}>
@@ -43,6 +63,8 @@ export default function App() {
           <Route path="/order-intake" element={<OrderIntake />} />
           <Route path="/ask" element={<Ask />} />
           <Route path="/activity" element={<Activity />} />
+          <Route path="/weekly-brief" element={<WeeklyBrief />} />
+          <Route path="/risk-board" element={<RiskBoard />} />
           <Route path="*" element={<Navigate to="/how-it-works" replace />} />
         </Routes>
       </Suspense>

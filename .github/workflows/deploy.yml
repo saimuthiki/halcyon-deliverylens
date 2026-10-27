@@ -52,10 +52,22 @@ jobs:
           docker push "$REGISTRY/$ECR_REPO:latest"
       - name: Restart the API on EC2 with the new image (Systems Manager)
         run: |
-          SCRIPT='cd /home/ec2-user && set -a && . ./.env && set +a && aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${IMAGE%%/*}" && docker compose -f docker-compose.prod.yml pull api && docker compose -f docker-compose.prod.yml up -d api && docker image prune -f'
+          # Runs as root on the server: refresh app.env from Secrets Manager, then pull and restart the API.
+          cat > remote.sh <<'SH'
+          set -euo pipefail
+          cd /home/ec2-user
+          set -a; . ./.env; set +a
+          aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$SECRET_NAME" --query SecretString \
+            --output text | jq -r 'to_entries[] | "\(.key)=\(.value)"' > app.env
+          chmod 600 app.env && chown ec2-user app.env
+          aws ecr get-login-password --region "$AWS_REGION" | sudo -u ec2-user docker login --username AWS --password-stdin "${IMAGE%%/*}"
+          sudo -u ec2-user docker compose -f docker-compose.prod.yml pull api
+          sudo -u ec2-user docker compose -f docker-compose.prod.yml up -d api
+          docker image prune -f
+          SH
           CMD_ID=$(aws ssm send-command --instance-ids "$EC2_INSTANCE_ID" --document-name AWS-RunShellScript \
             --comment "deploy ${GITHUB_SHA::7}" \
-            --parameters "$(jq -n --arg s "sudo -u ec2-user bash -c '$SCRIPT'" '{commands: [$s]}')" \
+            --parameters "$(jq -n --rawfile s remote.sh '{commands: [$s]}')" \
             --query Command.CommandId --output text)
           echo "SSM command $CMD_ID"
           for i in $(seq 1 60); do

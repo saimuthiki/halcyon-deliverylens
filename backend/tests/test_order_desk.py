@@ -93,7 +93,8 @@ def test_missing_postcode_is_held_with_a_follow_up(desk):
     t = _process(desk, "M02")
     assert t["wms_order"]["status"] == "on_hold_missing_address"
     addr = _step(t, "address_check")
-    assert addr["status"] == "fail" and addr["details"]["missing"] == ["postcode"]
+    # "warn", not "fail": the postcode was found in the client's history and waits for their confirmation
+    assert addr["status"] == "warn" and addr["details"]["missing"] == ["postcode"]
     assert "postcode" in t["client_email_draft"]["body"].lower()
     assert _step(t, "stock_check")["status"] == "skipped"
 

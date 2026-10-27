@@ -5,6 +5,7 @@ import { useApi } from '../lib/useApi';
 import { num, pct } from '../lib/format';
 import PageHeader, { SectionTitle } from '../components/PageHeader';
 import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
+import PenaltyClaims from '../components/PenaltyClaims';
 
 export default function Carriers() {
   const sc = useApi(() => api.scorecard());
@@ -27,6 +28,9 @@ export default function Carriers() {
       ) : (
         <CarriersBody data={sc.data} />
       )}
+      <div className="mt-6">
+        <PenaltyClaims />
+      </div>
     </>
   );
 }

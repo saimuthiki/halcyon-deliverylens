@@ -7,7 +7,7 @@
 > 3. Commit it with your changes, so the next person who pulls gets the current state.
 > 4. Never put secrets here (keys, passwords, `.pem` contents, `.env` values).
 
-Last updated: 2026-10-28 by dkarasu (with Claude Code).
+Last updated: 2026-10-28 by Sai M (with Claude Code).
 
 ## 1. What we are building
 - **Problem 2:** Halcyon Logistics is 71% on time (benchmark 94%), and its leaders were about to buy a $680K routing tool.
@@ -43,13 +43,22 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 | Delay alert: AI drafts the client message plus a recovery plan | `backend/app/agents/delay_alert.py` | ✅ Live |
 | Ask: questions in plain English over the data and complaints | `Ask.tsx`, `backend/app/agents/ask.py` | ✅ Live |
 | Activity: every AI call logged (tokens, latency, guardrail flags) | `Activity.tsx`, `GET /api/agents/runs` | ✅ Live |
+| **Missing address filled from history:** when an email leaves out a postcode or street, the Order desk finds the one past delivery site that matches what the email did give, and asks the client to confirm it with a one-click link or a one-line reply ("Yes"). The Reply Reader Agent reads replies; a corrected detail is used only if it appears in the reply word for word. Nothing ships until the client confirms. | `backend/app/desk/address_book.py`, `data/sample-inbox/address-book.csv` (stands in for the WMS ship-to history), `components/AddressConfirmCard.tsx`, client page `/confirm-address/:token`, `POST /api/desk/confirm/{token}`, `POST /api/desk/reply/{message_id}` | ✅ Built and tested locally; ⏳ live after the next deploy |
+| **Save plans for the 9 at-risk clients ($14.2M):** the Account Save Agent writes a summary for the account owner, talking points, a meeting agenda and an email to the client, from that client's own deliveries, causes, penalties and complaints, with their projected on-time rate after the fixes | `backend/app/agents/account_plan.py`, "Save plan" button on At-risk clients (`components/SavePlanDrawer.tsx`), `POST /api/agents/account-plan` | ✅ Built and tested locally; ⏳ live after the next deploy |
+| **Carrier penalty recovery:** finds the SLA penalties Halcyon paid where the carrier alone was at fault (handed over on time, complete address, stock at the nearest warehouse, and a weak lane or a route well beyond plan): **$261,900 in six months, $128,700 from Carrier D**. Shared-fault deliveries are not claimed. The Carrier Claims Agent drafts a claim letter per carrier (or per month), with the evidence list as a CSV. Assumption: the carrier contracts allow passing on penalties; confirm with Halcyon. | `backend/app/agents/carrier_claims.py`, Carriers page → "Recover penalties the carriers caused" (`components/PenaltyClaims.tsx`), `GET /api/carriers/claims`, `POST /api/agents/carrier-claim` | ✅ Built and tested locally |
+| **Morning risk board:** at 08:00 every shipment on the pick list gets a late risk = how often past deliveries with the same pre-ship problems (address, same-day after 08:00, stock elsewhere, weak lane) and promise type were late, using only deliveries delivered before that morning. The riskiest are listed first with the fixes still possible (confirm the address, switch carrier) and the risk after them. Backtest on Aug-Sep (never seen): 63% of the daily top 20 were really late vs 29% overall, AUC 0.81. No AI in the score; the Morning Note Agent writes the 08:00 huddle message. | `backend/app/analytics/risk_board.py`, `backend/app/agents/morning_note.py`, page `/risk-board`, `GET /api/risk-board`, `GET /api/risk-board/backtest`, `POST /api/agents/morning-note` | ✅ Built and tested locally |
+| **Weekly brief for the COO and CFO:** a one-page Monday email: on time against last week and the 94% target, the money lost, the at-risk clients, why deliveries were late, three actions with owners | `backend/app/agents/weekly_brief.py`, page `/weekly-brief`, `POST /api/agents/weekly-brief`, `POST /api/briefs/weekly/send`; sent by Amazon SNS every Monday 07:00 US Central (`infra/scripts/09-weekly-brief.sh`) | ✅ Built and tested locally; ⏳ AWS setup (script 09) waits for the recipient list |
 
 **Decisions to keep:**
 - The company's pick procedure must not change, so there is no extra 11:00 pick wave.
+- **Number guardrail** (`app/guardrails.py: unverified_numbers`): every number an AI writes in a save plan or weekly brief must come from the facts it was given; otherwise the template is used and the reason is flagged.
+- The weekly brief goes by **Amazon SNS, not SES**: evoketechnologies.com has a DMARC `p=reject` policy, so email sent for that domain by another service would be rejected. With a domain we control, switch to SES.
+- The brief's recipients are set on the server (SNS subscriptions), never taken from a web request, and "Send now" is limited to once every 10 minutes.
+- An address from history is a **suggestion**: the client must confirm it. If more than one past site matches, or the email gives no detail to match on, the order is simply held as before.
 - Colours (see `DESIGN.md`): orange = problem, teal = fix, purple = AI only.
 
 ## 4. AWS setup (account Infinity Stacks 781547812451, region us-east-1)
-**Created with the AWS CLI scripts in `infra/scripts/` (not CDK).** Run them in order, 00 to 08. `99-teardown.sh` deletes everything.
+**Created with the AWS CLI scripts in `infra/scripts/` (not CDK).** Run them in order, 00 to 09. `99-teardown.sh` deletes everything.
 
 | Service | Resource | Notes |
 |---|---|---|
@@ -62,7 +71,8 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 | Secrets Manager | `deliverylens/app` | Database URL, model IDs, settings |
 | IAM | `deliverylens-ec2-role`, `deliverylens-github-deploy` plus GitHub OIDC | No access keys anywhere |
 | CloudWatch | dashboard `deliverylens`, 3 alarms, logs `/deliverylens/api` | Alarms email Sai, Dinesh and Sravan (SNS topic `deliverylens-alarms`) |
-| Systems Manager | the EC2 server is a managed node | Used by the auto-deploy instead of SSH |
+| Systems Manager | the EC2 server is a managed node | Used by the auto-deploy instead of SSH; each deploy also refreshes the server settings from Secrets Manager |
+| SNS (weekly brief) | topic `deliverylens-weekly-brief` (script 09, not run yet) | Monday brief email; a systemd timer on the server sends it |
 | Budgets | $100/month alert | Expected about $37/month plus a small Bedrock charge |
 
 **Architecture:** frontend on Amplify → API on EC2 (Docker) → RDS PostgreSQL. The AI goes through Bedrock.
@@ -94,11 +104,23 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 - [ ] Each person clicks **Confirm subscription** in the AWS alarm email (Sai, Dinesh, Sravan).
 - [ ] Retake the screenshot `docs/guide-images/05-order-desk-same-day.png`, and rebuild the `.docx` files in `docs/downloads/` (needs pandoc).
 - [ ] Optional: a sample WMS page with "Run the day" (pick lists per warehouse for today and tomorrow).
+- [ ] Decide the weekly brief recipients, then run `bash infra/scripts/09-weekly-brief.sh`; each person confirms the AWS email.
 - [ ] After the hackathon: `bash infra/scripts/99-teardown.sh` to stop all costs.
 - Repository: `origin` = `Evoke-Hackathon-2026/InfinityStacks` (the final hackathon repo).
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
+- **2026-10-28, Sai M + Claude Code (2):**
+  - Carrier penalty recovery: claim packs and claim letters per carrier (new Carrier Claims Agent).
+  - Morning risk board: pick-list late risk from history, fixes and risk after them, a backtest, and the 08:00 huddle note (new Morning Note Agent).
+  - Weekly brief set up on AWS for Sai, Dinesh and Sravan (script 09).
+- **2026-10-28, Sai M + Claude Code:**
+  - Missing addresses filled from the client's delivery history, confirmed with one click or a one-line reply (new Reply Reader Agent).
+  - Save plans for the 9 at-risk clients (new Account Save Agent).
+  - Weekly one-page brief for the COO and CFO (new Weekly Brief Agent), sent by SNS every Monday.
+  - New number guardrail on AI-written text.
+  - Auto-deploy now also refreshes the server settings from Secrets Manager.
+  - Tests: backend all pass (17 new); frontend 64 pass.
 - **2026-10-28, dkarasu + Claude Code:**
   - Auto-deploy fixed: GitHub's OIDC sign-in was refused (it sends an ID-based subject); the deploy role now trusts both forms.
   - First automated deploy of `9a2ba80` succeeded: image in ECR, API restarted via Systems Manager, website job 2 on Amplify.

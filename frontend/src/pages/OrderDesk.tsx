@@ -26,6 +26,7 @@ import PageHeader, { SectionTitle } from '../components/PageHeader';
 import { ErrorState, LoadingBlock } from '../components/States';
 import { ActorBadge, ACTORS } from '../components/Actor';
 import { aiLabel } from '../components/AiBadge';
+import AddressConfirmCard, { addressSuggestion } from '../components/AddressConfirmCard';
 
 /* ---------- labels and tones ---------- */
 
@@ -333,6 +334,19 @@ export default function OrderDesk() {
                 approving={approving === shown.data.message_id || approving === 'all'}
                 onApprove={() => approve(shown.data.message_id)}
               />
+              {shown.source === 'live' && addressSuggestion(shown.data) && (
+                <AddressConfirmCard
+                  key={shown.data.message_id}
+                  r={shown.data}
+                  suggestion={addressSuggestion(shown.data)!}
+                  busy={!!running || batchRunning}
+                  onRecheck={() => runOne(shown.data.message_id)}
+                  onResult={(trace) => {
+                    setResults((prev) => ({ ...prev, [trace.message_id]: { data: trace, source: 'live' } }));
+                    refresh();
+                  }}
+                />
+              )}
               <DraftCard draft={shown.data.client_email_draft} />
             </>
           ) : (
