@@ -35,6 +35,7 @@ def test_bedrock_converse_request_and_usage(bedrock_llm):
     assert call["modelId"] == "test-smart-model"
     assert call["system"] == [{"text": "sys"}]
     assert call["messages"] == [{"role": "user", "content": [{"text": "hi"}]}]
+    assert "temperature" not in call["inferenceConfig"]  # newer Claude models on Bedrock reject it
     assert resp.text == '{"ok": true}' and resp.input_tokens == 120 and resp.output_tokens == 40
     assert resp.run_id is not None
 

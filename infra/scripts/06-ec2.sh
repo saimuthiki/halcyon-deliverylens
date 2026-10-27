@@ -16,7 +16,7 @@ if [[ "$EXISTING" == "None" ]]; then
     --security-group-ids "$API_SG" --iam-instance-profile Name="$EC2_ROLE" \
     --metadata-options HttpTokens=required,HttpEndpoint=enabled \
     --block-device-mappings 'DeviceName=/dev/xvda,Ebs={VolumeSize=30,VolumeType=gp3,Encrypted=true}' \
-    --user-data "file://$INFRA/ec2-user-data.sh" \
+    --user-data "file://$(awspath "$INFRA/ec2-user-data.sh")" \
     --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$PROJECT-api},{Key=project,Value=$PROJECT}]" \
     --query 'Instances[0].InstanceId' --output text)
 fi

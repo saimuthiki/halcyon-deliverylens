@@ -2,7 +2,7 @@
 # Deploy or update the API on EC2: copy compose files, pull the image from ECR, (re)start, load data once.
 # Usage: infra/scripts/07-deploy.sh [image_tag]   (default: latest)
 source "$(dirname "$0")/_common.sh"
-TAG="${1:-latest}"
+TAG="${1:-latest}"  # LOCAL_IMAGE=1 skips the ECR pull (first deploy, image built on the server)
 EIP=$(cat "$STATE/eip"); KEY="$STATE/$KEY_PAIR_NAME.pem"
 HOSTNAME_TLS="${EIP//./-}.sslip.io"
 IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$TAG"
@@ -22,7 +22,7 @@ SECRET_NAME=$SECRET_NAME
 PROJECT=$PROJECT
 ENV
 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-docker compose -f docker-compose.prod.yml pull
+if [ "${LOCAL_IMAGE:-0}" = "1" ]; then echo "Using the image built on this server"; else docker compose -f docker-compose.prod.yml pull; fi
 docker compose -f docker-compose.prod.yml up -d
 sleep 5
 docker compose -f docker-compose.prod.yml exec -T api python -m app.loader --if-empty

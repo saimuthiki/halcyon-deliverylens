@@ -146,7 +146,7 @@ class LLMClient:
             modelId=model,
             system=[{"text": system}],
             messages=[{"role": "user", "content": [{"text": prompt}]}],
-            inferenceConfig={"maxTokens": max_tokens, "temperature": 0},
+            inferenceConfig={"maxTokens": max_tokens},  # Claude 4.5+ on Bedrock rejects temperature
         )
         parts = resp["output"]["message"]["content"]
         text = "".join(p.get("text", "") for p in parts)

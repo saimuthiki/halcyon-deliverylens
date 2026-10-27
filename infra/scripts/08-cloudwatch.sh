@@ -20,5 +20,5 @@ aws cloudwatch put-metric-alarm --alarm-name "$PROJECT-ec2-cpu" --namespace AWS/
   --comparison-operator GreaterThanThreshold
 sed -e "s/__REGION__/$AWS_REGION/g" -e "s/__INSTANCE__/$INSTANCE/g" -e "s/__DB__/$DB_ID/g" -e "s/__PROJECT__/$PROJECT/g" \
   "$INFRA/cloudwatch-dashboard.json" > "$STATE/dashboard.json"
-aws cloudwatch put-dashboard --dashboard-name "$PROJECT" --dashboard-body "file://$STATE/dashboard.json" >/dev/null
+aws cloudwatch put-dashboard --dashboard-name "$PROJECT" --dashboard-body "file://$(awspath "$STATE/dashboard.json")" >/dev/null
 log "Dashboard: https://$AWS_REGION.console.aws.amazon.com/cloudwatch/home?region=$AWS_REGION#dashboards:name=$PROJECT"

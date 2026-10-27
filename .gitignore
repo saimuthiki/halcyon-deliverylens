@@ -29,3 +29,4 @@ e2e/blob-report/
 # /brag render scratch (frames, fonts, captures) and local scratch scripts
 brag-output/work/
 test.py
+.playwright-cli/
