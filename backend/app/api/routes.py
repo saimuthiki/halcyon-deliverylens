@@ -9,7 +9,7 @@ from app.agents.morning_note import run_morning_note
 from app.agents.delay_alert import run_delay_alert
 from app.agents.llm_client import LLMClient
 from app.agents.order_intake import run_order_intake
-from app.agents.weekly_brief import NotConfigured, TooSoon, UnknownWeek, available_weeks, run_weekly_brief, send_brief
+from app.agents.weekly_brief import NotConfigured, UnknownWeek, available_weeks, run_weekly_brief, send_brief
 from app.desk import address_book
 from app.desk.inbox import message_detail, message_summary
 from app.desk.pipeline import (AlreadyApproved, MessageNotFound, NotAwaitingApproval, approve_all, approve_order,
@@ -234,8 +234,6 @@ def weekly_brief_send(body: WeeklyBriefSendRequest | None = None):
         raise ApiError(404, f"No deliveries in the week of {body.week_of}") from None
     except NotConfigured as e:
         raise ApiError(409, f"Email sending is not set up on this server ({e})") from None
-    except TooSoon as e:
-        raise ApiError(429, f"The brief was sent a moment ago; try again in {e.args[0] // 60 + 1} minutes") from None
     except AlreadySent as e:
         when = f" at {e.at:%H:%M} UTC" if e.at else ""
         raise ApiError(409, f"This week's brief was already {e.status} today{when}; it is sent once a day",

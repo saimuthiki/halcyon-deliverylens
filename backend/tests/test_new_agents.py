@@ -127,12 +127,12 @@ def test_brief_is_sent_to_the_topic_only(dataset, monkeypatch):
                                                                      "same_day_grace_until": "09:00",
                                                                      "same_day_hard_stop": "10:00",
                                                                      "public_site_url": "https://site.example"})())
-    monkeypatch.setattr(wb, "_last_sent", 0.0)
     r = wb.run_weekly_brief(dataset)
     out = wb.send_brief(r)
     assert out["sent"] and sent[0]["TopicArn"] == "arn:topic" and sent[0]["Message"] == r["brief"]["body"]
-    with pytest.raises(wb.TooSoon):
+    with pytest.raises(wb.AlreadySent):  # the same week again today is refused
         wb.send_brief(r)
+    assert len(sent) == 1
 
 
 # ---------------------------------------------------------------- address from history

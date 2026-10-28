@@ -83,9 +83,11 @@ flowchart LR
   - "Send now" (`POST /api/briefs/weekly/send`);
   - the Monday timer (`python -m app.agents.weekly_brief send`; prints `"sent": false` and exits 0 when the
     brief was already sent today).
-  - Responses: 409 `already_sent` when it was already sent today; 409 when sending isn't set up; 429 within
-    10 minutes of the last send from the same process; 502 `email_not_sent` when the provider refused it (error
-    class and code only).
+  - Responses: 409 `already_sent` when that week was already sent today; 409 when sending isn't set up; 502
+    `email_not_sent` when the provider refused it (error class and code only); 429 only from the general agent
+    rate limit (`AGENT_RATE_LIMIT_PER_MIN` per IP).
+  - There is no time-based cooldown: different weeks can be sent one after another (e.g. in a demo). Each send
+    in test mode counts once per test recipient against the provider's daily quota.
 
 ## Configuration
 

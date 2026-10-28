@@ -283,7 +283,6 @@ def test_weekly_brief_through_the_memory_backend(dataset, monkeypatch):
     s = settings(email_backend="memory", email_test_mode=False, email_from_address="brief@example.com",
                  weekly_brief_to=(TO,), weekly_brief_cc=(CC,), weekly_brief_bcc=(BCC,))
     monkeypatch.setattr(service, "get_settings", lambda: s)
-    monkeypatch.setattr(wb, "_last_sent", 0.0)
     r = wb.run_weekly_brief(dataset)
     assert r["delivery"] == {"configured": True, "backend": "memory", "recipients": {"to": 1, "cc": 1, "bcc": 1},
                              "test_mode": False, "schedule": wb.SCHEDULE}
@@ -292,7 +291,7 @@ def test_weekly_brief_through_the_memory_backend(dataset, monkeypatch):
     sent = MEMORY.outbox[-1]
     assert sent["envelope"] == [TO, CC, BCC] and sent["mime"]["Bcc"] is None
     assert sent["message"].html_body == r["brief"]["html"] and sent["message"].text_body == r["brief"]["body"]
-    with pytest.raises(wb.TooSoon):  # the cooldown still applies
+    with pytest.raises(wb.AlreadySent):  # the same week again today is refused (no time-based cooldown)
         wb.send_brief(r)
 
 
@@ -340,7 +339,6 @@ def test_weekly_brief_through_brevo_sends_html_in_test_mode(dataset, monkeypatch
                  email_test_mode=True, email_test_recipients=(TO,), weekly_brief_to=(CC,), weekly_brief_bcc=(BCC,))
     monkeypatch.setattr(service, "get_settings", lambda: s)
     monkeypatch.setattr(backends.urllib.request, "urlopen", fake_urlopen)
-    monkeypatch.setattr(wb, "_last_sent", 0.0)
     r = wb.run_weekly_brief(dataset)
     assert r["delivery"]["configured"] and r["delivery"]["backend"] == "brevo"
     out = wb.send_brief(r)

@@ -16,8 +16,6 @@ on the server sends it every Monday:
 import json
 import logging
 import sys
-import threading
-import time
 
 import pandas as pd
 
@@ -37,7 +35,6 @@ AGENT = "weekly_brief"
 AGENT_NAME = "Weekly Brief Agent"
 TREND_WEEKS = 6
 MIN_LANE_DELIVERIES = 20
-SEND_COOLDOWN_S = 600  # "Send now" at most once every 10 minutes
 SNS_SUBJECT_MAX = 100
 
 SHORT = {"incomplete_address": "Incomplete addresses", "same_day_after_cutoff": "Same-day orders after 08:00",
@@ -62,9 +59,6 @@ class UnknownWeek(ValueError):
 class NotConfigured(RuntimeError):
     pass
 
-
-class TooSoon(RuntimeError):
-    pass
 
 
 def _week_start(ts: pd.Series) -> pd.Series:
@@ -215,8 +209,6 @@ def run_weekly_brief(ds, week_of: str | None = None, llm: LLMClient | None = Non
 
 
 # ---------------------------------------------------------------- sending (app.email; SNS by default)
-_last_sent = 0.0
-_send_lock = threading.Lock()
 SCHEDULE = "Every Monday at 07:00 US Central"
 RECIPIENT_LIST = "weekly_brief"  # WEEKLY_BRIEF_TO / _CC / _BCC, used by backends that address recipients
 
@@ -276,19 +268,13 @@ def send_key(week_of: str) -> str:
     return f"weekly_brief:{week_of}:{send_date().isoformat()}"
 
 
-def send_brief(result: dict, *, enforce_cooldown: bool = True, resend: bool = False, trigger: str = "api") -> dict:
-    """Send the brief once. Raises NotConfigured, TooSoon, or AlreadySent (sent, or being sent, for this week
-    today); resend=True sends again on purpose."""
-    global _last_sent
+def send_brief(result: dict, *, resend: bool = False, trigger: str = "api") -> dict:
+    """Send the brief once per reporting week per day. Raises NotConfigured, or AlreadySent (sent, or being
+    sent, for this week today; the database decides, across processes); resend=True sends again on purpose."""
     backend = _backend()
     message = brief_message(result)
-    key = send_key(result["week_of"])
-    with _send_lock:
-        wait = SEND_COOLDOWN_S - (time.time() - _last_sent)
-        if enforce_cooldown and wait > 0:
-            raise TooSoon(int(wait))
-        sent = send_email(message, backend=backend, idempotency_key=key, trigger=trigger, resend=resend)
-        _last_sent = time.time()
+    sent = send_email(message, backend=backend, idempotency_key=send_key(result["week_of"]), trigger=trigger,
+                      resend=resend)
     return {"sent": True, "message_id": sent.message_id, "week_of": result["week_of"],
             "subject": result["brief"]["subject"], "backend": sent.provider, "resend": resend}
 
@@ -307,7 +293,7 @@ def _main(argv: list[str]) -> int:
 
     result = run_weekly_brief(get_dataset(), args[1] if len(args) > 1 else None)
     try:
-        out = send_brief(result, enforce_cooldown=False, resend=resend, trigger="cli" if resend else "timer")
+        out = send_brief(result, resend=resend, trigger="cli" if resend else "timer")
     except AlreadySent as exc:  # e.g. someone pressed "Send now" this morning: not an error for the timer
         out = {"sent": False, "reason": f"already {exc.status}", "key": exc.key,
                "hint": "add --resend to send it again on purpose"}

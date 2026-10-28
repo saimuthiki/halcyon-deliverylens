@@ -53,7 +53,7 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 - The company's pick procedure must not change, so there is no extra 11:00 pick wave.
 - **Number guardrail** (`app/guardrails.py: unverified_numbers`): every number an AI writes in a save plan or weekly brief must come from the facts it was given; otherwise the template is used and the reason is flagged.
 - The weekly brief goes by **Amazon SNS, not SES**: evoketechnologies.com has a DMARC `p=reject` policy, so email sent for that domain by another service would be rejected. With a domain we control, switch to SES.
-- The brief's recipients are set on the server (SNS subscriptions), never taken from a web request, and "Send now" is limited to once every 10 minutes.
+- The brief's recipients are set on the server (SNS subscriptions, or `WEEKLY_BRIEF_TO`/test recipients for SMTP), never taken from a web request. Each reporting week is sent at most once a day (database send log); different weeks can be sent back to back (no time-based cooldown).
 - An address from history is a **suggestion**: the client must confirm it. If more than one past site matches, or the email gives no detail to match on, the order is simply held as before.
 - Colours (see `DESIGN.md`): orange = problem, teal = fix, purple = AI only.
 
@@ -113,6 +113,7 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
+- **2026-10-28, dkarasu + Claude Code (5):** removed the Weekly Brief's 10-minute "Send now" cooldown (it blocked sending different weeks back to back, e.g. several testers in a demo). Duplicate protection stays: each week once a day (409 `already_sent`). First Brevo SMTP send from the app succeeded (test mode, 6 test recipients).
 - **2026-10-28, dkarasu + Claude Code (4):** the email sender comes from the secret: the API reads `SMTP_FROM_EMAIL` from `deliverylens/app` at runtime (boto3, like the other SMTP fields; ignored if not a valid address); `EMAIL_FROM_ADDRESS` in the environment still wins. The SMTP fields were added to the secret (boto3, merged, verified); `EMAIL_BACKEND` stays `sns`.
 - **2026-10-28, Sai M + Claude Code (8):** Ask page: 12 sample questions in 6 topics (big picture, causes, routing software decision, carriers, clients, complaints), each checked to route to the right data tool; a "What Ask can do" panel lists its abilities, its data sources (Halcyon dataset, 1 Apr to 25 Sep 2026) and what it cannot answer.
 - **2026-10-28, Sai M + Claude Code (7):** Order desk inbox cut from 17 to 11 sample emails, one per scenario (removed M03, M04, M06, M07, M15, M16: near-duplicates; the same-day rules they showed are still unit-tested in `test_late_orders.py`). Each email has a plain scenario title and one-line meaning; inbox items show "N. scenario" first. Tests updated (backend, frontend, e2e counts). Auto-deploy now runs `python -m app.loader --if-empty` after restarting the API, so the live inbox follows `manifest.json` (this also resets the Order desk demo on every deploy).

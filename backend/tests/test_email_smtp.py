@@ -419,7 +419,6 @@ def test_weekly_brief_over_smtp_in_test_mode(dataset, smtp_server, monkeypatch):
     s = settings(**SMTP_SETTINGS, email_test_mode=True, email_test_recipients=("qa@example.com",),
                  weekly_brief_to=(TO,), weekly_brief_bcc=(BCC,))
     monkeypatch.setattr(service, "get_settings", lambda: s)
-    monkeypatch.setattr(wb, "_last_sent", 0.0)
     r = wb.run_weekly_brief(dataset)
     assert r["delivery"]["configured"] and r["delivery"]["backend"] == "smtp"
     out = wb.send_brief(r)
@@ -432,7 +431,6 @@ def test_timer_and_send_now_on_the_same_day_send_once_and_next_monday_sends_agai
     from app.agents import weekly_brief as wb
 
     monkeypatch.setattr(service, "get_settings", lambda: mem_settings(weekly_brief_to=(TO,)))
-    monkeypatch.setattr(wb, "SEND_COOLDOWN_S", 0)
     monday = datetime(2026, 11, 2).date()
     monkeypatch.setattr(wb, "send_date", lambda: monday)
     r = wb.run_weekly_brief(dataset)
@@ -454,7 +452,6 @@ def test_send_endpoint_blocks_duplicates_and_guards_resend(client, monkeypatch):
     from app.api import routes, security
 
     monkeypatch.setattr(service, "get_settings", lambda: mem_settings(weekly_brief_to=(TO,)))
-    monkeypatch.setattr(wb, "SEND_COOLDOWN_S", 0)
     assert client.post("/api/briefs/weekly/send").status_code == 200
     again = client.post("/api/briefs/weekly/send")
     assert again.status_code == 409 and again.json()["error"]["code"] == "already_sent"
@@ -476,10 +473,21 @@ def test_send_endpoint_reports_provider_failure_without_details(client, smtp_ser
     smtp_server.plans = [{"login": smtplib.SMTPAuthenticationError(535, f"bad login {USER}".encode())}]
     monkeypatch.setattr(service, "get_settings",
                         lambda: settings(**SMTP_SETTINGS, email_test_mode=False, weekly_brief_to=(TO,)))
-    monkeypatch.setattr(wb, "SEND_COOLDOWN_S", 0)
     r = client.post("/api/briefs/weekly/send")
     body = r.json()
     assert r.status_code == 502 and body["error"]["code"] == "email_not_sent"
     assert "SMTPAuthenticationError, code 535" in body["error"]["message"]
     assert USER not in r.text and PASSWORD not in r.text and TO not in r.text
     assert rows()[0][1] == "failed"
+
+
+def test_several_weeks_back_to_back_like_a_demo(client, monkeypatch):
+    """No time-based cooldown: different weeks send one after another; only the same week twice today is refused."""
+    monkeypatch.setattr(service, "get_settings", lambda: mem_settings(weekly_brief_to=(TO,)))
+    for week in ("2026-09-14", "2026-09-07", "2026-08-31"):
+        assert client.post("/api/agents/weekly-brief", json={"week_of": week}).status_code == 200  # preview
+        r = client.post("/api/briefs/weekly/send", json={"week_of": week})
+        assert r.status_code == 200 and r.json()["week_of"] == week
+    again = client.post("/api/briefs/weekly/send", json={"week_of": "2026-09-07"})
+    assert again.status_code == 409 and again.json()["error"]["code"] == "already_sent"
+    assert len(MEMORY.outbox) == 3
