@@ -99,7 +99,8 @@ def get_settings() -> Settings:
         weekly_brief_topic_arn=os.getenv("WEEKLY_BRIEF_TOPIC_ARN", "").strip(),
         public_site_url=(os.getenv("PUBLIC_SITE_URL", "").strip() or "http://localhost:5173").rstrip("/"),
         email_backend=os.getenv("EMAIL_BACKEND", "").strip().lower() or "sns",
-        email_from_address=os.getenv("EMAIL_FROM_ADDRESS", "").strip(),
+        # The sender: EMAIL_FROM_ADDRESS if set, else SMTP_FROM_EMAIL from the runtime secret (production)
+        email_from_address=(os.getenv("EMAIL_FROM_ADDRESS", "").strip() or runtime_secret("SMTP_FROM_EMAIL").strip()),
         email_from_name=os.getenv("EMAIL_FROM_NAME", "").strip() or "DeliveryLens",
         email_reply_to=_csv("EMAIL_REPLY_TO"),
         email_test_mode=_flag("EMAIL_TEST_MODE", True),

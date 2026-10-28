@@ -2,7 +2,7 @@
 
 APP_SECRET_ID names the secret (production: deliverylens/app; the deploy writes it into app.env, with
 APP_SECRET_ACCOUNT). The secret that comes back must match that name, AWS_REGION and APP_SECRET_ACCOUNT. Only the keys in
-RUNTIME_KEYS are used. They are kept in this process's memory: never written to a file, never put into
+RUNTIME_KEYS are used (the SMTP connection settings and the sender, SMTP_FROM_EMAIL). They are kept in this process's memory: never written to a file, never put into
 os.environ, never logged. The deploy leaves these keys out of app.env, so the SMTP credentials are not on the
 server's disk.
 
@@ -13,11 +13,14 @@ EMAIL_BACKEND=smtp fails closed ("EMAIL_BACKEND=smtp needs SMTP_...").
 import json
 import logging
 import os
+import re
 import threading
 
 log = logging.getLogger(__name__)
 
-RUNTIME_KEYS = ("SMTP_HOST", "SMTP_PORT", "SMTP_SECURITY", "SMTP_USERNAME", "SMTP_PASSWORD")
+RUNTIME_KEYS = ("SMTP_HOST", "SMTP_PORT", "SMTP_SECURITY", "SMTP_USERNAME", "SMTP_PASSWORD",
+                "SMTP_FROM_EMAIL")  # the sender; EMAIL_FROM_ADDRESS in the environment wins (config.py)
+_ADDRESS_RE = re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$")
 
 
 class SecretError(ValueError):
@@ -43,6 +46,9 @@ def parse_secret(secret_string: str) -> dict[str, str]:
             continue
         if key == "SMTP_PORT" and not (value.isdigit() and 0 < int(value) < 65536):
             log.warning(json.dumps({"event": "runtime_secret_ignored", "key": key, "reason": "not a port number"}))
+            continue
+        if key == "SMTP_FROM_EMAIL" and not _ADDRESS_RE.match(value):
+            log.warning(json.dumps({"event": "runtime_secret_ignored", "key": key, "reason": "not an email address"}))
             continue
         out[key] = value
     return out

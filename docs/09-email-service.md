@@ -93,7 +93,8 @@ flowchart LR
 |---|---|---|
 | `EMAIL_BACKEND` | `sns` | `sns`, `smtp` (Brevo SMTP), `brevo` (Brevo HTTP API), `console`, `memory` |
 | `WEEKLY_BRIEF_TOPIC_ARN` | – | The SNS backend's topic |
-| `EMAIL_FROM_ADDRESS` | – | Sender. **Must be verified and authenticated with the provider.** Not used by SNS. |
+| `EMAIL_FROM_ADDRESS` | – | Sender. **Must be verified and authenticated with the provider.** Not used by SNS. In production, leave it unset and put the sender in the secret as `SMTP_FROM_EMAIL` instead; if both are set, `EMAIL_FROM_ADDRESS` wins. |
+| `SMTP_FROM_EMAIL` | – | The sender, read from the secret (`deliverylens/app`) at runtime. Ignored if it is not a valid email address. |
 | `EMAIL_FROM_NAME` | `DeliveryLens` | Display name |
 | `EMAIL_REPLY_TO` | – | Optional, comma separated |
 | `EMAIL_TEST_MODE` | `true` | When on, every email goes only to `EMAIL_TEST_RECIPIENTS`; Cc and Bcc are dropped and the subject starts with `[TEST]`. **With no test recipients, nothing is sent** (no connection is even opened). Applies to `smtp`, `brevo`, `console` and `memory`; not to SNS (the topic always chooses its recipients). |
@@ -131,7 +132,8 @@ flowchart LR
   field** and adds `APP_SECRET_ID=deliverylens/app`. The file is created owner-only (`umask 077`) through a
   temporary file that is always removed; if the secret cannot be read, the deploy stops and the previous
   `app.env` stays.
-- The API reads the five `SMTP_*` fields itself with boto3 (`app/runtime_secrets.py`), through the EC2 instance
+- The API reads the `SMTP_*` fields (host, port, security, username, password and the sender
+  `SMTP_FROM_EMAIL`) itself with boto3 (`app/runtime_secrets.py`), through the EC2 instance
   role, once per process. It checks that the secret returned is the expected one (name, region and account,
   from `APP_SECRET_ID`, `AWS_REGION` and `APP_SECRET_ACCOUNT`); otherwise it ignores it. They live only in the process's memory: not on disk, not in the environment, not in
   the image or in GitHub. An environment variable with the same name wins (local development).

@@ -156,7 +156,28 @@ def test_environment_wins_and_other_keys_never_come_from_the_secret(monkeypatch)
     assert rs.value("BREVO_API_KEY", "unset") == "unset"  # only the SMTP keys are read from the secret
 
 
+def test_the_sender_is_read_and_checked():
+    assert rs.parse_secret(json.dumps({"SMTP_FROM_EMAIL": " brief@example.com "})) == {"SMTP_FROM_EMAIL": "brief@example.com"}
+    assert rs.parse_secret(json.dumps({"SMTP_FROM_EMAIL": "not an address"})) == {}
+    assert rs.parse_secret(json.dumps({"SMTP_FROM_EMAIL": "a@b\nBcc: x@example.com"})) == {}  # no header injection
+
+
 # ---------------------------------------------------------------- settings
+def test_the_sender_comes_from_the_secret_unless_the_environment_sets_one(monkeypatch):
+    use_secret(monkeypatch, FakeSecrets({**APP_SECRET, **SMTP, "SMTP_FROM_EMAIL": "brief@example.com"}))
+    monkeypatch.delenv("EMAIL_FROM_ADDRESS", raising=False)
+    assert get_settings().email_from_address == "brief@example.com"
+    get_settings.cache_clear()
+    monkeypatch.setenv("EMAIL_FROM_ADDRESS", "override@example.com")
+    assert get_settings().email_from_address == "override@example.com"
+
+
+def test_an_empty_sender_in_the_secret_leaves_it_unset(monkeypatch):
+    use_secret(monkeypatch, FakeSecrets({**APP_SECRET, **SMTP, "SMTP_FROM_EMAIL": ""}))
+    monkeypatch.delenv("EMAIL_FROM_ADDRESS", raising=False)
+    assert get_settings().email_from_address == ""  # smtp then refuses to send: "no sender address"
+
+
 def test_settings_take_smtp_from_the_runtime_secret(monkeypatch):
     use_secret(monkeypatch, FakeSecrets({**APP_SECRET, **SMTP}))
     s = get_settings()

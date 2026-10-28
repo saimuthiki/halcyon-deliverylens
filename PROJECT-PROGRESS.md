@@ -113,6 +113,7 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
+- **2026-10-28, dkarasu + Claude Code (4):** the email sender comes from the secret: the API reads `SMTP_FROM_EMAIL` from `deliverylens/app` at runtime (boto3, like the other SMTP fields; ignored if not a valid address); `EMAIL_FROM_ADDRESS` in the environment still wins. The SMTP fields were added to the secret (boto3, merged, verified); `EMAIL_BACKEND` stays `sns`.
 - **2026-10-28, Sai M + Claude Code (8):** Ask page: 12 sample questions in 6 topics (big picture, causes, routing software decision, carriers, clients, complaints), each checked to route to the right data tool; a "What Ask can do" panel lists its abilities, its data sources (Halcyon dataset, 1 Apr to 25 Sep 2026) and what it cannot answer.
 - **2026-10-28, Sai M + Claude Code (7):** Order desk inbox cut from 17 to 11 sample emails, one per scenario (removed M03, M04, M06, M07, M15, M16: near-duplicates; the same-day rules they showed are still unit-tested in `test_late_orders.py`). Each email has a plain scenario title and one-line meaning; inbox items show "N. scenario" first. Tests updated (backend, frontend, e2e counts). Auto-deploy now runs `python -m app.loader --if-empty` after restarting the API, so the live inbox follows `manifest.json` (this also resets the Order desk demo on every deploy).
 - **2026-10-28, dkarasu + Claude Code (3):** email service, Stage 2 (not deployed yet; production stays on SNS).
