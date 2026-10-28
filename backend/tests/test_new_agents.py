@@ -173,11 +173,12 @@ def test_one_click_confirmation_releases_the_order(desk):
 
 
 def test_yes_reply_confirms_and_a_correction_must_come_from_the_reply(desk):
-    desk.post("/api/desk/process/M03")
-    r = desk.post("/api/desk/reply/M03", json={"text": "Yes, that's right. Thanks!"}).json()
+    desk.post("/api/desk/process/M02")
+    r = desk.post("/api/desk/reply/M02", json={"text": "Yes, that's right. Thanks!"}).json()
     assert r["reply"]["outcome"] == "confirmed" and r["trace"]["decision"] == "accepted"
-    assert r["trace"]["wms_order"]["ship_to"]["street"] == "250 West Spring Street"
+    assert r["trace"]["wms_order"]["ship_to"]["postcode"] == "45402"
 
+    desk.post("/api/desk/reset")
     desk.post("/api/desk/process/M02")
     r = desk.post("/api/desk/reply/M02", json={"text": "No, please send it to 1180 Webster Street, 45404."}).json()
     assert r["reply"]["outcome"] == "corrected"

@@ -38,7 +38,7 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 |---|---|---|
 | Overview, why late, carriers, clients, stock and routes, vendor check | `frontend/src/pages/*`, `backend/app/analytics` | ✅ Live |
 | What-if simulator (fix the causes, see the on-time %) | `Simulator.tsx`, `POST /api/simulate` | ✅ Live |
-| **Order desk:** AI reads 17 order emails in 10 steps, guardrails, a person approves before the WMS | `OrderDesk.tsx`, `backend/app/desk/pipeline.py` | ✅ Live: all 17 emails give the expected result |
+| **Order desk:** AI reads 11 order emails (one per scenario) in 10 steps, guardrails, a person approves before the WMS | `OrderDesk.tsx`, `backend/app/desk/pipeline.py` | ✅ Live: all 11 emails give the expected result |
 | **Late same-day orders:** before 08:00 → today; 08:00–09:00 grace → today; 09:00–10:00 only urgent (valid reason, or "urgent" from a priority client) → today; after 10:00 → tomorrow | `LateOrders.tsx`, `backend/app/analytics/late_orders.py`, env `SAME_DAY_GRACE_UNTIL` / `SAME_DAY_HARD_STOP` | ✅ Live (729 late deliveries avoided a year, $43K SLA) |
 | Delay alert: AI drafts the client message plus a recovery plan | `backend/app/agents/delay_alert.py` | ✅ Live |
 | Ask: questions in plain English over the data and complaints | `Ask.tsx`, `backend/app/agents/ask.py` | ✅ Live |
@@ -113,6 +113,7 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
+- **2026-10-28, Sai M + Claude Code (7):** Order desk inbox cut from 17 to 11 sample emails, one per scenario (removed M03, M04, M06, M07, M15, M16: near-duplicates; the same-day rules they showed are still unit-tested in `test_late_orders.py`). Each email has a plain scenario title and one-line meaning; inbox items show "N. scenario" first. Tests updated (backend, frontend, e2e counts). Auto-deploy now runs `python -m app.loader --if-empty` after restarting the API, so the live inbox follows `manifest.json` (this also resets the Order desk demo on every deploy).
 - **2026-10-28, dkarasu + Claude Code (3):** email service, Stage 2 (not deployed yet; production stays on SNS).
   - New `smtp` backend (Brevo SMTP over STARTTLS/TLS only; retries for transient failures only, within ~40 s; never retried after the email's DATA was sent). `brevo` (HTTP API) kept.
   - Durable duplicate protection: new `email_sends` table; the Weekly Brief goes out once per reporting week per day (timer and "Send now" share the key); explicit resend by `--resend` on the server, or the API with a DEMO_TOKEN. No migration to run (created at start-up).

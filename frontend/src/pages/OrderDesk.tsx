@@ -281,8 +281,8 @@ export default function OrderDesk() {
             </div>
           ) : (
             <ul className="flex-1 overflow-y-auto" aria-label="Client emails">
-              {messages.map((m) => (
-                <InboxItem key={m.id} m={m} active={m.id === selected} running={running === m.id} onSelect={() => setSelected(m.id)} />
+              {messages.map((m, i) => (
+                <InboxItem key={m.id} n={i + 1} m={m} active={m.id === selected} running={running === m.id} onSelect={() => setSelected(m.id)} />
               ))}
             </ul>
           )}
@@ -366,7 +366,7 @@ export default function OrderDesk() {
 
 /* ---------- inbox ---------- */
 
-function InboxItem({ m, active, running, onSelect }: { m: DeskMessage; active: boolean; running: boolean; onSelect: () => void }) {
+function InboxItem({ n, m, active, running, onSelect }: { n: number; m: DeskMessage; active: boolean; running: boolean; onSelect: () => void }) {
   const processed = m.decision != null;
   const matches = processed && m.decision === m.expected_decision;
   return (
@@ -379,18 +379,17 @@ function InboxItem({ m, active, running, onSelect }: { m: DeskMessage; active: b
         className={`relative flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors ${active ? 'bg-route-tint' : 'hover:bg-paper'}`}
       >
         {active && <span className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-route" aria-hidden="true" />}
-        <span className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-[15px] font-semibold text-ink">
-            <span className="num text-slate">{m.id}</span> {m.from_name}
-          </span>
-          <span className="num shrink-0 text-sm text-slate">{clock(m.received_at)}</span>
+        <span className="flex items-baseline gap-2 text-[15px] font-semibold leading-snug text-ink">
+          <span className="num shrink-0 text-slate">{n}.</span>
+          <span>{m.scenario}</span>
         </span>
-        <span className="flex items-center gap-1.5 truncate text-sm text-ink-soft">
+        <span className="flex items-center gap-1.5 truncate pl-5 text-sm text-slate">
           {m.has_attachment && <Paperclip className="h-3.5 w-3.5 shrink-0" aria-label="Has attachment" />}
-          <span className="truncate">{m.subject}</span>
+          <span className="truncate">
+            {m.from_name} · <span className="num">{clock(m.received_at)}</span>
+          </span>
         </span>
-        <span className="text-sm text-ink">{m.scenario}</span>
-        <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
+        <span className="mt-0.5 flex flex-wrap items-center gap-1.5 pl-5">
           <DecisionChip decision={m.expected_decision} prefix="Expect: " />
           {running ? (
             <span className="inline-flex items-center gap-1 text-sm text-slate">

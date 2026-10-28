@@ -67,6 +67,11 @@ jobs:
           aws ecr get-login-password --region "$AWS_REGION" | sudo -u ec2-user docker login --username AWS --password-stdin "${IMAGE%%/*}"
           sudo -u ec2-user docker compose -f docker-compose.prod.yml pull api
           sudo -u ec2-user docker compose -f docker-compose.prod.yml up -d api
+          # Reload the sample order inbox from the new image (data loads only if the database is empty).
+          for i in $(seq 1 12); do
+            sudo -u ec2-user docker compose -f docker-compose.prod.yml exec -T api python -m app.loader --if-empty && break
+            sleep 5
+          done
           docker image prune -f
           SH
           CMD_ID=$(aws ssm send-command --instance-ids "$EC2_INSTANCE_ID" --document-name AWS-RunShellScript \

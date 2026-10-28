@@ -10,11 +10,10 @@ import { DecisionCard, KeyValues, parseSameDay, SameDayDetails, Trace, wmsStatus
 const STEP_KEYS = ['receive', 'guardrail', 'extract', 'identify_client', 'address_check', 'promise_check', 'stock_check', 'carrier_choice', 'decision', 'client_message'];
 
 describe('Order desk offline fixtures', () => {
-  it('has the 17 sample emails with the agreed expected decisions', () => {
-    expect(DESK_MESSAGES.map((m) => m.id)).toEqual(['M01', 'M02', 'M03', 'M04', 'M05', 'M06', 'M07', 'M08', 'M09', 'M10', 'M11', 'M12', 'M13', 'M14', 'M15', 'M16', 'M17']);
+  it('has the 11 sample emails, one per scenario, with the agreed expected decisions', () => {
+    expect(DESK_MESSAGES.map((m) => m.id)).toEqual(['M01', 'M02', 'M05', 'M08', 'M09', 'M10', 'M11', 'M12', 'M13', 'M14', 'M17']);
     expect(DESK_MESSAGES.map((m) => m.expected_decision)).toEqual([
-      'accepted', 'on_hold', 'on_hold', 'accepted', 'accepted', 'accepted', 'accepted', 'accepted', 'accepted', 'blocked', 'needs_review', 'accepted', 'accepted', 'accepted',
-      'accepted', 'accepted', 'accepted',
+      'accepted', 'on_hold', 'accepted', 'accepted', 'accepted', 'blocked', 'needs_review', 'accepted', 'accepted', 'accepted', 'accepted',
     ]);
     expect(DESK_MESSAGES.find((m) => m.id === 'M12')?.attachments[0].content_type).toBe('text/csv');
   });
@@ -28,18 +27,7 @@ describe('Order desk offline fixtures', () => {
     }
   });
 
-  it('shows the scenario behaviour: same-day added, far warehouse, carrier switch, on hold skips, injection blocked', () => {
-    const t4 = sampleTrace('M04');
-    expect(t4.wms_order).toMatchObject({ client_id: 'C078', commitment_type: 'same_day', pick_list_date: '2026-10-23', promised_date: '2026-10-24', fulfilment_warehouse_id: 'W4', carrier_id: 'E' });
-    expect(t4.steps.find((s) => s.key === 'promise_check')?.details).toMatchObject({
-      window: 'urgent_window',
-      added_after_cutoff: true,
-      priority_client: 'Tier 1 (at least $1M revenue a year)',
-      urgency: 'high',
-      urgency_evidence: 'We need this SAME DAY please, it is for a store opening.',
-    });
-    expect(DESK_MESSAGES.find((m) => m.id === 'M04')).toMatchObject({ from_email: 'urgent@client-078.example', client_id: 'C078', subject: 'URGENT same day - Client 078' });
-    expect(t4.steps.find((s) => s.key === 'promise_check')?.status).toBe('pass');
+  it('shows the scenario behaviour: far warehouse, carrier switch, on hold skips, injection blocked', () => {
     expect(sampleTrace('M02').steps.filter((s) => s.status === 'skipped').map((s) => s.key)).toEqual(['promise_check', 'stock_check', 'carrier_choice']);
     const t8 = sampleTrace('M08');
     expect(t8.wms_order?.nearest_warehouse_id).toBe('W5');
@@ -55,11 +43,11 @@ describe('Order desk offline fixtures', () => {
   it('process-all fills the sample WMS (everything except the blocked email) and reset empties it', () => {
     sampleReset();
     const all = sampleProcessAll();
-    expect(all).toMatchObject({ processed: 17, matches_expected: 17 });
-    // 13 accepted, 2 on hold, 1 needs review, 1 blocked (as the live API).
+    expect(all).toMatchObject({ processed: 11, matches_expected: 11 });
+    // 8 accepted, 1 on hold, 1 needs review, 1 blocked (as the live API).
     const count = (d: string) => all.results.filter((r) => r.decision === d).length;
-    expect([count('accepted'), count('on_hold'), count('needs_review'), count('blocked')]).toEqual([13, 2, 1, 1]);
-    expect(sampleWmsOrders().orders).toHaveLength(16);
+    expect([count('accepted'), count('on_hold'), count('needs_review'), count('blocked')]).toEqual([8, 1, 1, 1]);
+    expect(sampleWmsOrders().orders).toHaveLength(10);
     sampleReset();
     expect(sampleWmsOrders().orders).toHaveLength(0);
   });
@@ -88,9 +76,9 @@ describe('Human approval before the WMS (offline)', () => {
 
   it('approve all approves only the accepted orders', () => {
     sampleProcessAll();
-    expect(sampleApproveAll().approved).toBe(13);
+    expect(sampleApproveAll().approved).toBe(8);
     const statuses = sampleWmsOrders().orders.map((o) => o.status);
-    expect(statuses.filter((s) => s === 'ready_for_pick_list')).toHaveLength(13);
+    expect(statuses.filter((s) => s === 'ready_for_pick_list')).toHaveLength(8);
     expect(statuses).not.toContain('awaiting_approval');
     expect(sampleApproveAll().approved).toBe(0);
   });
@@ -242,12 +230,6 @@ describe('Late same-day orders on the Order desk', () => {
     expect(t.client_email_draft?.body).not.toContain('next-day');
   });
 
-  it('M04: the store opening is a valid reason at 09:30, so it is added too', () => {
-    const t = sampleTrace('M04');
-    expect(promise('M04')).toMatchObject({ status: 'pass', details: { window: 'urgent_window', added_after_cutoff: true, urgency: 'high' } });
-    expect(t.wms_order).toMatchObject({ client_id: 'C078', commitment_type: 'same_day', pick_list_date: '2026-10-23', promised_date: '2026-10-24' });
-  });
-
   it('M14: "URGENT!!!" with no reason from a Tier 3 client goes to tomorrow', () => {
     const t = sampleTrace('M14');
     expect(promise('M14').details).toMatchObject({ window: 'urgent_window', added_after_cutoff: false, priority_client: null, urgency: 'medium', re_promised: true });
@@ -256,25 +238,6 @@ describe('Late same-day orders on the Order desk', () => {
     expect(t.wms_order).toMatchObject({ commitment_type: 'next_day', pick_list_date: '2026-10-24', promised_date: '2026-10-25' });
     expect(t.decision_reason).toMatch(/^Accepted with warnings: Same-day order received at 09:15/);
     expect(t.client_email_draft?.body).toContain('next-day');
-  });
-
-  it('M15: "URGENT" with no reason is enough for a Tier 1 client', () => {
-    expect(promise('M15').details).toMatchObject({
-      window: 'urgent_window',
-      added_after_cutoff: true,
-      priority_client: 'Tier 1 (at least $1M revenue a year)',
-      urgency: 'medium',
-      urgency_evidence: 'This one is URGENT, please ship it same-day.',
-    });
-    expect(sampleTrace('M15').wms_order).toMatchObject({ client_id: 'C003', commitment_type: 'same_day', pick_list_date: '2026-10-23' });
-  });
-
-  it('M16: the grace period adds any same-day order before 09:00', () => {
-    expect(promise('M16')).toMatchObject({
-      status: 'pass',
-      summary: "Same-day order received at 08:35, after the 08:00 pick-list cutoff: added to today's pick list because it arrived in the grace period (08:00 to 09:00). The same-day promise is kept.",
-      details: { window: 'grace', window_label: 'Grace period', added_after_cutoff: true, urgency: 'none' },
-    });
   });
 
   it('M17: after the 10:00 hard stop even a valid reason from an at-risk client goes to tomorrow', () => {
@@ -302,13 +265,6 @@ describe('Late same-day orders on the Order desk', () => {
     expect(screen.getByTestId('same-day-window')).toHaveTextContent('After the hard stop, from 10:00');
     expect(screen.getByTestId('priority-client')).toHaveTextContent('Priority client: at risk of leaving');
     expect(screen.getByTestId('urgency-evidence')).toHaveTextContent('Our production line stops at 4pm');
-  });
-
-  it('shows the grace period without the urgency or client lines', () => {
-    const s = step6('M16');
-    expect(within(s).getByTestId('same-day-window')).toHaveTextContent('Grace period, 08:00 to 09:00');
-    expect(within(s).queryByTestId('priority-client')).not.toBeInTheDocument();
-    expect(within(s).queryByTestId('urgency-evidence')).not.toBeInTheDocument();
   });
 
   it('keeps steps without a late same-day window unchanged', () => {

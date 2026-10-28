@@ -5,137 +5,89 @@
       "id": "M01",
       "file": "01-complete-standard-order.eml",
       "client_id": "C055",
-      "scenario": "Complete order, labelled layout",
+      "scenario": "Clean order",
       "expected_decision": "accepted",
-      "what_it_demonstrates": "A clean email from an at-risk client goes straight to the pick list with no typing. The old spreadsheet would send it with Carrier F, which is weak to the Northeast."
+      "what_it_demonstrates": "Every detail is there, so it goes straight to the pick list with no typing."
     },
     {
       "id": "M02",
       "file": "02-missing-postcode.eml",
       "client_id": "C263",
-      "scenario": "Missing postcode",
+      "scenario": "Address missing its postcode",
       "expected_decision": "on_hold",
-      "what_it_demonstrates": "Cause 2 (incomplete address): the order is held before picking and a follow-up asking for the postcode is drafted, instead of shipping and failing at the door."
-    },
-    {
-      "id": "M03",
-      "file": "03-missing-street.eml",
-      "client_id": "C042",
-      "scenario": "Missing street, free-text order line",
-      "expected_decision": "on_hold",
-      "what_it_demonstrates": "Cause 2 again with a different layout: only a city, state and ZIP are given, so the street is requested."
-    },
-    {
-      "id": "M04",
-      "file": "04-same-day-after-cutoff.eml",
-      "client_id": "C078",
-      "scenario": "Same-day order received 09:30",
-      "expected_decision": "accepted",
-      "what_it_demonstrates": "Cause 3 (same-day after the 08:00 cutoff): the email arrives at 09:30, after the 09:00 grace period, so only urgent orders are added. The AI reads a valid reason ('it is for a store opening') and quotes the sentence; code checks the quote, so the order is added to today's pick list and keeps its same-day promise."
+      "what_it_demonstrates": "The order is held and the client is asked to confirm the address before anything ships, instead of failing at the door."
     },
     {
       "id": "M05",
       "file": "05-same-day-before-cutoff.eml",
       "client_id": "C003",
-      "scenario": "Same-day order received 07:10",
+      "scenario": "Same-day order before 08:00",
       "expected_decision": "accepted",
-      "what_it_demonstrates": "A same-day order before 08:00 makes today's pick list and keeps its same-day promise."
-    },
-    {
-      "id": "M06",
-      "file": "06-one-line-address.eml",
-      "client_id": "C101",
-      "scenario": "One-line free-text address",
-      "expected_decision": "accepted",
-      "what_it_demonstrates": "The intake agent reads an address written on one line, which a fixed template cannot."
-    },
-    {
-      "id": "M07",
-      "file": "07-table-layout.eml",
-      "client_id": "C092",
-      "scenario": "Table layout with four lines",
-      "expected_decision": "accepted",
-      "what_it_demonstrates": "A different client layout (a text table with several lines) is read without a template for it."
+      "what_it_demonstrates": "It arrives in time for the pick list, so it ships today as promised."
     },
     {
       "id": "M08",
       "file": "08-west-stock-elsewhere.eml",
       "client_id": "C246",
-      "scenario": "West destination, nearest warehouse out of stock",
+      "scenario": "Nearest warehouse has no stock",
       "expected_decision": "accepted",
-      "what_it_demonstrates": "Cause 4 (stock not at the nearest warehouse): W5 West has no HX-4410, so the order ships from a Midwest warehouse about 1,500 miles away, and the agent warns about it."
+      "what_it_demonstrates": "The order ships from a warehouse further away, and the agent warns it may arrive late."
     },
     {
       "id": "M09",
       "file": "09-southeast-carrier-choice.eml",
       "client_id": "C190",
-      "scenario": "Southeast destination, carrier choice",
+      "scenario": "Choosing a better carrier",
       "expected_decision": "accepted",
-      "what_it_demonstrates": "Cause 1 (weak carrier lane): the old spreadsheet picks Carrier F, the cheapest, which is about 53% on time to the Southeast; the advisor picks a strong carrier for this at-risk client."
+      "what_it_demonstrates": "The old spreadsheet picks the cheapest carrier, which is often late on this route; the agent picks a reliable one."
     },
     {
       "id": "M10",
       "file": "10-prompt-injection.eml",
       "client_id": "C271",
-      "scenario": "Prompt-injection attempt in the body",
+      "scenario": "Email that tries to trick the AI",
       "expected_decision": "blocked",
-      "what_it_demonstrates": "The guardrail stops an email that tries to give the AI instructions; nothing reaches the model or the warehouse system."
+      "what_it_demonstrates": "The email hides instructions for the AI. The guardrail blocks it before the AI or the warehouse system sees it."
     },
     {
       "id": "M11",
       "file": "11-vague-quantity.eml",
       "client_id": "C234",
-      "scenario": "Vague quantity",
+      "scenario": "Unclear quantity",
       "expected_decision": "needs_review",
-      "what_it_demonstrates": "\"A couple of pallets of the usual\" has no SKU or number, so the agent does not guess: it routes the order to a person."
+      "what_it_demonstrates": "'A couple of pallets of the usual': the agent does not guess, it hands the order to a person."
     },
     {
       "id": "M12",
       "file": "12-csv-purchase-order.eml",
       "client_id": "C209",
-      "scenario": "Order lines in an attached CSV purchase order",
+      "scenario": "Order in an attachment",
       "expected_decision": "accepted",
-      "what_it_demonstrates": "The order lines are only in the CSV attachment; the agent reads the attachment as well as the email body."
+      "what_it_demonstrates": "The order lines are only in an attached spreadsheet (CSV), and the agent reads it."
     },
     {
       "id": "M13",
       "file": "13-same-day-line-stop.eml",
       "client_id": "C076",
-      "scenario": "Same-day order received 09:40, production line stops at 3pm",
+      "scenario": "Late same-day order with a real reason",
       "expected_decision": "accepted",
-      "what_it_demonstrates": "Urgent window (09:00 to 10:00): the AI reads the urgency and quotes 'Our production line stops at 3pm without these parts.'; code checks the quote is in the email. A valid reason qualifies any client, so the order is added to today's pick list and keeps its same-day promise."
+      "what_it_demonstrates": "It arrives at 09:40, after the cut-off, but says the production line stops at 3pm, so it is still added to today."
     },
     {
       "id": "M14",
       "file": "14-shouting-urgent.eml",
       "client_id": "C018",
-      "scenario": "Same-day order received 09:15, \"URGENT!!!\" only",
+      "scenario": "Late same-day order that only shouts URGENT",
       "expected_decision": "accepted",
-      "what_it_demonstrates": "Shouting is not enough: 'URGENT!!!' with no reason is only 'says urgent', and Client 018 is Tier 3 and not at risk, so the order is not added. It is honestly re-promised as next-day."
-    },
-    {
-      "id": "M15",
-      "file": "15-urgent-tier1-client.eml",
-      "client_id": "C003",
-      "scenario": "Same-day order received 09:20, \"URGENT\" from a Tier 1 client",
-      "expected_decision": "accepted",
-      "what_it_demonstrates": "A priority client: 'URGENT' with no reason is enough for a Tier 1 client (at least $1M revenue a year) or an at-risk client, so the order is added to today's pick list."
-    },
-    {
-      "id": "M16",
-      "file": "16-same-day-grace-period.eml",
-      "client_id": "C051",
-      "scenario": "Same-day order received 08:35, not urgent",
-      "expected_decision": "accepted",
-      "what_it_demonstrates": "Grace period (08:00 to 09:00): every same-day order with a complete address is still added to today's pick list, urgent or not."
+      "what_it_demonstrates": "It arrives at 09:15 with 'URGENT!!!' and no reason, so it moves to next day and the reply says so honestly."
     },
     {
       "id": "M17",
       "file": "17-urgent-after-hard-stop.eml",
       "client_id": "C190",
-      "scenario": "Same-day order received 10:20, production line stops",
+      "scenario": "Same-day order after 10:00",
       "expected_decision": "accepted",
-      "what_it_demonstrates": "Hard stop (10:00): even a valid reason from an at-risk client cannot reach today's pick list after 10:00. The order is re-promised as next-day, and the reply says so honestly."
+      "what_it_demonstrates": "Too late for today even with a good reason, so it moves to next day and the client is told."
     }
   ]
 }

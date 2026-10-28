@@ -258,7 +258,7 @@ flowchart TB
   NAV --> S5["Carriers<br/>carrier × region heatmap,<br/>best carrier per region"]
   NAV --> S6["At-risk clients<br/>the 9 clients, $14.2M"]
   NAV --> S6b["Stock & routes<br/>stock-outs, route deviation"]
-  NAV --> S6c["Order desk (live)<br/>17 emails → approved<br/>WMS orders"]
+  NAV --> S6c["Order desk (live)<br/>11 emails → approved<br/>WMS orders"]
   NAV --> S7["Order intake agent<br/>paste email → checked order"]
   NAV --> S8["Ask DeliveryLens<br/>questions in plain English"]
   NAV --> S9["Agent activity<br/>log of every AI call"]

@@ -22,7 +22,7 @@ test.describe('Order desk (live)', () => {
     await page.goto('/order-desk');
     await expect(page.getByRole('heading', { level: 1, name: /Order desk/ })).toBeVisible();
     const inbox = page.getByRole('list', { name: 'Client emails' });
-    await expect(inbox.getByRole('button')).toHaveCount(17);
+    await expect(inbox.getByRole('button')).toHaveCount(11);
     await expect(page.getByTestId('desk-model')).toHaveText(/^AI: /);
     await expect(page.getByTestId('wms-empty')).toBeVisible();
 
@@ -60,23 +60,23 @@ test.describe('Order desk (live)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('run all 17: every decision matches, WMS fills, then reset empties it', async ({ page }, testInfo) => {
+  test('run all 11: every decision matches, WMS fills, then reset empties it', async ({ page }, testInfo) => {
     test.setTimeout(120_000);
     await page.goto('/order-desk');
     const inbox = page.getByRole('list', { name: 'Client emails' });
-    await expect(inbox.getByRole('button')).toHaveCount(17);
+    await expect(inbox.getByRole('button')).toHaveCount(11);
 
     const resp = page.waitForResponse((r) => r.url().includes('/api/desk/process-all'), { timeout: 110_000 });
     await page.getByRole('button', { name: /^Run all/ }).click();
     expect((await resp).status()).toBe(200);
 
-    await expect(page.getByTestId('batch-summary')).toContainText('17 of 17', { timeout: 30_000 });
+    await expect(page.getByTestId('batch-summary')).toContainText('11 of 11', { timeout: 30_000 });
     await expect(inbox.getByTestId('inbox-status').filter({ hasText: 'New' })).toHaveCount(0);
 
     const wms = page.getByRole('table', { name: 'WMS orders' });
     // Every email except the blocked prompt-injection one creates a WMS order.
-    await expect(wms.locator('tbody tr')).toHaveCount(16);
-    await expect(wms.getByTestId('wms-status').filter({ hasText: 'Awaiting approval' })).toHaveCount(13);
+    await expect(wms.locator('tbody tr')).toHaveCount(10);
+    await expect(wms.getByTestId('wms-status').filter({ hasText: 'Awaiting approval' })).toHaveCount(8);
     await expect(wms.getByTestId('wms-status').filter({ hasText: 'Needs review' })).toHaveCount(1);
     await evidenceShot(page, testInfo, '17-order-desk-run-all');
 
@@ -87,6 +87,6 @@ test.describe('Order desk (live)', () => {
 
     await page.getByRole('button', { name: 'Reset demo' }).click();
     await expect(page.getByTestId('wms-empty')).toBeVisible();
-    await expect(inbox.getByTestId('inbox-status').filter({ hasText: 'New' })).toHaveCount(17);
+    await expect(inbox.getByTestId('inbox-status').filter({ hasText: 'New' })).toHaveCount(11);
   });
 });

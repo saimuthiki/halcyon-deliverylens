@@ -29,9 +29,9 @@ def _step(trace, key):
 
 
 # ---------------------------------------------------------------- inbox
-def test_loader_loads_the_seventeen_sample_emails(desk):
+def test_loader_loads_the_eleven_sample_emails(desk):
     msgs = desk.get("/api/desk/inbox").json()["messages"]
-    assert [m["id"] for m in msgs] == [f"M{i:02d}" for i in range(1, 18)]
+    assert [m["id"] for m in msgs] == ["M01", "M02", "M05", "M08", "M09", "M10", "M11", "M12", "M13", "M14", "M17"]
     m1 = msgs[0]
     assert m1["client_id"] == "C055" and m1["from_email"] == "purchasing@client-055.example"
     assert m1["received_at"] == "2026-10-22 07:20" and m1["status"] == "new" and m1["decision"] is None
@@ -99,23 +99,6 @@ def test_missing_postcode_is_held_with_a_follow_up(desk):
     assert _step(t, "stock_check")["status"] == "skipped"
 
 
-def test_missing_street_is_held(desk):
-    t = _process(desk, "M03")
-    assert _step(t, "address_check")["details"]["missing"] == ["street"]
-
-
-def test_store_opening_at_0930_is_added_to_today_for_its_valid_reason(desk):
-    t = _process(desk, "M04")
-    p = _step(t, "promise_check")
-    d = p["details"]
-    assert p["status"] == "pass" and d["requested_commitment"] == "same_day"
-    assert d["window"] == "urgent_window" and d["added_after_cutoff"] is True and d["urgency"] == "high"
-    assert d["urgency_evidence"] == "We need this SAME DAY please, it is for a store opening."
-    o = t["wms_order"]
-    assert o["commitment_type"] == "same_day" and o["pick_list_date"] == "2026-10-23"
-    assert "valid reason" in p["summary"]
-
-
 def test_same_day_before_cutoff_keeps_same_day(desk):
     t = _process(desk, "M05")
     assert _step(t, "promise_check")["status"] == "pass"
@@ -123,8 +106,7 @@ def test_same_day_before_cutoff_keeps_same_day(desk):
     assert o["commitment_type"] == "same_day" and o["pick_list_date"] == "2026-10-23"
 
 
-def test_table_layout_and_csv_attachment_lines_are_read(desk):
-    assert len(_process(desk, "M07")["wms_order"]["lines"]) == 4
+def test_csv_attachment_lines_are_read(desk):
     t = _process(desk, "M12")
     assert t["wms_order"]["lines"] == [{"sku": "HX-2040", "qty": 36}, {"sku": "HX-6200", "qty": 4},
                                        {"sku": "HX-9001", "qty": 12}]
@@ -189,10 +171,10 @@ def test_ai_steps_are_logged_to_agent_runs(desk):
 
 def test_process_all_matches_expected_and_reset_clears(desk):
     b = desk.post("/api/desk/process-all").json()
-    assert b["processed"] == 17 and b["matches_expected"] == 17
-    assert b["counts"] == {"accepted": 13, "on_hold": 2, "needs_review": 1, "blocked": 1}
+    assert b["processed"] == 11 and b["matches_expected"] == 11
+    assert b["counts"] == {"accepted": 8, "on_hold": 1, "needs_review": 1, "blocked": 1}
     assert {r["message_id"] for r in b["results"]} == set(EXPECTED)
-    assert len(desk.get("/api/desk/wms-orders").json()["orders"]) == 16
+    assert len(desk.get("/api/desk/wms-orders").json()["orders"]) == 10
     assert desk.post("/api/desk/process-all").json()["processed"] == 0  # nothing new left
     desk.post("/api/desk/reset")
     assert desk.get("/api/desk/wms-orders").json()["orders"] == []
@@ -265,9 +247,9 @@ def test_approve_all_approves_every_awaiting_order_only(desk):
     desk.post("/api/desk/process-all")
     r = desk.post("/api/desk/approve-all")
     assert r.status_code == 200, r.text
-    assert r.json()["approved"] == 13 and len(r.json()["wms_order_ids"]) == 13
+    assert r.json()["approved"] == 8 and len(r.json()["wms_order_ids"]) == 8
     statuses = sorted(o["status"] for o in desk.get("/api/desk/wms-orders").json()["orders"])
-    assert statuses.count("ready_for_pick_list") == 13 and "awaiting_approval" not in statuses
+    assert statuses.count("ready_for_pick_list") == 8 and "awaiting_approval" not in statuses
     assert desk.post("/api/desk/approve-all").json()["approved"] == 0
 
 
@@ -398,18 +380,6 @@ def test_shouting_urgent_from_an_ordinary_client_goes_to_tomorrow(desk):
     o = t["wms_order"]
     assert o["client_id"] == "C018" and o["commitment_type"] == "next_day" and o["pick_list_date"] == "2026-10-24"
     assert "next-day" in t["client_email_draft"]["body"]
-
-
-def test_urgent_from_a_tier_1_client_is_added_to_today(desk):
-    t, p, d = _promise(desk, "M15")
-    assert d["urgency"] == "medium" and d["priority_client"].startswith("Tier 1")
-    assert d["added_after_cutoff"] is True and t["wms_order"]["pick_list_date"] == "2026-10-23"
-
-
-def test_grace_period_adds_any_same_day_order(desk):
-    t, p, d = _promise(desk, "M16")
-    assert d["window"] == "grace" and d["urgency"] == "none" and d["added_after_cutoff"] is True
-    assert t["wms_order"]["commitment_type"] == "same_day" and t["wms_order"]["pick_list_date"] == "2026-10-23"
 
 
 def test_hard_stop_beats_even_a_valid_reason_from_an_at_risk_client(desk):

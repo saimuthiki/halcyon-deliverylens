@@ -11,7 +11,7 @@ and follow this guide from top to bottom.
 1. [The menu on the left](#1-the-menu-on-the-left)
 2. [How it works: the client's process, start to end](#2-how-it-works-the-clients-process-start-to-end)
 3. [Order desk (live): emails in, warehouse orders out](#3-order-desk-live-emails-in-warehouse-orders-out)
-4. [The 17 sample emails: good cases and bad cases](#4-the-17-sample-emails-good-cases-and-bad-cases)
+4. [The 11 sample emails: one per scenario](#4-the-11-sample-emails-one-per-scenario)
 5. [Overview](#5-overview)
 6. [Why deliveries are late](#6-why-deliveries-are-late)
 7. [Vendor decision](#7-vendor-decision)
@@ -87,7 +87,7 @@ lands in the warehouse system.
 | 4 | **Run DeliveryLens on this email** | Starts the 10-step pipeline for this one email. It takes a second with Mock, a few seconds with Gemini. |
 | 5 | **Pipeline trace** | Every step the email went through, in order, with **who did it** (the badge), the **result** (Passed, Failed, Warning or Skipped), **how long it took** (ms = thousandths of a second) and a one-line reason. Click **Details** to see the raw data of a step, for example the fields the AI extracted. The 10 steps are listed below this table. |
 | 6 | **Warehouse system (WMS)** | The orders DeliveryLens wrote into the warehouse system. An accepted order first shows **Awaiting approval**. Only rows marked **Ready for pick list** (after a person approves) are picked at the next run. The rest wait for the client or a person. **Approve all accepted (n)** approves every waiting order at once. |
-| 7 | **Reset demo** | Clears the WMS table and marks all 17 emails as new again, so you can run the demo from the start. |
+| 7 | **Reset demo** | Clears the WMS table and marks all 11 emails as new again, so you can run the demo from the start. |
 
 To the right of the trace (not numbered) are two more cards:
 - **Decision for email M02**: the final result (**On hold** here), the reason ("missing postcode"), and **Matches expected**, which proves the result is the one we planned for this email.
@@ -171,7 +171,7 @@ the earlier rule, when M04 was re-promised for the next day.
 
 ![M04 same-day after cutoff](guide-images/05-order-desk-same-day.png)
 
-### The warehouse system (WMS) after "Run all 17"
+### The warehouse system (WMS) after "Run all 11"
 
 ![WMS orders](guide-images/06-wms-orders.png)
 
@@ -194,29 +194,25 @@ Ready for pick list straight away.
 table (`wms_orders`) in our database that stands in for it. In production, step 9 would call the
 WMS's own API instead of writing to this table. Nothing else changes.
 
-**Where the emails come from:** for the demo, the 17 emails are real `.eml` files in
+**Where the emails come from:** for the demo, the 11 emails are real `.eml` files in
 `data/sample-inbox/` (the format any mail server saves). The loader reads them, with attachments,
 into the `inbox_messages` table. In production the same code would read from Halcyon's shared order
 mailbox (for example by IMAP, or through Amazon SES storing new mail in S3).
 
 ---
 
-## 4. The 17 sample emails: good cases and bad cases
+## 4. The 11 sample emails: one per scenario
 
-The dataset has no email text, so we wrote 17 emails that cover the typical good and bad cases.
-With the Mock AI, all 17 give exactly the expected result (13 accepted, 2 on hold, 1 needs review,
-1 blocked). With Gemini, the wording of the replies
+The dataset has no email text, so we wrote 11 emails, one per scenario, covering the typical good and
+bad cases. With the Mock AI, all 11 give exactly the expected result (8 accepted, 1 on hold, 1 needs
+review, 1 blocked). With Gemini, the wording of the replies
 changes every time, but the decisions are made by rules, so they stay the same.
 
 | Email | Case | Good or bad? | Expected result | What it shows |
 |---|---|---|---|---|
 | M01 | Complete order, labelled layout | ✅ Good | Accepted | A clean email from an at-risk client goes straight to the pick list, no typing. The old rate card would have used Carrier F, which is weak to the Northeast. |
 | M02 | Missing postcode | ❌ Bad | On hold | Cause 2 (incomplete address): held before picking, follow-up drafted asking for the postcode. |
-| M03 | Missing street, free-text order line | ❌ Bad | On hold | Cause 2 again with a different layout: only city, state and ZIP given. |
-| M04 | Same-day order received 09:30 | ⚠️ Risky | Accepted, added to today | Cause 3 (same-day after 08:00): after the 09:00 grace period only urgent orders are added. The AI quotes the valid reason (a store opening), code checks the quote, so the order keeps its same-day promise. |
 | M05 | Same-day order received 07:10 | ✅ Good | Accepted | Before the 08:00 cutoff, so it keeps its same-day promise. |
-| M06 | Address written on one line | ✅ Good | Accepted | The AI reads a one-line address, which a fixed template cannot. |
-| M07 | Text table with four lines | ✅ Good | Accepted | A different client layout is read without a template for it. |
 | M08 | West client, nearest warehouse out of stock | ⚠️ Risky | Accepted, ships from further away | Cause 4 (stock not at the nearest warehouse): W5 West has no HX-4410, so it ships from the Midwest and the agent warns about it. |
 | M09 | Southeast client | ⚠️ Risky | Accepted, carrier changed | Cause 1 (weak carrier): the rate card picks Carrier F, about 53% on time to the Southeast; the advisor picks a strong carrier. |
 | M10 | Prompt injection in the body | ❌ Attack | Blocked | The guardrail stops an email that tries to give the AI instructions. Nothing reaches the AI or the WMS. |
@@ -224,8 +220,6 @@ changes every time, but the decisions are made by rules, so they stay the same.
 | M12 | Order lines only in an attached CSV | ✅ Good | Accepted | The agent reads the attachment as well as the email body. |
 | M13 | Same-day order at 09:40, "production line stops at 3pm" | ✅ Good | Accepted, added to today | Urgent window: the AI quotes the sentence and code finds it in the email. A valid reason counts for any client, so the order keeps its same-day promise. |
 | M14 | Same-day order at 09:15, "URGENT!!!" only | ❌ Gaming | Accepted, re-promised next day | Shouting with no reason only "says urgent". Client 018 is Tier 3 and not at risk, so the order goes to tomorrow, and the reply says so. |
-| M15 | Same-day order at 09:20, "URGENT" from a Tier 1 client | ✅ Good | Accepted, added to today | A priority client: "urgent" with no reason is enough for a Tier 1 or at-risk client. |
-| M16 | Same-day order at 08:35, not urgent | ✅ Good | Accepted, added to today | Grace period (08:00 to 09:00): every same-day order with a complete address is still added. |
 | M17 | Same-day order at 10:20, production line stops, at-risk client | ⚠️ Risky | Accepted, re-promised next day | Hard stop (10:00): even a valid reason from an at-risk client cannot reach today's list. The reply says so honestly. |
 
 ### How DeliveryLens decides an address is good enough
@@ -557,7 +551,7 @@ The database: locally the app uses **SQLite** (a single file, `backend/deliveryl
 | # | Blocker | Impact | What we need |
 |---|---|---|---|
 | 1 | **AWS access arrives Monday 26 Oct** | No live URL yet (a must-have). All AWS scripts are ready with placeholders in `infra/config.env.example`. | Account access; then run `infra/scripts/00` to `08` (about half a day). |
-| 2 | **Gemini not yet tested with a real key** | The code follows Google's official SDK and is unit-tested, but no live call has been made. | Your key in `backend/.env`; run the 17 emails once and check the Agent activity screen. |
+| 2 | **Gemini not yet tested with a real key** | The code follows Google's official SDK and is unit-tested, but no live call has been made. | Your key in `backend/.env`; run the 11 emails once and check the Agent activity screen. |
 | 3 | **Amazon Bedrock not yet verified** | Model access must be switched on in the AWS account. | Confirm Claude model access in the Bedrock console on Monday. |
 | 4 | **Discovery answers pending** | Our cost and "how well each fix works" figures are estimates. | Answers from the stakeholder (round 2 questions sent 23 Oct); then update `analysis/root_cause_analysis.py`. |
 | 5 | **Old branch `wip/frontend-round3` on GitHub** | None (it is a leftover snapshot). | Delete it in GitHub → Branches (our tool was not allowed to). |

@@ -147,7 +147,7 @@ tour with pictures, read [08-user-guide.md](08-user-guide.md).
 | 48,340 deliveries, clients, carriers, penalties, complaints | **Real hackathon dataset** from the stakeholder (synthetic data, but it is "their" data) |
 | The 5 causes and all percentages | **Calculated from that data** by `analysis/root_cause_analysis.py` |
 | The late same-day orders replay | **Calculated from the 4,826 same-day orders received after 08:00** in the data. The grace period figures are exact; the urgent window is an upper bound, because history has no email text |
-| The 17 emails in the Order desk | **Written by us** to show typical cases, good and bad, because the dataset has no email text |
+| The 11 emails in the Order desk | **Written by us** to show typical cases, good and bad, because the dataset has no email text |
 | The warehouse system (WMS) | **A simple table in our database** that stands in for the client's WMS |
 | AI answers | **Mock** (canned) by default; **Gemini** when you add a key; **Claude on Bedrock** on AWS |
 | Costs in the business case | **Our estimates**, clearly labelled, for the client to confirm |

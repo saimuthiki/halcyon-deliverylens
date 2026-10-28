@@ -32,7 +32,7 @@ test('API down: the "Showing sample data" banner appears and pages still work', 
   // The Order desk shows the sample inbox and a pre-computed trace, clearly labelled.
   await page.goto('/order-desk');
   await expect(page.getByTestId('desk-offline')).toContainText('Sample — API offline.');
-  await expect(page.getByRole('list', { name: 'Client emails' }).getByRole('button')).toHaveCount(12);
+  await expect(page.getByRole('list', { name: 'Client emails' }).getByRole('button')).toHaveCount(11);
   await expect(page.getByTestId('trace-step')).toHaveCount(10);
   await expect(page.getByTestId('sample-response')).toContainText('Sample — API offline.');
   await page.getByTestId('inbox-item-M02').click();
