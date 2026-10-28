@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% set th = "text-align:left;padding:6px 8px;border-bottom:1px solid #D9DFDD;font-size:13px;color:#5E6B75;" %}
+{% set td = "padding:6px 8px;border-bottom:1px solid #E7ECEA;font-size:14px;" %}
+{% set h2 = "margin:24px 0 8px;font-size:16px;color:#15212B;" %}
+{% block preheader %}{{ brief.headline }}{% endblock %}
+{% block content %}
+<div style="font-size:13px;color:#5E6B75;">Weekly brief · week of {{ f.week_of }} to {{ f.week_end }}</div>
+<h1 style="margin:6px 0 12px;font-size:20px;line-height:1.3;color:#15212B;">{{ brief.headline }}</h1>
+<p style="margin:0 0 16px;">{{ brief.commentary }}</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td style="padding:10px;background:#E3F1EE;border-radius:6px;" width="33%">
+      <div style="font-size:12px;color:#0A524C;">On time this week</div>
+      <div style="font-size:22px;font-weight:bold;color:#0A524C;">{{ f.on_time_rate | pct }}</div>
+      <div style="font-size:12px;color:#3A4852;">{% if f.change_points is not none %}{{ f.change_points | points }} on last week{% else %}first week in the data{% endif %}</div>
+    </td>
+    <td width="8"></td>
+    <td style="padding:10px;background:#FBEEE2;border-radius:6px;" width="33%">
+      <div style="font-size:12px;color:#A84F0B;">Gap to the {{ f.target_on_time_rate | pct }} target</div>
+      <div style="font-size:22px;font-weight:bold;color:#A84F0B;">{{ f.gap_to_target_points }} points</div>
+      <div style="font-size:12px;color:#3A4852;">4-week average {{ f.four_week_on_time_rate | pct }}</div>
+    </td>
+    <td width="8"></td>
+    <td style="padding:10px;background:#E5EEF7;border-radius:6px;" width="33%">
+      <div style="font-size:12px;color:#2C5D8F;">Money lost this week</div>
+      <div style="font-size:22px;font-weight:bold;color:#2C5D8F;">{{ (f.sla_penalties_usd + f.redelivery_cost_usd) | usd }}</div>
+      <div style="font-size:12px;color:#3A4852;">{{ f.sla_penalties_usd | usd }} penalties, {{ f.redelivery_cost_usd | usd }} redeliveries</div>
+    </td>
+  </tr>
+</table>
+<p style="margin:12px 0 0;font-size:14px;color:#3A4852;">{{ f.deliveries | num }} deliveries, {{ f.late_deliveries | num }} late.{% if f.complaints.total %} {{ f.complaints.total }} new complaint{{ "s" if f.complaints.total != 1 }}{% if f.complaints.by_category %} ({% for cat, n in f.complaints.by_category.items() %}{{ cat }}: {{ n }}{{ ", " if not loop.last }}{% endfor %}){% endif %}.{% endif %}</p>
+
+<h2 style="{{ h2 }}">At-risk clients</h2>
+<p style="margin:0;">{{ f.at_risk_clients.on_time_rate | pct }} on time across {{ f.at_risk_clients.deliveries | num }} deliveries; {{ f.at_risk_clients.annual_revenue_usd | usd }} a year at stake.</p>
+
+{% if f.main_causes %}
+<h2 style="{{ h2 }}">Why deliveries were late</h2>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  <tr><th style="{{ th }}">Cause</th><th style="{{ th }}text-align:right;">Late deliveries</th><th style="{{ th }}text-align:right;">Share of late</th></tr>
+  {% for c in f.main_causes %}
+  <tr><td style="{{ td }}">{{ c.label }}</td><td style="{{ td }}text-align:right;">{{ c.late_deliveries | num }}</td><td style="{{ td }}text-align:right;">{{ "%.0f" | format(c.share_of_late * 100) }}%</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+{% if f.worst_lane %}
+<p style="margin:12px 0 0;">Worst lane: carrier {{ f.worst_lane.carrier_id }} to the {{ f.worst_lane.region }}, {{ f.worst_lane.on_time_rate | pct }} on time ({{ f.worst_lane.deliveries | num }} deliveries).</p>
+{% endif %}
+
+<h2 style="{{ h2 }}">On time, last {{ f.trend | length }} weeks</h2>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  <tr><th style="{{ th }}">Week of</th><th style="{{ th }}text-align:right;">On time</th></tr>
+  {% for t in f.trend %}
+  <tr><td style="{{ td }}">{{ t.week_of }}</td><td style="{{ td }}text-align:right;">{{ t.on_time_rate | pct }}</td></tr>
+  {% endfor %}
+</table>
+
+{% if f.top_actions %}
+<h2 style="{{ h2 }}">Actions for this week</h2>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  <tr><th style="{{ th }}">Action</th><th style="{{ th }}">Owner</th></tr>
+  {% for a in f.top_actions %}
+  <tr><td style="{{ td }}">{{ loop.index }}. {{ a.action }}</td><td style="{{ td }}white-space:nowrap;">{{ a.owner }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<p style="margin:20px 0 0;">With all five fixes in place we project <strong>{{ f.projected_on_time_rate_with_fixes | pct }}</strong> on time.</p>
+{% endblock %}
+{% block footer %}DeliveryLens weekly brief. The figures and tables come from the delivery data; the AI wrote only the headline and the short commentary.{% endblock %}

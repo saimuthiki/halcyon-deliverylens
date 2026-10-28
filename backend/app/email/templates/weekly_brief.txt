@@ -1,0 +1,41 @@
+{{ brief.headline }}
+
+{{ brief.commentary }}
+
+THE WEEK ({{ f.week_of }} to {{ f.week_end }})
+- {{ f.on_time_rate | pct }} on time{% if f.change_points is not none %} ({{ f.change_points | points }} on last week){% endif %}; target {{ f.target_on_time_rate | pct }}, gap {{ f.gap_to_target_points }} points.
+- 4-week average: {{ f.four_week_on_time_rate | pct }} on time.
+- {{ f.deliveries | num }} deliveries, {{ f.late_deliveries | num }} late.
+- Money lost: {{ f.sla_penalties_usd | usd }} in SLA penalties and {{ f.redelivery_cost_usd | usd }} in redeliveries.
+{% if f.complaints.total %}
+- {{ f.complaints.total }} new complaints.
+{% endif %}
+
+AT-RISK CLIENTS
+- {{ f.at_risk_clients.on_time_rate | pct }} on time across {{ f.at_risk_clients.deliveries | num }} deliveries ({{ f.at_risk_clients.annual_revenue_usd | usd }} a year at stake).
+{% if f.main_causes %}
+
+WHY DELIVERIES WERE LATE
+{% for c in f.main_causes %}
+- {{ c.label }}: {{ c.late_deliveries | num }} late deliveries ({{ "%.0f" | format(c.share_of_late * 100) }}% of late).
+{% endfor %}
+{% endif %}
+{% if f.worst_lane %}
+- Worst lane: carrier {{ f.worst_lane.carrier_id }} to the {{ f.worst_lane.region }}, {{ f.worst_lane.on_time_rate | pct }} on time ({{ f.worst_lane.deliveries | num }} deliveries).
+{% endif %}
+
+ON TIME, LAST {{ f.trend | length }} WEEKS
+{% for t in f.trend %}
+- {{ t.week_of }}: {{ t.on_time_rate | pct }}
+{% endfor %}
+{% if f.top_actions %}
+
+ACTIONS FOR THIS WEEK
+{% for a in f.top_actions %}
+{{ loop.index }}. {{ a.action }} Owner: {{ a.owner }}.
+{% endfor %}
+{% endif %}
+
+With all five fixes in place we project {{ f.projected_on_time_rate_with_fixes | pct }} on time.
+
+DeliveryLens weekly brief

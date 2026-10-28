@@ -7,7 +7,7 @@
 > 3. Commit it with your changes, so the next person who pulls gets the current state.
 > 4. Never put secrets here (keys, passwords, `.pem` contents, `.env` values).
 
-Last updated: 2026-10-28 by Sai M (with Claude Code).
+Last updated: 2026-10-28 by dkarasu (with Claude Code).
 
 ## 1. What we are building
 - **Problem 2:** Halcyon Logistics is 71% on time (benchmark 94%), and its leaders were about to buy a $680K routing tool.
@@ -105,11 +105,17 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 - [ ] Retake the screenshot `docs/guide-images/05-order-desk-same-day.png`, and rebuild the `.docx` files in `docs/downloads/` (needs pandoc).
 - [ ] Optional: a sample WMS page with "Run the day" (pick lists per warehouse for today and tomorrow).
 - [ ] Decide the weekly brief recipients, then run `bash infra/scripts/09-weekly-brief.sh`; each person confirms the AWS email.
+- [ ] Brevo SMTP (Stage 2): a verified sender that passes Brevo's checks (see `docs/09-email-service.md`), the SMTP key in Secrets Manager, then the SMTP backend in test mode.
 - [ ] After the hackathon: `bash infra/scripts/99-teardown.sh` to stop all costs.
 - Repository: `origin` = `Evoke-Hackathon-2026/InfinityStacks` (the final hackathon repo).
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
+- **2026-10-28, dkarasu + Claude Code (2):** email service, Stage 1 (not deployed yet).
+  - New shared module `backend/app/email` (message, backends, `send_email()`, Jinja2 templates); see `docs/09-email-service.md`.
+  - The Weekly Brief sends through it; delivery is still SNS by default (`EMAIL_BACKEND=sns`), same recipients, timer and cooldown.
+  - The brief is now rendered from templates (HTML and plain text): the AI writes only the headline and commentary; tables and figures come from the data. SNS sends the plain-text version.
+  - Config for test mode, per-environment recipient lists and future SMTP added; no credentials. Brevo SMTP is Stage 2.
 - **2026-10-28, Sai M + Claude Code (2):**
   - Carrier penalty recovery: claim packs and claim letters per carrier (new Carrier Claims Agent).
   - Morning risk board: pick-list late risk from history, fixes and risk after them, a backtest, and the 08:00 huddle note (new Morning Note Agent).

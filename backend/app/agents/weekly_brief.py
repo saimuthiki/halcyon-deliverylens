@@ -4,8 +4,13 @@ The week's numbers (on time against last week and the 94% target, money lost, th
 causes, the worst lane, complaints) and the three actions come from the data and fixed rules. The model writes
 the email. Every number in it must come from the facts, or the template is used and the reason flagged.
 
-Sending goes through an Amazon SNS topic (WEEKLY_BRIEF_TOPIC_ARN) whose subscribers have confirmed by email;
-the recipients are never taken from a request. A timer on the server sends it every Monday:
+The email is rendered from templates (app/email/templates/weekly_brief.html and .txt): the AI writes only the
+headline and a short commentary; every table and figure comes from the facts.
+
+Sending goes through the shared email service (app.email.send_email). The default backend is an Amazon SNS topic
+(WEEKLY_BRIEF_TOPIC_ARN) whose subscribers have confirmed by email; SNS sends the plain-text version. Other
+backends send to WEEKLY_BRIEF_TO / _CC / _BCC. Either way the recipients are never taken from a request. A timer
+on the server sends it every Monday:
     python -m app.agents.weekly_brief send
 """
 import json
@@ -20,6 +25,9 @@ from app.agents.llm_client import LLMClient, extract_json
 from app.analytics.causes import CAUSES, REALISTIC_EFFECTIVENESS
 from app.analytics.roi import BENCHMARK
 from app.config import get_settings
+from app.email import (EmailConfigError, EmailMessage, describe, get_backend, missing_recipients, recipients_for,
+                       render_email, send_email)
+from app.email.backends import SnsBackend
 from app.guardrails import unverified_numbers
 
 log = logging.getLogger(__name__)
@@ -134,42 +142,38 @@ def _pct(x) -> str:
 
 
 def _template(f: dict) -> dict:
+    """Subject, headline and commentary written by rules. The subject is always this one; the headline and
+    commentary are the fallback when the AI's text cannot be used."""
     change = ("" if f["change_points"] is None else
               f" ({'+' if f['change_points'] >= 0 else ''}{f['change_points']} points on last week)")
     subject = f"Halcyon on-time delivery, week of {f['week_of']}: {_pct(f['on_time_rate'])}"
     headline = (f"{_pct(f['on_time_rate'])} on time{change}, {f['gap_to_target_points']} points below the "
                 f"{_pct(f['target_on_time_rate'])} target.")
-    lines = [headline, "",
-             "THE WEEK",
-             f"- {f['deliveries']:,} deliveries, {f['late_deliveries']:,} late.",
-             f"- 4-week average: {_pct(f['four_week_on_time_rate'])} on time.",
-             f"- Money lost: ${f['sla_penalties_usd']:,} in SLA penalties and ${f['redelivery_cost_usd']:,} in redeliveries.",
-             f"- At-risk clients: {_pct(f['at_risk_clients']['on_time_rate'])} on time across "
-             f"{f['at_risk_clients']['deliveries']:,} deliveries (${f['at_risk_clients']['annual_revenue_usd']:,} a year at stake)."]
-    if f["complaints"]["total"]:
-        lines.append(f"- {f['complaints']['total']} new complaints.")
-    lines += ["", "WHY DELIVERIES WERE LATE"]
-    lines += [f"- {c['label']}: {c['late_deliveries']} late deliveries ({c['share_of_late'] * 100:.0f}% of late)."
-              for c in f["main_causes"]]
-    if f["worst_lane"]:
-        w = f["worst_lane"]
-        lines.append(f"- Worst lane: carrier {w['carrier_id']} to the {w['region']}, {_pct(w['on_time_rate'])} on time "
-                     f"({w['deliveries']} deliveries).")
-    lines += ["", "THREE ACTIONS FOR THIS WEEK"]
-    lines += [f"{n}. {a['action']} Owner: {a['owner']}." for n, a in enumerate(f["top_actions"], 1)]
-    lines += ["", f"With all five fixes in place we project {_pct(f['projected_on_time_rate_with_fixes'])} on time.",
-              "", "DeliveryLens weekly brief"]
-    return {"subject": subject, "headline": headline, "body": "\n".join(lines)}
+    commentary = [f"{f['deliveries']:,} deliveries this week, {f['late_deliveries']:,} of them late."]
+    if f["main_causes"]:
+        c = f["main_causes"][0]
+        commentary.append(f"{c['label']} caused the most late deliveries ({c['late_deliveries']:,}).")
+    commentary.append(f"At-risk clients were {_pct(f['at_risk_clients']['on_time_rate'])} on time; "
+                      f"the 4-week average is {_pct(f['four_week_on_time_rate'])}.")
+    return {"subject": subject, "headline": headline, "commentary": " ".join(commentary)}
+
+
+def _compose(f: dict, subject: str, headline: str, commentary: str) -> dict:
+    """The finished brief: AI or template headline and commentary; every table and figure from the facts."""
+    ctx = {"f": f, "subject": subject, "brief": {"headline": headline, "commentary": commentary}}
+    rendered = render_email("weekly_brief", ctx)
+    return {"subject": subject, "headline": headline, "commentary": commentary,
+            "body": rendered.text, "html": rendered.html}
 
 
 SYSTEM = (
-    "You are the Weekly Brief Agent at Halcyon Logistics. Write a one-page Monday email for the COO and CFO about "
-    "last week's on-time delivery. Use ONLY the facts provided: every number you write must appear in the facts, "
-    "and do not invent causes, actions, owners or results. Lead with the on-time rate against last week and the "
-    "94% target, then the money lost, the at-risk clients, why deliveries were late, and the three actions "
-    "(exactly the top_actions, with their owners). Plain English, short sentences, plain text with simple "
-    "headings and '-' bullets, under 250 words. Reply with ONLY JSON: {\"subject\": string (under 90 "
-    "characters), \"headline\": string (one sentence), \"body\": string}.")
+    "You are the Weekly Brief Agent at Halcyon Logistics. Write the opening of a Monday email for the COO and "
+    "CFO about last week's on-time delivery. The email's tables and figures are added from the data; you write "
+    "only a headline and a short commentary. Use ONLY the facts provided: every number you write must appear "
+    "in the facts, and do not invent causes, actions, owners or results. The headline is one sentence with the "
+    "on-time rate against last week and the 94% target. The commentary is 2-3 plain sentences (under 70 words) "
+    "on what mattered most this week: the main cause of late deliveries, the at-risk clients, or the trend. "
+    "Plain text, no lists, no markdown. Reply with ONLY JSON: {\"headline\": string, \"commentary\": string}.")
 
 
 def run_weekly_brief(ds, week_of: str | None = None, llm: LLMClient | None = None) -> dict:
@@ -177,29 +181,37 @@ def run_weekly_brief(ds, week_of: str | None = None, llm: LLMClient | None = Non
     llm = llm or LLMClient()
     template = _template(facts)
     resp = llm.generate(agent=AGENT, system=SYSTEM, prompt=f"Facts:\n{json.dumps(facts, indent=2)}",
-                        mock=lambda: json.dumps(template), tier="smart", max_tokens=1200, json_output=True)
+                        mock=lambda: json.dumps({"headline": template["headline"],
+                                                 "commentary": template["commentary"]}),
+                        tier="smart", max_tokens=600, json_output=True)
     flags = list(resp.flags)
+    headline, commentary = template["headline"], template["commentary"]
     try:
         out = extract_json(resp.text)
-        brief = {"subject": str(out["subject"])[:SNS_SUBJECT_MAX], "headline": str(out["headline"]),
-                 "body": str(out["body"])}
+        headline, commentary = str(out["headline"]).strip(), str(out["commentary"]).strip()
+        if not headline or not commentary:
+            raise ValueError("empty headline or commentary")
     except (ValueError, KeyError, TypeError):
-        brief = template
+        headline, commentary = template["headline"], template["commentary"]
         flags.append("llm_output_not_json_used_template")
-    bad = unverified_numbers("\n".join(brief.values()), facts)
+    bad = unverified_numbers(f"{headline}\n{commentary}", facts)
     if bad:
-        brief = template
+        headline, commentary = template["headline"], template["commentary"]
         flags.append("unverified_numbers_used_template")
+    brief = _compose(facts, template["subject"][:SNS_SUBJECT_MAX], headline, commentary)
     return {"agent_run_id": resp.run_id, "agent_name": AGENT_NAME, "provider": resp.provider, "model": resp.model,
             "week_of": facts["week_of"], "facts": facts, "brief": brief, "unverified_numbers": bad,
             "guardrail_flags": flags, "delivery": delivery_status(),
-            "method": ("The numbers and the three actions come from the data and fixed rules; the AI writes the "
-                       "email. Any number not in the facts sends it back to the template.")}
+            "method": ("The numbers, tables and the three actions come from the data and fixed rules; the AI writes "
+                       "only the headline and a short commentary. Any number in them that is not in the facts "
+                       "sends both back to the template.")}
 
 
-# ---------------------------------------------------------------- sending (Amazon SNS)
+# ---------------------------------------------------------------- sending (app.email; SNS by default)
 _last_sent = 0.0
 _send_lock = threading.Lock()
+SCHEDULE = "Every Monday at 07:00 US Central"
+RECIPIENT_LIST = "weekly_brief"  # WEEKLY_BRIEF_TO / _CC / _BCC, used by backends that address recipients
 
 
 def _sns():
@@ -208,34 +220,61 @@ def _sns():
     return boto3.client("sns", region_name=get_settings().aws_region)
 
 
+def _backend():
+    """The configured email backend for the brief. SNS (the default) sends to the brief topic's confirmed
+    subscribers; other backends send to the server-side recipient list."""
+    try:
+        backend = get_backend(sns_topic_arn=get_settings().weekly_brief_topic_arn, sns_client_factory=lambda: _sns())
+    except EmailConfigError as exc:
+        if "topic ARN" in str(exc):
+            raise NotConfigured("WEEKLY_BRIEF_TOPIC_ARN is not set") from None
+        raise NotConfigured(str(exc)) from None
+    missing = missing_recipients(RECIPIENT_LIST) if backend.addresses_recipients else None
+    if missing:
+        raise NotConfigured(missing)
+    return backend
+
+
 def delivery_status() -> dict:
+    info = describe(RECIPIENT_LIST)
+    if info["backend"] != "sns":
+        available = info["backend"] in ("console", "memory")
+        configured = available and not info["missing"]
+        note = None if configured else (info["missing"] if available else
+                                        f"EMAIL_BACKEND={info['backend']} is not available yet")
+        return {"configured": configured, "backend": info["backend"], "recipients": info["recipients"],
+                "test_mode": info["test_mode"], "schedule": SCHEDULE, **({"note": note} if note else {})}
     arn = get_settings().weekly_brief_topic_arn
     if not arn:
-        return {"configured": False, "confirmed_subscribers": 0,
+        return {"configured": False, "backend": "sns", "confirmed_subscribers": 0,
                 "note": "Set WEEKLY_BRIEF_TOPIC_ARN to send the brief by email."}
     try:
-        subs = _sns().list_subscriptions_by_topic(TopicArn=arn)["Subscriptions"]
-        confirmed = sum(1 for s in subs if s["SubscriptionArn"].startswith("arn:"))
-        return {"configured": True, "confirmed_subscribers": confirmed, "pending_subscribers": len(subs) - confirmed,
-                "schedule": "Every Monday at 07:00 US Central"}
+        subs = SnsBackend(arn, lambda: _sns()).subscribers()
+        return {"configured": True, "backend": "sns", "confirmed_subscribers": subs["confirmed"],
+                "pending_subscribers": subs["pending"], "schedule": SCHEDULE}
     except Exception as exc:  # status only; never break the preview
         log.warning("could not read weekly brief subscribers: %s", exc)
-        return {"configured": True, "confirmed_subscribers": None, "schedule": "Every Monday at 07:00 US Central"}
+        return {"configured": True, "backend": "sns", "confirmed_subscribers": None, "schedule": SCHEDULE}
+
+
+def brief_message(result: dict) -> EmailMessage:
+    b, r = result["brief"], recipients_for(RECIPIENT_LIST)
+    return EmailMessage(subject=b["subject"], text_body=b["body"], html_body=b.get("html"),
+                        to=r.to, cc=r.cc, bcc=r.bcc, category="weekly_brief")
 
 
 def send_brief(result: dict, *, enforce_cooldown: bool = True) -> dict:
     global _last_sent
-    arn = get_settings().weekly_brief_topic_arn
-    if not arn:
-        raise NotConfigured("WEEKLY_BRIEF_TOPIC_ARN is not set")
+    backend = _backend()
+    message = brief_message(result)
     with _send_lock:
         wait = SEND_COOLDOWN_S - (time.time() - _last_sent)
         if enforce_cooldown and wait > 0:
             raise TooSoon(int(wait))
-        b = result["brief"]
-        msg = _sns().publish(TopicArn=arn, Subject=b["subject"][:SNS_SUBJECT_MAX], Message=b["body"])
+        sent = send_email(message, backend=backend)
         _last_sent = time.time()
-    return {"sent": True, "message_id": msg["MessageId"], "week_of": result["week_of"], "subject": b["subject"]}
+    return {"sent": True, "message_id": sent.message_id, "week_of": result["week_of"],
+            "subject": result["brief"]["subject"], "backend": sent.provider}
 
 
 def _main(argv: list[str]) -> int:

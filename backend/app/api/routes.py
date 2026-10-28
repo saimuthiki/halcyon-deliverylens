@@ -224,8 +224,8 @@ def weekly_brief_send(body: WeeklyBriefRequest | None = None):
         return {**send_brief(result), "brief": result["brief"], "guardrail_flags": result["guardrail_flags"]}
     except UnknownWeek:
         raise ApiError(404, f"No deliveries in the week of {body.week_of}") from None
-    except NotConfigured:
-        raise ApiError(409, "Email sending is not set up on this server (WEEKLY_BRIEF_TOPIC_ARN)") from None
+    except NotConfigured as e:
+        raise ApiError(409, f"Email sending is not set up on this server ({e})") from None
     except TooSoon as e:
         raise ApiError(429, f"The brief was sent a moment ago; try again in {e.args[0] // 60 + 1} minutes") from None
 

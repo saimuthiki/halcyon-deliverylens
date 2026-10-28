@@ -48,6 +48,7 @@ Details: [docs/03-what-the-data-says.md](docs/03-what-the-data-says.md).
 | 6 | [AWS setup guide](docs/06-aws-setup-guide.md) | Step-by-step scripts for Monday; placeholders to fill |
 | 7 | [How we work with AI agents](docs/07-how-we-work-with-ai-agents.md) | The agent pipeline across roles, and where the proof lives |
 | 8 | [User guide](docs/08-user-guide.md) | Every screen, every button, every number, the 17 sample emails, blockers |
+| 9 | [Email service](docs/09-email-service.md) | The shared email module, its settings, test mode, and the Brevo prerequisites |
 
 Word versions of every document are in [`docs/downloads/`](docs/downloads/).
 

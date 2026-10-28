@@ -22,6 +22,15 @@ def _load_dotenv() -> None:
     load_dotenv(BACKEND_DIR / ".env", override=False)
 
 
+def _csv(name: str) -> tuple[str, ...]:
+    return tuple(v.strip() for v in os.getenv(name, "").split(",") if v.strip())
+
+
+def _flag(name: str, default: bool) -> bool:
+    raw = os.getenv(name, "").strip().lower()
+    return default if not raw else raw in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str
@@ -42,6 +51,25 @@ class Settings:
     same_day_hard_stop: str = "10:00"  # then urgent orders only until this time; after it, tomorrow
     weekly_brief_topic_arn: str = ""  # SNS topic for the Monday brief; empty = preview only
     public_site_url: str = "http://localhost:5173"  # the web app, for links in client emails
+    # Email (app/email). The backend decides how mail leaves: sns (today), console, memory; smtp is the next stage.
+    email_backend: str = "sns"
+    email_from_address: str = ""  # must be a sender verified and authenticated with the provider
+    email_from_name: str = "DeliveryLens"
+    email_reply_to: tuple[str, ...] = ()
+    # Test mode: every email goes only to EMAIL_TEST_RECIPIENTS (Cc and Bcc dropped, subject marked [TEST]).
+    # Applies to backends that address recipients; an SNS topic always goes to its confirmed subscribers.
+    email_test_mode: bool = True
+    email_test_recipients: tuple[str, ...] = ()
+    weekly_brief_to: tuple[str, ...] = ()  # per environment; never taken from a web request
+    weekly_brief_cc: tuple[str, ...] = ()
+    weekly_brief_bcc: tuple[str, ...] = ()
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_security: str = "starttls"  # starttls (587) or ssl (465)
+    smtp_username: str = field(default="", repr=False)  # secret: from Secrets Manager, never logged
+    smtp_password: str = field(default="", repr=False)  # secret: the provider's SMTP key
+    smtp_timeout_seconds: int = 15
+    smtp_max_retries: int = 3
 
 
 @lru_cache
@@ -67,4 +95,20 @@ def get_settings() -> Settings:
         same_day_hard_stop=os.getenv("SAME_DAY_HARD_STOP", "10:00").strip(),
         weekly_brief_topic_arn=os.getenv("WEEKLY_BRIEF_TOPIC_ARN", "").strip(),
         public_site_url=(os.getenv("PUBLIC_SITE_URL", "").strip() or "http://localhost:5173").rstrip("/"),
+        email_backend=os.getenv("EMAIL_BACKEND", "").strip().lower() or "sns",
+        email_from_address=os.getenv("EMAIL_FROM_ADDRESS", "").strip(),
+        email_from_name=os.getenv("EMAIL_FROM_NAME", "").strip() or "DeliveryLens",
+        email_reply_to=_csv("EMAIL_REPLY_TO"),
+        email_test_mode=_flag("EMAIL_TEST_MODE", True),
+        email_test_recipients=_csv("EMAIL_TEST_RECIPIENTS"),
+        weekly_brief_to=_csv("WEEKLY_BRIEF_TO"),
+        weekly_brief_cc=_csv("WEEKLY_BRIEF_CC"),
+        weekly_brief_bcc=_csv("WEEKLY_BRIEF_BCC"),
+        smtp_host=os.getenv("SMTP_HOST", "").strip(),
+        smtp_port=int(os.getenv("SMTP_PORT", "587")),
+        smtp_security=os.getenv("SMTP_SECURITY", "").strip().lower() or "starttls",
+        smtp_username=os.getenv("SMTP_USERNAME", "").strip(),
+        smtp_password=os.getenv("SMTP_PASSWORD", "").strip(),
+        smtp_timeout_seconds=int(os.getenv("SMTP_TIMEOUT_SECONDS", "15")),
+        smtp_max_retries=int(os.getenv("SMTP_MAX_RETRIES", "3")),
     )
