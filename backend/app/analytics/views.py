@@ -232,7 +232,34 @@ def stock_placement(ds, min_deliveries: int = 50, top: int = 10) -> dict:
     worst = [{"client_id": cid, "client_name": names.get(cid, cid), "deliveries": int(c.deliveries),
               "stock_out_rate": round(float(c.stock_out_rate), 4), "on_time_rate": round(1 - float(c.late), 4)}
              for cid, c in clients.iterrows()]
-    return {"by_warehouse": by_warehouse, "worst_clients": worst}
+    return {"by_warehouse": by_warehouse, "worst_clients": worst, "wrong_warehouse": wrong_warehouse(ds)}
+
+
+def wrong_warehouse(ds) -> dict:
+    """Orders shipped from a far warehouse although the nearest one had the stock: a choice, not a stock-out.
+    Not one of the five causes; it is where the late deliveries with none of the five causes come from."""
+    from app.analytics.causes import CAUSES
+
+    df = ds.deliveries
+    had_stock = df.nearest_warehouse_had_stock == "Y"
+    wrong = had_stock & (df.fulfilment_warehouse_id != df.nearest_warehouse_id)
+    right = had_stock & ~wrong
+    no_cause = ~df[list(CAUSES)].any(axis=1)
+    names = ds.clients.set_index("client_id").client_name
+    top = df[wrong].client_id.value_counts()
+    return {
+        "deliveries": int(wrong.sum()),
+        "late": int((wrong & df.late).sum()),
+        "on_time": _on_time(df.late[wrong]),
+        "on_time_nearest": _on_time(df.late[right]),
+        "avg_miles": round(float(df.distance_miles[wrong].mean()), 0),
+        "avg_miles_nearest": round(float(df.distance_miles[right].mean()), 0),
+        "sla_penalties_usd": round(float(df.penalty_usd[wrong].sum()), 2),
+        "late_with_no_other_cause": int((wrong & df.late & no_cause).sum()),
+        "late_with_no_cause_total": int((df.late & no_cause).sum()),
+        "top_client": ({"client_id": top.index[0], "client_name": names.get(top.index[0], top.index[0]),
+                        "deliveries": int(top.iloc[0])} if len(top) else None),
+    }
 
 
 # ---------- Route deviation ----------

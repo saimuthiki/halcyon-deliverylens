@@ -595,6 +595,24 @@ export function normaliseStock(raw: unknown): StockPlacement {
         on_time_rate: numOr(o.on_time_rate, Number.NaN),
       };
     }),
+    wrong_warehouse: (() => {
+      const w = r.wrong_warehouse;
+      if (!w || typeof w !== 'object') return null;
+      const o = obj(w);
+      const t = o.top_client && typeof o.top_client === 'object' ? obj(o.top_client) : null;
+      return {
+        deliveries: numOr(o.deliveries, 0),
+        late: numOr(o.late, 0),
+        on_time: numOr(o.on_time, Number.NaN),
+        on_time_nearest: numOr(o.on_time_nearest, Number.NaN),
+        avg_miles: numOr(o.avg_miles, 0),
+        avg_miles_nearest: numOr(o.avg_miles_nearest, 0),
+        sla_penalties_usd: numOr(o.sla_penalties_usd, 0),
+        late_with_no_other_cause: numOr(o.late_with_no_other_cause, 0),
+        late_with_no_cause_total: numOr(o.late_with_no_cause_total, 0),
+        top_client: t ? { client_id: strOr(t.client_id, ''), client_name: strOr(t.client_name, ''), deliveries: numOr(t.deliveries, 0) } : null,
+      };
+    })(),
   };
 }
 

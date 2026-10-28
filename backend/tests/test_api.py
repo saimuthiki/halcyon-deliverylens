@@ -133,6 +133,10 @@ def test_stock_placement(client):
     assert w and set(w[0]) == {"warehouse_id", "name", "region", "deliveries", "stock_out_rate",
                                "on_time_when_stocked", "on_time_when_stock_out"}
     assert sum(r["deliveries"] for r in w) == 48340
+    ww = b["wrong_warehouse"]  # shipped from far away although the nearest warehouse had the stock
+    assert ww["deliveries"] == 691 and ww["late"] == 340 and ww["on_time"] < ww["on_time_nearest"]
+    assert ww["late_with_no_other_cause"] == ww["late_with_no_cause_total"] == 213
+    assert ww["top_client"]["client_id"] == "C190"
     assert all(0 <= r["stock_out_rate"] <= 1 for r in w)
     c = b["worst_clients"]
     assert 0 < len(c) <= 10

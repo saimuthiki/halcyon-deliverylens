@@ -249,9 +249,24 @@ export interface StockClient {
   on_time_rate: number;
 }
 
+/** Shipped from a far warehouse although the nearest one had the stock (a choice, not a stock-out). */
+export interface WrongWarehouse {
+  deliveries: number;
+  late: number;
+  on_time: number;
+  on_time_nearest: number;
+  avg_miles: number;
+  avg_miles_nearest: number;
+  sla_penalties_usd: number;
+  late_with_no_other_cause: number;
+  late_with_no_cause_total: number;
+  top_client: { client_id: string; client_name: string; deliveries: number } | null;
+}
+
 export interface StockPlacement {
   by_warehouse: WarehouseStock[];
   worst_clients: StockClient[];
+  wrong_warehouse?: WrongWarehouse | null;
 }
 
 /* ---------- /api/routes/deviation ---------- */

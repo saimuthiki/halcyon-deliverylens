@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
-import type { RouteDeviation, StockPlacement } from '../api/types';
+import type { RouteDeviation, StockPlacement, WrongWarehouse } from '../api/types';
 import { useApi } from '../lib/useApi';
-import { pct } from '../lib/format';
+import { num, pct, usd } from '../lib/format';
 import PageHeader, { SectionTitle } from '../components/PageHeader';
 import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
 
@@ -119,6 +119,8 @@ function StockSection({ data }: { data: StockPlacement }) {
         </p>
       </section>
 
+      {data.wrong_warehouse && data.wrong_warehouse.deliveries > 0 && <WrongWarehouseSection w={data.wrong_warehouse} />}
+
       <section className="panel overflow-hidden" aria-labelledby="sc-title">
         <div className="panel-pad pb-0 sm:pb-0">
           <SectionTitle note="Most often without stock nearby">
@@ -163,6 +165,42 @@ function stockOverall(data: StockPlacement): { rate: number; stockOut: number; s
     inOnTime += (w.deliveries - o) * w.on_time_when_stocked;
   }
   return n && out && n > out ? { rate: out / n, stockOut: outOnTime / out, stocked: inOnTime / (n - out) } : null;
+}
+
+/** Far warehouse chosen although the nearest one had the stock. */
+function WrongWarehouseSection({ w }: { w: WrongWarehouse }) {
+  return (
+    <section className="panel panel-pad" aria-labelledby="ww-title">
+      <SectionTitle note="A choice, not a stock-out">
+        <span id="ww-title">Shipped from far away, although the nearest warehouse had the stock</span>
+      </SectionTitle>
+      <p className="-mt-2 max-w-[72ch] text-[15px] text-ink-soft">
+        <strong className="text-ink">{num(w.deliveries)}</strong> orders went out from a warehouse about {num(w.avg_miles)} miles away instead of about{' '}
+        {num(w.avg_miles_nearest)}, even though the nearest one had everything.
+      </p>
+      <Compare goodLabel="Nearest warehouse: on time" good={w.on_time_nearest} badLabel="Far warehouse: on time" bad={w.on_time} />
+      <p className="mt-4 max-w-[72ch] text-[15px] text-ink-soft" data-testid="wrong-warehouse-explains">
+        {w.late_with_no_other_cause === w.late_with_no_cause_total ? (
+          <>
+            They explain <strong className="text-ink">all {num(w.late_with_no_cause_total)}</strong> late deliveries that had none of the five causes, so every
+            late delivery now has a reason.
+          </>
+        ) : (
+          <>
+            They explain {num(w.late_with_no_other_cause)} of the {num(w.late_with_no_cause_total)} late deliveries that had none of the five causes.
+          </>
+        )}
+        {w.top_client && ` ${w.top_client.client_name} alone had ${num(w.top_client.deliveries)} of them.`} Penalties paid: {usd(w.sla_penalties_usd)}.
+      </p>
+      <p className="mt-3 text-[15px] text-ink-soft">
+        <span className="font-semibold text-ink">The fix: </span>the{' '}
+        <Link to="/order-desk" className="font-semibold text-route underline-offset-4 hover:underline">
+          Order desk
+        </Link>{' '}
+        always ships from the nearest warehouse that has every item, so this cannot happen there.
+      </p>
+    </section>
+  );
 }
 
 /* ---------- routes ---------- */
