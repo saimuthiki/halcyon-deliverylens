@@ -27,7 +27,7 @@ test('API down: the "Showing sample data" banner appears and pages still work', 
 
   // The new page works from the saved analysis too.
   await page.goto('/stock-routes');
-  await expect(page.getByRole('table', { name: 'Stock-outs by warehouse' }).locator('tbody tr')).toHaveCount(5);
+  await expect(page.getByRole('table', { name: 'No stock at the nearest warehouse' }).locator('tbody tr')).toHaveCount(5);
 
   // The Order desk shows the sample inbox and a pre-computed trace, clearly labelled.
   await page.goto('/order-desk');

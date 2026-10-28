@@ -34,34 +34,30 @@ test('stock & routes: stock-outs by warehouse, worst clients and route deviation
   expect((await stock).status()).toBe(200);
   expect((await routes).status()).toBe(200);
 
-  await expect(page.getByRole('heading', { level: 1, name: /Stock-outs and long routes happen everywhere/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /Two problems that happen everywhere/ })).toBeVisible();
 
   // Five warehouses W1-W5, each with a stock-out rate and on time with vs without stock.
-  const wh = page.getByRole('table', { name: 'Stock-outs by warehouse' });
+  const wh = page.getByRole('table', { name: 'No stock at the nearest warehouse' });
   await expect(wh.locator('tbody tr')).toHaveCount(5);
   for (const id of ['W1', 'W2', 'W3', 'W4', 'W5']) await expect(wh.getByText(new RegExp(`^${id},`))).toBeVisible();
-  for (const h of ['Stock-out rate', 'On time, stock-out', 'On time, stocked']) await expect(wh.getByRole('columnheader', { name: h })).toBeVisible();
+  for (const h of ['Orders with no stock', 'On time, no stock', 'On time, with stock']) await expect(wh.getByRole('columnheader', { name: h })).toBeVisible();
   // Every rate is a percentage, and stock-outs are worse than stocked in every warehouse.
   const rows = wh.locator('tbody tr');
   for (let i = 0; i < 5; i++) {
     const cells = rows.nth(i).getByRole('cell');
     const pctOf = async (n: number) => Number(/([\d.]+)%/.exec((await cells.nth(n).textContent()) ?? '')?.[1]);
-    expect(await pctOf(1)).toBeGreaterThan(0); // stock-out rate
-    expect(await pctOf(2)).toBeLessThan(await pctOf(3)); // on time with stock-out < stocked
+    expect(await pctOf(0)).toBeGreaterThan(0); // stock-out rate
+    expect(await pctOf(1)).toBeLessThan(await pctOf(2)); // on time with stock-out < stocked
   }
 
   const clients = page.getByRole('table', { name: 'Clients hit hardest by stock-outs' }).locator('tbody tr');
   expect(await clients.count()).toBeGreaterThanOrEqual(1);
-  expect(await clients.count()).toBeLessThanOrEqual(10);
+  expect(await clients.count()).toBeLessThanOrEqual(5);
 
-  const byCarrier = page.getByRole('table', { name: 'By carrier' });
+  const byCarrier = page.getByRole('table', { name: 'Drivers going off route' });
   await expect(byCarrier.locator('tbody tr')).toHaveCount(6);
   for (const c of ['A', 'B', 'C', 'D', 'E', 'F']) await expect(byCarrier.getByRole('rowheader', { name: `Carrier ${c}` })).toBeVisible();
-  await expect(byCarrier.getByRole('columnheader', { name: 'No route record' })).toBeVisible();
-
-  const byRegion = page.getByRole('table', { name: 'By destination region' });
-  await expect(byRegion.locator('tbody tr')).toHaveCount(4);
-  for (const r of ['Midwest', 'Northeast', 'Southeast', 'West']) await expect(byRegion.getByRole('rowheader', { name: r, exact: true })).toBeVisible();
+  for (const h of ['Deliveries off route', 'On time, off route', 'On time, on route']) await expect(byCarrier.getByRole('columnheader', { name: h })).toBeVisible();
 
   await expect(page.getByText('This section could not load.')).toHaveCount(0);
   await expectLiveData(page);
