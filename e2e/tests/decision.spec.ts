@@ -12,7 +12,7 @@ test.describe('The decision pages', () => {
     });
     await expect(track).toBeVisible();
     for (const value of ['71.0%', '80.2%', '86.7%', '90.2%', '99.0%']) await expect(track.getByText(value, { exact: true }).first()).toBeVisible();
-    await expect(track.getByText('Best case, if every problem disappeared').first()).toBeVisible();
+    await expect(track.getByText('Fix all 5 problems perfectly').first()).toBeVisible();
     // The headline is the realistic case; the ceiling is labelled as a ceiling.
     const lede = page.locator('header p').first();
     await expect(lede).toContainText('90.2%');
@@ -85,7 +85,7 @@ test.describe('The decision pages', () => {
 
     await expect(page.getByRole('heading', { level: 1, name: 'The routing vendor fixes the wrong problem' })).toBeVisible();
     await expect(
-      page.getByRole('img', { name: /Today: 71\.0%; Only buy the routing vendor: 80\.2%; Only fix our own processes: 86\.7%; Do all five fixes \(expected\): 90\.2%; Best case, if every problem disappeared: 99\.0%; benchmark 94%/ }),
+      page.getByRole('img', { name: /Today: 71\.0%; Buy the routing software only: 80\.2%; Fix our own work only: 86\.7%; Fix all 5 problems \(likely\): 90\.2%; Fix all 5 problems perfectly: 99\.0%; benchmark 94%/ }),
     ).toBeVisible();
     await expect(page.getByText('80.2%', { exact: true }).first()).toBeVisible();
 
@@ -125,11 +125,11 @@ test.describe('The decision pages', () => {
       await expect(r).toHaveCount(1);
       for (const c of cells) await expect(r.getByRole('cell', { name: c, exact: true })).toBeVisible();
     };
-    await expectCells(/^Routing vendor only/, ['80.2%', '$520K', '$314K', '$680K', '$154K', '−$160K']);
-    await expectCells(/^Process fixes only/, ['86.7%', '$993K', '$516K', '$175K', '$1.3M', '$818K']);
-    await expectCells(/^All five fixes, realistic/, ['90.2%', '$1.2M', '$633K', '$359K', '$1.4M', '$806K']);
-    await expectCells(/^All five fixes, ceiling/, ['99.0%', '$1.7M', '$920K', '$359K', '$2.2M', '$1.3M']);
-    await expect(page.getByTestId('roi-summary')).toContainText('the routing vendor loses $160K a year');
+    await expectCells(/^Buy the routing software only/, ['80.2%', '$520K', '$314K', '$680K', '$154K', '−$160K']);
+    await expectCells(/^Fix our own work only/, ['86.7%', '$993K', '$516K', '$175K', '$1.3M', '$818K']);
+    await expectCells(/^Fix all 5 problems \(likely\)/, ['90.2%', '$1.2M', '$633K', '$359K', '$1.4M', '$806K']);
+    await expectCells(/^Fix all 5 problems perfectly/, ['99.0%', '$1.7M', '$920K', '$359K', '$2.2M', '$1.3M']);
+    await expect(page.getByTestId('roi-summary')).toContainText('buying the routing software only loses $160K a year');
 
     await expectLiveData(page);
     await evidenceShot(page, testInfo, '03b-vendor-business-case');

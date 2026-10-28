@@ -43,13 +43,29 @@ export default function Vendor() {
   );
 }
 
+/** Plain names for the four options, with one line on what each means. */
+const OPTIONS = {
+  vendor: { name: 'Buy the routing software only', means: 'The $680K software, nothing else. Even this assumes it fully fixes weak carriers and drivers going off route.' },
+  process: { name: 'Fix our own work only', means: 'No software. We fix the order address check, the 08:00 cut-off and stock placement ourselves.' },
+  realistic: { name: 'Fix all 5 problems (likely)', means: 'Our plan. Each fix works partly, as fixes do in real life.' },
+  ceiling: { name: 'Fix all 5 problems perfectly', means: 'Not realistic: every problem gone for good. Shown only as the upper limit.' },
+} as const;
+
+function optionOf(scenarioName: string): keyof typeof OPTIONS | null {
+  if (/vendor/i.test(scenarioName)) return 'vendor';
+  if (/process/i.test(scenarioName)) return 'process';
+  if (/realistic/i.test(scenarioName)) return 'realistic';
+  if (/ceiling/i.test(scenarioName)) return 'ceiling';
+  return null;
+}
+
 function VendorBody({ data, causes, effectivenessNeeded }: { data: VendorAssessment; causes: CauseRow[]; effectivenessNeeded?: number }) {
   const bars = [
     { key: 'today', label: 'Today', value: data.today, fill: '#A84F0B' },
-    { key: 'vendor', label: 'Only buy the routing vendor', value: data.routing_only, fill: '#5E6B75' },
-    { key: 'process', label: 'Only fix our own processes', value: data.process_only, fill: '#0E6B63' },
-    { key: 'realistic', label: 'Do all five fixes (expected)', value: data.realistic, fill: '#0A524C' },
-    { key: 'ceiling', label: 'Best case, if every problem disappeared', value: data.all_fixed, fill: '#B9D9D3' },
+    { key: 'vendor', label: OPTIONS.vendor.name, value: data.routing_only, fill: '#5E6B75' },
+    { key: 'process', label: OPTIONS.process.name, value: data.process_only, fill: '#0E6B63' },
+    { key: 'realistic', label: OPTIONS.realistic.name, value: data.realistic, fill: '#0A524C' },
+    { key: 'ceiling', label: OPTIONS.ceiling.name, value: data.all_fixed, fill: '#B9D9D3' },
   ].map((b) => ({ ...b, pctValue: Math.round(b.value * 1000) / 10 }));
   const label1 = (x: number) => `${x.toFixed(1)}%`;
 
@@ -89,8 +105,7 @@ function VendorBody({ data, causes, effectivenessNeeded }: { data: VendorAssessm
           </ResponsiveContainer>
         </div>
         <p className="mt-2 text-sm text-ink-soft">
-          The best case assumes every problem disappears completely, so it is a limit, not a forecast. The vendor bar is also a best case: it assumes the software
-          removes both routing causes completely.
+          “Perfectly” is an upper limit, not a forecast. The software bar is also generous: it assumes the software fully fixes both road problems.
         </p>
         {effectivenessNeeded != null && (
           <p className="mt-4 rounded-md border-l-[3px] border-ink bg-paper px-4 py-3 text-[15px] text-ink" data-testid="effectiveness-needed">
@@ -173,7 +188,7 @@ function BusinessCase({ roi, source }: { roi: RoiResponse; source: DataSource | 
         <table className="w-full min-w-[900px] border-collapse text-[15px]" aria-labelledby="roi-title">
           <thead>
             <tr className="border-b border-line">
-              <th scope="col" className="th pl-5 sm:pl-6">Scenario</th>
+              <th scope="col" className="th pl-5 sm:pl-6">Option</th>
               <th scope="col" className="th whitespace-nowrap text-right">On time</th>
               <th scope="col" className="th text-right">Penalties avoided / yr</th>
               <th scope="col" className="th text-right">Redelivery avoided / yr</th>
@@ -183,12 +198,13 @@ function BusinessCase({ roi, source }: { roi: RoiResponse; source: DataSource | 
             </tr>
           </thead>
           <tbody>
-            {roi.scenarios.map((s) => (
+            {roi.scenarios.map((s) => {
+              const opt = optionOf(s.name);
+              return (
               <tr key={s.name} className={`border-b border-line last:border-b-0 ${isRealistic(s) ? 'bg-route-tint' : ''}`}>
                 <th scope="row" className="td pl-5 text-left font-semibold sm:pl-6">
-                  {s.name}
-                  {isRealistic(s) && <div className="text-sm font-normal text-route-dark">Our plan, with partial effectiveness</div>}
-                  {/ceiling/i.test(s.name) && <div className="text-sm font-normal text-slate">Assumes its causes are removed completely</div>}
+                  {opt ? OPTIONS[opt].name : s.name}
+                  {opt && <div className={`max-w-[42ch] text-sm font-normal ${isRealistic(s) ? 'text-route-dark' : 'text-slate'}`}>{OPTIONS[opt].means}</div>}
                 </th>
                 <td className="td num text-right font-semibold">{pct(s.on_time_rate)}</td>
                 <td className="td num text-right">{usd(s.sla_penalties_avoided_usd)}</td>
@@ -199,21 +215,22 @@ function BusinessCase({ roi, source }: { roi: RoiResponse; source: DataSource | 
                   {money(s.net_benefit_penalties_only_usd)}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
       <div className="panel-pad flex flex-col gap-3 border-t border-line text-sm text-ink-soft">
         {vendor && plan && (
           <p data-testid="roi-summary">
-            Counting penalties only, the routing vendor {vendor.net_benefit_penalties_only_usd < 0 ? 'loses' : 'nets'}{' '}
-            <strong className="num text-ink">{usd(Math.abs(vendor.net_benefit_penalties_only_usd))}</strong> a year, while the realistic plan nets{' '}
+            Counting penalties only, buying the routing software only {vendor.net_benefit_penalties_only_usd < 0 ? 'loses' : 'gains'}{' '}
+            <strong className="num text-ink">{usd(Math.abs(vendor.net_benefit_penalties_only_usd))}</strong> a year, while fixing all 5 problems (likely) gains{' '}
             <strong className="num text-ink">{money(plan.net_benefit_penalties_only_usd)}</strong> a year.
           </p>
         )}
         {causeKeys.length > 0 && (
           <details className="group">
-            <summary className="cursor-pointer font-semibold text-route">Assumptions behind the realistic case</summary>
+            <summary className="cursor-pointer font-semibold text-route">Assumptions behind “Fix all 5 problems (likely)”</summary>
             <table className="mt-3 w-full max-w-[640px] border-collapse text-[15px] text-ink">
               <thead>
                 <tr className="border-b border-line">

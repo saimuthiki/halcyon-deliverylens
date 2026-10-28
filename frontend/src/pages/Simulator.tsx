@@ -13,9 +13,9 @@ import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
 function presets(realistic: FixLevels): { label: string; fixes: FixLevels }[] {
   return [
     { label: 'Realistic plan', fixes: realistic },
-    { label: 'Only buy the routing vendor', fixes: { weak_carrier_lane: 1, route_deviation: 1 } },
-    { label: 'Only fix our own processes', fixes: { incomplete_address: 1, same_day_after_cutoff: 1, stock_not_at_nearest: 1 } },
-    { label: 'Best case: fix everything', fixes: { incomplete_address: 1, same_day_after_cutoff: 1, stock_not_at_nearest: 1, weak_carrier_lane: 1, route_deviation: 1 } },
+    { label: 'Buy the routing software only', fixes: { weak_carrier_lane: 1, route_deviation: 1 } },
+    { label: 'Fix our own work only', fixes: { incomplete_address: 1, same_day_after_cutoff: 1, stock_not_at_nearest: 1 } },
+    { label: 'Fix all 5 problems perfectly', fixes: { incomplete_address: 1, same_day_after_cutoff: 1, stock_not_at_nearest: 1, weak_carrier_lane: 1, route_deviation: 1 } },
     { label: 'Reset', fixes: {} },
   ];
 }

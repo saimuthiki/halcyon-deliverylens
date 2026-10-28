@@ -112,6 +112,7 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
+- **2026-10-28, Sai M + Claude Code (4):** Vendor decision tab in plain words. The four options are now "Buy the routing software only", "Fix our own work only", "Fix all 5 problems (likely)" and "Fix all 5 problems perfectly", each with a one-line meaning in the business-case table. Same names on Overview, Simulator and help (backend scenario names unchanged).
 - **2026-10-28, Sai M + Claude Code (3):** plain-language UI. Why-late table: "Deliveries hit", "On time when hit" and "Share of late" merged into one sentence ("N deliveries had this problem; only X in 100 arrived on time"); "Worth" renamed "On-time points lost". Option names on Overview, Vendor and Simulator: "Only buy the routing vendor", "Only fix our own processes", "Do all five fixes (expected)", "Best case, if every problem disappeared" (backend scenario names unchanged). Then merged with dkarasu's email service: new `brevo` backend (Brevo HTTP API, `BREVO_API_KEY`, test mode applies), the brief's text and HTML link to `/weekly-brief?week=...`, and the brief page shows a Formatted (HTML) / Plain text preview of `brief.html`. SNS stays the default.
 - **2026-10-28, dkarasu + Claude Code (2):** email service, Stage 1 (not deployed yet).
   - New shared module `backend/app/email` (message, backends, `send_email()`, Jinja2 templates); see `docs/09-email-service.md`.

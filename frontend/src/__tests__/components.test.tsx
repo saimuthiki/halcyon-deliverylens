@@ -26,10 +26,10 @@ describe('DeliveryTrack', () => {
   it('describes every option for screen readers', () => {
     render(<DeliveryTrack today={0.71} routingOnly={0.8024} processOnly={0.8667} realistic={0.9024} ceiling={0.99} benchmark={0.94} />);
     const fig = screen.getByRole('figure');
-    expect(fig).toHaveAttribute('aria-label', expect.stringContaining('only buy the routing vendor 80.2%'));
-    expect(fig).toHaveAttribute('aria-label', expect.stringContaining('do all five fixes (expected) 90.2%'));
-    expect(fig).toHaveAttribute('aria-label', expect.stringContaining('best case, if every problem disappeared 99.0%'));
+    expect(fig).toHaveAttribute('aria-label', expect.stringContaining('buy the routing software only 80.2%'));
+    expect(fig).toHaveAttribute('aria-label', expect.stringContaining('fix all 5 problems (likely) 90.2%'));
+    expect(fig).toHaveAttribute('aria-label', expect.stringContaining('fix all 5 problems perfectly 99.0%'));
     // Phone list names the ceiling as a ceiling, not an outcome.
-    expect(screen.getByText('Best case, if every problem disappeared', { selector: 'li span' })).toBeInTheDocument();
+    expect(screen.getByText('Fix all 5 problems perfectly', { selector: 'li span' })).toBeInTheDocument();
   });
 });
