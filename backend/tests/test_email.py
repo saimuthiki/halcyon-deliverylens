@@ -305,3 +305,53 @@ def test_weekly_brief_not_configured_without_recipients(dataset, monkeypatch):
     monkeypatch.setattr(service, "get_settings", lambda: replace(s, email_backend="smtp"))
     status = wb.delivery_status()
     assert status["configured"] is False and "not available yet" in status["note"]
+
+
+# ---------------------------------------------------------------- Brevo (HTTP API) and the link to the web page
+class FakeBrevoResponse:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self):
+        return b'{"messageId": "<brevo-1>"}'
+
+
+def test_brevo_needs_a_key():
+    with pytest.raises(EmailConfigError, match="BREVO_API_KEY"):
+        get_backend(settings(email_backend="brevo", brevo_api_key=""))
+
+
+def test_weekly_brief_through_brevo_sends_html_in_test_mode(dataset, monkeypatch):
+    from app.agents import weekly_brief as wb
+    from app.email import backends
+
+    calls = []
+
+    def fake_urlopen(req, timeout):
+        calls.append({"url": req.full_url, "key": req.get_header("Api-key"), "body": json.loads(req.data)})
+        return FakeBrevoResponse()
+
+    s = settings(email_backend="brevo", brevo_api_key="k", email_from_address="brief@team.example",
+                 email_test_mode=True, email_test_recipients=(TO,), weekly_brief_to=(CC,), weekly_brief_bcc=(BCC,))
+    monkeypatch.setattr(service, "get_settings", lambda: s)
+    monkeypatch.setattr(backends.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(wb, "_last_sent", 0.0)
+    r = wb.run_weekly_brief(dataset)
+    assert r["delivery"]["configured"] and r["delivery"]["backend"] == "brevo"
+    out = wb.send_brief(r)
+    assert out["backend"] == "brevo" and out["message_id"] == "<brevo-1>"
+    body = calls[0]["body"]
+    assert calls[0]["url"] == backends.BrevoBackend.URL and calls[0]["key"] == "k"
+    assert body["to"] == [{"email": TO}] and "bcc" not in body and body["subject"].startswith("[TEST] ")
+    assert body["sender"]["email"] == "brief@team.example" and "<table" in body["htmlContent"]
+
+
+def test_brief_links_to_its_week_on_the_website(dataset):
+    from app.agents.weekly_brief import run_weekly_brief
+
+    r = run_weekly_brief(dataset)
+    url = f"{get_settings().public_site_url}/weekly-brief?week={r['week_of']}"
+    assert url in r["brief"]["body"] and url in r["brief"]["html"]

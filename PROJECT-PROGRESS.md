@@ -105,13 +105,14 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 - [ ] Retake the screenshot `docs/guide-images/05-order-desk-same-day.png`, and rebuild the `.docx` files in `docs/downloads/` (needs pandoc).
 - [ ] Optional: a sample WMS page with "Run the day" (pick lists per warehouse for today and tomorrow).
 - [ ] Decide the weekly brief recipients, then run `bash infra/scripts/09-weekly-brief.sh`; each person confirms the AWS email.
+- [ ] Brevo: to switch on now, set `EMAIL_BACKEND=brevo`, `BREVO_API_KEY`, a Brevo-verified `EMAIL_FROM_ADDRESS` and `EMAIL_TEST_RECIPIENTS` in the secret (keep test mode on first).
 - [ ] Brevo SMTP (Stage 2): a verified sender that passes Brevo's checks (see `docs/09-email-service.md`), the SMTP key in Secrets Manager, then the SMTP backend in test mode.
 - [ ] After the hackathon: `bash infra/scripts/99-teardown.sh` to stop all costs.
 - Repository: `origin` = `Evoke-Hackathon-2026/InfinityStacks` (the final hackathon repo).
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
-- **2026-10-28, Sai M + Claude Code (3):** plain-language UI. Why-late table: "Deliveries hit", "On time when hit" and "Share of late" merged into one sentence ("N deliveries had this problem; only X in 100 arrived on time"); "Worth" renamed "On-time points lost". Option names on Overview, Vendor and Simulator: "Only buy the routing vendor", "Only fix our own processes", "Do all five fixes (expected)", "Best case, if every problem disappeared" (backend scenario names unchanged). A Brevo HTML-brief version is kept on local branch `brevo-html-brief`, not merged, because dkarasu's email service now owns sending.
+- **2026-10-28, Sai M + Claude Code (3):** plain-language UI. Why-late table: "Deliveries hit", "On time when hit" and "Share of late" merged into one sentence ("N deliveries had this problem; only X in 100 arrived on time"); "Worth" renamed "On-time points lost". Option names on Overview, Vendor and Simulator: "Only buy the routing vendor", "Only fix our own processes", "Do all five fixes (expected)", "Best case, if every problem disappeared" (backend scenario names unchanged). Then merged with dkarasu's email service: new `brevo` backend (Brevo HTTP API, `BREVO_API_KEY`, test mode applies), the brief's text and HTML link to `/weekly-brief?week=...`, and the brief page shows a Formatted (HTML) / Plain text preview of `brief.html`. SNS stays the default.
 - **2026-10-28, dkarasu + Claude Code (2):** email service, Stage 1 (not deployed yet).
   - New shared module `backend/app/email` (message, backends, `send_email()`, Jinja2 templates); see `docs/09-email-service.md`.
   - The Weekly Brief sends through it; delivery is still SNS by default (`EMAIL_BACKEND=sns`), same recipients, timer and cooldown.

@@ -67,5 +67,6 @@
 {% endif %}
 
 <p style="margin:20px 0 0;">With all five fixes in place we project <strong>{{ f.projected_on_time_rate_with_fixes | pct }}</strong> on time.</p>
+<p style="margin:20px 0 0;"><a href="{{ web_url }}" style="display:inline-block;background:#0E6B63;color:#ffffff;text-decoration:none;font-weight:600;padding:10px 16px;border-radius:6px;">Open the full brief</a></p>
 {% endblock %}
 {% block footer %}DeliveryLens weekly brief. The figures and tables come from the delivery data; the AI wrote only the headline and the short commentary.{% endblock %}

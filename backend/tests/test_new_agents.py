@@ -125,7 +125,8 @@ def test_brief_is_sent_to_the_topic_only(dataset, monkeypatch):
     monkeypatch.setattr(wb, "_sns", lambda: Sns())
     monkeypatch.setattr(wb, "get_settings", lambda: type("S", (), {"weekly_brief_topic_arn": "arn:topic",
                                                                      "same_day_grace_until": "09:00",
-                                                                     "same_day_hard_stop": "10:00"})())
+                                                                     "same_day_hard_stop": "10:00",
+                                                                     "public_site_url": "https://site.example"})())
     monkeypatch.setattr(wb, "_last_sent", 0.0)
     r = wb.run_weekly_brief(dataset)
     out = wb.send_brief(r)

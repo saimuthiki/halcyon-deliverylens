@@ -63,6 +63,7 @@ class Settings:
     weekly_brief_to: tuple[str, ...] = ()  # per environment; never taken from a web request
     weekly_brief_cc: tuple[str, ...] = ()
     weekly_brief_bcc: tuple[str, ...] = ()
+    brevo_api_key: str = field(default="", repr=False)  # secret: EMAIL_BACKEND=brevo (Brevo HTTP API)
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_security: str = "starttls"  # starttls (587) or ssl (465)
@@ -104,6 +105,7 @@ def get_settings() -> Settings:
         weekly_brief_to=_csv("WEEKLY_BRIEF_TO"),
         weekly_brief_cc=_csv("WEEKLY_BRIEF_CC"),
         weekly_brief_bcc=_csv("WEEKLY_BRIEF_BCC"),
+        brevo_api_key=os.getenv("BREVO_API_KEY", "").strip(),
         smtp_host=os.getenv("SMTP_HOST", "").strip(),
         smtp_port=int(os.getenv("SMTP_PORT", "587")),
         smtp_security=os.getenv("SMTP_SECURITY", "").strip().lower() or "starttls",

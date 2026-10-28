@@ -38,4 +38,6 @@ ACTIONS FOR THIS WEEK
 
 With all five fixes in place we project {{ f.projected_on_time_rate_with_fixes | pct }} on time.
 
+Formatted version with tables: {{ web_url }}
+
 DeliveryLens weekly brief

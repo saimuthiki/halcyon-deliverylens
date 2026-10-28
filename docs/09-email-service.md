@@ -35,7 +35,9 @@ flowchart LR
 - **The number guardrail still applies to the AI text.** A number that isn't in the facts sends both the
   headline and the commentary back to the rule-written version, and the reason is flagged.
 - **Subject:** always rule-written.
-- **Formats:** the HTML version is used by backends that can send HTML. SNS sends the plain-text version.
+- **Formats:** the HTML version is used by backends that can send HTML. SNS sends the plain-text version,
+  which ends with a link to the formatted brief on the website (`/weekly-brief?week=...`, from `PUBLIC_SITE_URL`).
+  The brief page previews both versions.
 - **Unchanged:**
   - the manual trigger (`POST /api/briefs/weekly/send`);
   - the Monday timer (`python -m app.agents.weekly_brief send`);
@@ -47,7 +49,8 @@ flowchart LR
 
 | Variable | Default | Notes |
 |---|---|---|
-| `EMAIL_BACKEND` | `sns` | `sns`, `console`, `memory`. `smtp` is refused until Stage 2. |
+| `EMAIL_BACKEND` | `sns` | `sns`, `console`, `memory`, `brevo` (Brevo HTTP API, sends the HTML version). `smtp` is refused until Stage 2. |
+| `BREVO_API_KEY` | – | **Secret**, for `brevo`. Only in Secrets Manager. The sender (`EMAIL_FROM_ADDRESS`) must be verified in Brevo; the same sender rules as SMTP below apply. |
 | `WEEKLY_BRIEF_TOPIC_ARN` | – | The SNS backend's topic |
 | `EMAIL_FROM_ADDRESS` | – | Sender. **Must be verified and authenticated with the provider.** Not used by SNS. |
 | `EMAIL_FROM_NAME` | `DeliveryLens` | Display name |

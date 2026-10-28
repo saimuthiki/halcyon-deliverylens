@@ -15,12 +15,12 @@ from dataclasses import dataclass, replace
 from typing import Callable
 
 from app.config import Settings, get_settings
-from app.email.backends import ConsoleBackend, EmailBackend, MemoryBackend, SendResult, SnsBackend
+from app.email.backends import BrevoBackend, ConsoleBackend, EmailBackend, MemoryBackend, SendResult, SnsBackend
 from app.email.message import EmailMessage, EmailValidationError
 
 log = logging.getLogger(__name__)
 
-BACKENDS = ("sns", "console", "memory", "smtp")
+BACKENDS = ("sns", "console", "memory", "brevo", "smtp")
 TEST_SUBJECT_PREFIX = "[TEST] "
 MEMORY = MemoryBackend()  # shared outbox for EMAIL_BACKEND=memory (tests, local runs)
 
@@ -63,6 +63,10 @@ def get_backend(settings: Settings | None = None, *, sns_topic_arn: str | None =
         return ConsoleBackend()
     if name == "memory":
         return MEMORY
+    if name == "brevo":
+        if not s.brevo_api_key:
+            raise EmailConfigError("EMAIL_BACKEND=brevo needs BREVO_API_KEY")
+        return BrevoBackend(s.brevo_api_key)
     if name == "smtp":
         raise EmailConfigError("EMAIL_BACKEND=smtp is not available yet (planned for the next stage)")
     raise EmailConfigError(f"Unknown EMAIL_BACKEND {name!r}; use one of {', '.join(BACKENDS)}")

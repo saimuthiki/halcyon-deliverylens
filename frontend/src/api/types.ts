@@ -585,14 +585,25 @@ export interface WeeklyBriefResult {
     top_actions: { cause: CauseKey; action: string; owner: string }[];
     trend: { week_of: string; on_time_rate: number | null }[];
   };
-  brief: { subject: string; headline: string; body: string };
+  /** html: the formatted email (tables from the data); sent by HTML backends, linked from the SNS text email. */
+  brief: { subject: string; headline: string; commentary?: string; body: string; html?: string };
   guardrail_flags: string[];
-  delivery: { configured: boolean; confirmed_subscribers: number | null; pending_subscribers?: number; schedule?: string; note?: string };
+  delivery: {
+    configured: boolean;
+    backend?: string;
+    confirmed_subscribers?: number | null;
+    pending_subscribers?: number;
+    recipients?: { to: number; cc: number; bcc: number };
+    test_mode?: boolean;
+    schedule?: string;
+    note?: string;
+  };
   method: string;
 }
 
 export interface WeeklyBriefSent {
   sent: boolean;
+  backend?: string;
   message_id: string;
   week_of: string;
   subject: string;

@@ -4,10 +4,14 @@ sns     Amazon SNS topic (today's Weekly Brief). The topic's confirmed subscribe
         own recipients are ignored; plain text only, no attachments.
 console Logs a summary (development). Nothing leaves the process.
 memory  Keeps every message in a list (tests). Builds the full MIME message, as an SMTP provider would.
+brevo   Brevo's transactional email HTTP API (BREVO_API_KEY): HTML and plain text to the message's recipients.
 
 SMTP (Brevo) is the next stage; the service refuses EMAIL_BACKEND=smtp until it exists.
 """
+import json
 import logging
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
@@ -85,3 +89,37 @@ class MemoryBackend:
 
     def clear(self) -> None:
         self.outbox.clear()
+
+
+class BrevoBackend:
+    """Brevo transactional email API. The sender must be verified in Brevo, on a domain authenticated there
+    (evoketechnologies.com rejects mail sent for it by others: DMARC p=reject)."""
+    name = "brevo"
+    addresses_recipients = True
+    requires_sender = True
+    URL = "https://api.brevo.com/v3/smtp/email"
+    TIMEOUT_S = 20
+
+    def __init__(self, api_key: str):
+        self._api_key = api_key
+
+    def send(self, message: EmailMessage) -> SendResult:
+        if message.attachments:
+            raise EmailValidationError("the brevo backend does not send attachments yet")
+        sender = {"email": message.from_email, **({"name": message.from_name} if message.from_name else {})}
+        payload = {"sender": sender, "subject": message.subject,
+                   "to": [{"email": a} for a in message.to],
+                   **({"cc": [{"email": a} for a in message.cc]} if message.cc else {}),
+                   **({"bcc": [{"email": a} for a in message.bcc]} if message.bcc else {}),
+                   **({"replyTo": {"email": message.reply_to[0]}} if message.reply_to else {}),
+                   **({"htmlContent": message.html_body} if message.html_body else {}),
+                   **({"textContent": message.text_body} if message.text_body else {})}
+        req = urllib.request.Request(self.URL, data=json.dumps(payload).encode(), method="POST",
+                                     headers={"api-key": self._api_key, "content-type": "application/json",
+                                              "accept": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=self.TIMEOUT_S) as resp:  # noqa: S310 (fixed https URL)
+                message_id = json.loads(resp.read() or b"{}").get("messageId")
+        except urllib.error.HTTPError as exc:  # Brevo's error text is safe to log; the key is never in it
+            raise RuntimeError(f"Brevo refused the email ({exc.code}): {exc.read()[:300].decode(errors='replace')}") from None
+        return SendResult(self.name, message_id, len(message.recipients()))

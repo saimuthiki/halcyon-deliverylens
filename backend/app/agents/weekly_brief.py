@@ -158,9 +158,15 @@ def _template(f: dict) -> dict:
     return {"subject": subject, "headline": headline, "commentary": " ".join(commentary)}
 
 
+def web_link(week_of: str) -> str:
+    """The brief on the website, at its week; the plain-text (SNS) email links here for the formatted version."""
+    return f"{get_settings().public_site_url}/weekly-brief?week={week_of}"
+
+
 def _compose(f: dict, subject: str, headline: str, commentary: str) -> dict:
     """The finished brief: AI or template headline and commentary; every table and figure from the facts."""
-    ctx = {"f": f, "subject": subject, "brief": {"headline": headline, "commentary": commentary}}
+    ctx = {"f": f, "subject": subject, "brief": {"headline": headline, "commentary": commentary},
+           "web_url": web_link(f["week_of"])}
     rendered = render_email("weekly_brief", ctx)
     return {"subject": subject, "headline": headline, "commentary": commentary,
             "body": rendered.text, "html": rendered.html}
@@ -238,7 +244,7 @@ def _backend():
 def delivery_status() -> dict:
     info = describe(RECIPIENT_LIST)
     if info["backend"] != "sns":
-        available = info["backend"] in ("console", "memory")
+        available = info["backend"] in ("console", "memory", "brevo")
         configured = available and not info["missing"]
         note = None if configured else (info["missing"] if available else
                                         f"EMAIL_BACKEND={info['backend']} is not available yet")
