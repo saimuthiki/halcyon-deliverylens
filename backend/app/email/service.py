@@ -5,7 +5,9 @@
 3. Test mode (EMAIL_TEST_MODE, on by default): send only to EMAIL_TEST_RECIPIENTS, drop Cc and Bcc, and mark
    the subject [TEST]. It applies to backends that address recipients; an SNS topic always goes to its own
    confirmed subscribers.
-4. Validate, send, and log one structured line. Logs carry counts and the provider's message id, never
+4. With an idempotency key, claim it in the email_sends table first (app/email/dedupe.py): the same email is
+   never sent twice, even by two processes or after a restart.
+5. Validate, send, and log one structured line. Logs carry counts and the provider's message id, never
    addresses, bodies or credentials.
 """
 import json
@@ -15,7 +17,9 @@ from dataclasses import dataclass, replace
 from typing import Callable
 
 from app.config import Settings, get_settings
-from app.email.backends import BrevoBackend, ConsoleBackend, EmailBackend, MemoryBackend, SendResult, SnsBackend
+from app.email import dedupe
+from app.email.backends import (BrevoBackend, ConsoleBackend, EmailBackend, MemoryBackend, SendResult, SmtpBackend,
+                                SnsBackend)
 from app.email.message import EmailMessage, EmailValidationError
 
 log = logging.getLogger(__name__)
@@ -51,6 +55,22 @@ def _default_sns_client(region: str) -> Callable[[], object]:
     return factory
 
 
+def _smtp_backend(s: Settings) -> SmtpBackend:
+    missing = [k for k, v in (("SMTP_HOST", s.smtp_host), ("SMTP_USERNAME", s.smtp_username),
+                              ("SMTP_PASSWORD", s.smtp_password)) if not v]
+    if missing:
+        raise EmailConfigError(f"EMAIL_BACKEND=smtp needs {', '.join(missing)}")
+    if s.smtp_security not in ("starttls", "ssl"):
+        raise EmailConfigError(f"SMTP_SECURITY must be starttls or ssl, not {s.smtp_security!r}")
+    if (s.smtp_security, s.smtp_port) in (("starttls", 465), ("ssl", 587)):
+        raise EmailConfigError(f"SMTP_SECURITY={s.smtp_security} does not match SMTP_PORT={s.smtp_port} "
+                               "(starttls uses 587, ssl uses 465)")
+    if not 0 <= s.smtp_max_retries <= 5 or s.smtp_timeout_seconds <= 0:
+        raise EmailConfigError("SMTP_MAX_RETRIES must be 0-5 and SMTP_TIMEOUT_SECONDS above 0")
+    return SmtpBackend(s.smtp_host, s.smtp_port, s.smtp_security, s.smtp_username, s.smtp_password,
+                       timeout=s.smtp_timeout_seconds, max_retries=s.smtp_max_retries)
+
+
 def get_backend(settings: Settings | None = None, *, sns_topic_arn: str | None = None,
                 sns_client_factory: Callable[[], object] | None = None) -> EmailBackend:
     s = settings or get_settings()
@@ -68,7 +88,7 @@ def get_backend(settings: Settings | None = None, *, sns_topic_arn: str | None =
             raise EmailConfigError("EMAIL_BACKEND=brevo needs BREVO_API_KEY")
         return BrevoBackend(s.brevo_api_key)
     if name == "smtp":
-        raise EmailConfigError("EMAIL_BACKEND=smtp is not available yet (planned for the next stage)")
+        return _smtp_backend(s)
     raise EmailConfigError(f"Unknown EMAIL_BACKEND {name!r}; use one of {', '.join(BACKENDS)}")
 
 
@@ -118,26 +138,53 @@ def _log(event: str, message: EmailMessage, backend: EmailBackend, test_mode: bo
     record = {"event": event, "category": message.category, "backend": backend.name, "test_mode": test_mode,
               "to": len(message.to), "cc": len(message.cc), "bcc": len(message.bcc),
               "attachments": len(message.attachments), **extra}
-    (log.error if event == "email_failed" else log.info)(json.dumps(record))
+    level = {"email_failed": log.error, "email_refused": log.warning, "email_duplicate_blocked": log.warning}
+    level.get(event, log.info)(json.dumps(record))
 
 
-def send_email(message: EmailMessage, *, backend: EmailBackend | None = None,
-               settings: Settings | None = None) -> SendResult:
-    """Send one email through the configured backend. Raises EmailConfigError, EmailValidationError or
-    EmailDeliveryError; the original provider exception is chained, never logged with the message content."""
+def send_email(message: EmailMessage, *, backend: EmailBackend | None = None, settings: Settings | None = None,
+               idempotency_key: str | None = None, trigger: str = "api", resend: bool = False) -> SendResult:
+    """Send one email through the configured backend.
+
+    With an idempotency_key the send is recorded in email_sends and a second send under the same key raises
+    dedupe.AlreadySent, across processes and restarts; resend=True sends again on purpose.
+    Raises EmailConfigError, EmailValidationError, AlreadySent or EmailDeliveryError. A delivery error carries
+    only the provider error's class and code, never its text, and is not chained to it, so nothing a provider
+    said (which may echo addresses) reaches logs or API tracebacks.
+    """
     s = settings or get_settings()
     backend = backend or get_backend(s)
-    message, test_mode = _prepare(message, backend, s)
-    message.validate(require_recipients=backend.addresses_recipients, require_sender=backend.requires_sender)
+    try:
+        message, test_mode = _prepare(message, backend, s)
+        message.validate(require_recipients=backend.addresses_recipients, require_sender=backend.requires_sender)
+    except (EmailConfigError, EmailValidationError) as exc:
+        _log("email_refused", message, backend, s.email_test_mode, error=type(exc).__name__)
+        raise
+    claim = None
+    if idempotency_key:
+        try:
+            claim = dedupe.claim(idempotency_key, category=message.category, trigger=trigger, resend=resend)
+        except dedupe.AlreadySent as exc:
+            _log("email_duplicate_blocked", message, backend, test_mode, key=idempotency_key, status=exc.status)
+            raise
     start = time.perf_counter()
     try:
         result = backend.send(message)
-    except EmailValidationError:
-        raise
     except Exception as exc:
-        _log("email_failed", message, backend, test_mode, error=type(exc).__name__,
+        error = getattr(exc, "error", None) or type(exc).__name__
+        unknown = bool(getattr(exc, "outcome_unknown", False))
+        if claim:
+            dedupe.finish(claim, status="unknown" if unknown else "failed", backend=backend.name, error=error)
+        _log("email_failed", message, backend, test_mode, error=error, outcome_unknown=unknown,
              latency_ms=int((time.perf_counter() - start) * 1000))
-        raise EmailDeliveryError(f"The {backend.name} backend could not send the email ({type(exc).__name__})") from exc
-    _log("email_sent", message, backend, test_mode, message_id=result.message_id,
-         latency_ms=int((time.perf_counter() - start) * 1000))
+        if isinstance(exc, EmailValidationError):
+            raise
+        err = EmailDeliveryError(f"The {backend.name} backend could not send the email ({error})")
+        err.provider_error, err.outcome_unknown = error, unknown
+        raise err from None
+    if claim:
+        dedupe.finish(claim, status="sent", backend=backend.name, message_id=result.message_id,
+                      recipients=result.recipients)
+    _log("email_sent", message, backend, test_mode, message_id=result.message_id, recipients=result.recipients,
+         latency_ms=int((time.perf_counter() - start) * 1000), **({"key": claim.key} if claim else {}))
     return result

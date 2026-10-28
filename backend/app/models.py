@@ -1,7 +1,7 @@
 """Tables. Column names mirror the CSVs in data/halcyon-dataset (see DATA_DICTIONARY.md)."""
 from datetime import date, datetime, timezone
 
-from sqlalchemy import JSON, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -181,6 +181,29 @@ class ClientAddress(Base):
     postcode: Mapped[str] = mapped_column(String(20))
     source_message_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class EmailSend(Base):
+    """One attempt to send an email under an idempotency key (app/email/dedupe.py). The unique dedupe_key
+    lets the database refuse a second send of the same email across processes and restarts.
+    No addresses or bodies are stored."""
+    __tablename__ = "email_sends"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    base_key: Mapped[str] = mapped_column(String(200), index=True)  # e.g. weekly_brief:2026-09-21:2026-11-02
+    dedupe_key: Mapped[str] = mapped_column(String(220), unique=True)  # base_key, or base_key:resend:N
+    category: Mapped[str] = mapped_column(String(40))
+    # sending -> sent | failed (nothing left the app; may be retried) | unknown (may have been sent; resend only)
+    status: Mapped[str] = mapped_column(String(20), default="sending")
+    trigger: Mapped[str] = mapped_column(String(20), default="api")  # api | timer | cli
+    resend: Mapped[bool] = mapped_column(Boolean, default=False)
+    backend: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    message_id: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    recipients: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(String(200), nullable=True)  # error class and code only
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 

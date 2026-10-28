@@ -24,9 +24,19 @@ SECRET=$(cat <<JSON
  "PUBLIC_SITE_URL":"${AMPLIFY_ORIGIN}","WEEKLY_BRIEF_TOPIC_ARN":"$(cat "$STATE/brief_topic_arn" 2>/dev/null || true)"}
 JSON
 )
+# Secret values go through owner-only temp files (never a command-line argument), removed on any exit.
+umask 077
+NEW="$STATE/secret.new.tmp"; OUT="$STATE/secret.tmp"
+trap 'rm -f "$NEW" "$OUT"' EXIT
+printf '%s' "$SECRET" > "$NEW"
 if aws secretsmanager describe-secret --secret-id "$SECRET_NAME" >/dev/null 2>&1; then
-  aws secretsmanager put-secret-value --secret-id "$SECRET_NAME" --secret-string "$SECRET" >/dev/null
+  # Merge, never replace: keep every field already in the secret (SMTP_*, email settings, keys other scripts added),
+  # and never blank an existing value with an empty one (e.g. no brief_topic_arn state file on this machine).
+  PY=$(command -v python3 || command -v python) || { log "python3 is needed to merge the secret"; exit 1; }
+  aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text \
+    | "$PY" -c 'import json,sys; old=json.load(sys.stdin); new=json.load(open(sys.argv[1])); old.update({k: v for k, v in new.items() if v != ""}); print(json.dumps(old))' "$NEW" > "$OUT"
+  aws secretsmanager put-secret-value --secret-id "$SECRET_NAME" --secret-string "file://$(awspath "$OUT")" >/dev/null
 else
-  aws secretsmanager create-secret --name "$SECRET_NAME" --secret-string "$SECRET" >/dev/null
+  aws secretsmanager create-secret --name "$SECRET_NAME" --secret-string "file://$(awspath "$NEW")" >/dev/null
 fi
 log "RDS endpoint $HOST; secret $SECRET_NAME updated (demo password stored there)"

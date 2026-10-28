@@ -12,10 +12,14 @@ for e in $(echo "${BRIEF_EMAILS:-${ALERT_EMAILS:-}}" | tr ',' ' '); do
 done
 log "Topic $TOPIC_NAME ready"
 
-# Add the two settings to the app secret without printing it.
-aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text \
-  | python -c 'import json,sys; d=json.load(sys.stdin); d.update(WEEKLY_BRIEF_TOPIC_ARN=sys.argv[1], PUBLIC_SITE_URL=sys.argv[2]); print(json.dumps(d))'       "$TOPIC" "$AMPLIFY_ORIGIN" \
-  > "$STATE/secret.tmp"
+# Add the two settings to the app secret without printing it. The whole secret (SMTP key included) passes through
+# an owner-only temp file that is removed on any exit.
+PY=$(command -v python3 || command -v python) || { log "python3 is needed to update the secret"; exit 1; }
+trap 'rm -f "$STATE/secret.tmp"' EXIT
+(umask 077
+ aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text \
+   | "$PY" -c 'import json,sys; d=json.load(sys.stdin); d.update(WEEKLY_BRIEF_TOPIC_ARN=sys.argv[1], PUBLIC_SITE_URL=sys.argv[2]); print(json.dumps(d))'       "$TOPIC" "$AMPLIFY_ORIGIN" \
+   > "$STATE/secret.tmp")
 aws secretsmanager put-secret-value --secret-id "$SECRET_NAME" --secret-string "file://$(awspath "$STATE/secret.tmp")" >/dev/null
 rm -f "$STATE/secret.tmp"
 log "Secret $SECRET_NAME updated"
@@ -26,9 +30,13 @@ REMOTE=$(cat <<'SH'
 set -euo pipefail
 cd /home/ec2-user
 set -a; . ./.env; set +a
-aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$SECRET_NAME" --query SecretString --output text \
-  | jq -r 'to_entries[] | "\(.key)=\(.value)"' > app.env
-chmod 600 app.env && chown ec2-user app.env
+# SMTP_* stay out of app.env: the API reads them itself from the secret (APP_SECRET_ID, boto3, instance role).
+trap 'rm -f /home/ec2-user/app.env.tmp' EXIT
+(umask 077
+ aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$SECRET_NAME" --query SecretString --output text \
+   | jq -r 'to_entries[] | select(.key | startswith("SMTP_") | not) | "\(.key)=\(.value)"' > app.env.tmp
+ printf 'APP_SECRET_ID=%s\nAPP_SECRET_ACCOUNT=%s\n' "$SECRET_NAME" "${IMAGE%%.*}" >> app.env.tmp)
+mv app.env.tmp app.env && chmod 600 app.env && chown ec2-user app.env
 sudo -u ec2-user docker compose -f docker-compose.prod.yml up -d api
 cat > /etc/systemd/system/deliverylens-brief.service <<'UNIT'
 [Unit]
@@ -54,7 +62,7 @@ systemctl list-timers deliverylens-brief.timer --no-pager | head -3
 SH
 )
 CMD=$(aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-RunShellScript --comment "weekly brief setup" \
-  --parameters "$(python -c 'import json,sys; print(json.dumps({"commands": [sys.argv[1]]}))' "$REMOTE")" --query Command.CommandId --output text)
+  --parameters "$("$PY" -c 'import json,sys; print(json.dumps({"commands": [sys.argv[1]]}))' "$REMOTE")" --query Command.CommandId --output text)
 for _ in $(seq 1 30); do
   STATUS=$(aws ssm get-command-invocation --command-id "$CMD" --instance-id "$INSTANCE" --query Status --output text 2>/dev/null || echo Pending)
   [[ "$STATUS" == Success || "$STATUS" == Failed || "$STATUS" == TimedOut || "$STATUS" == Cancelled ]] && break

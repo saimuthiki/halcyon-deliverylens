@@ -7,7 +7,7 @@
 > 3. Commit it with your changes, so the next person who pulls gets the current state.
 > 4. Never put secrets here (keys, passwords, `.pem` contents, `.env` values).
 
-Last updated: 2026-10-28 by dkarasu (with Claude Code).
+Last updated: 2026-10-28 by dkarasu (with Claude Code, email Stage 2).
 
 ## 1. What we are building
 - **Problem 2:** Halcyon Logistics is 71% on time (benchmark 94%), and its leaders were about to buy a $680K routing tool.
@@ -106,12 +106,23 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 - [ ] Optional: a sample WMS page with "Run the day" (pick lists per warehouse for today and tomorrow).
 - [ ] Decide the weekly brief recipients, then run `bash infra/scripts/09-weekly-brief.sh`; each person confirms the AWS email.
 - [ ] Brevo: to switch on now, set `EMAIL_BACKEND=brevo`, `BREVO_API_KEY`, a Brevo-verified `EMAIL_FROM_ADDRESS` and `EMAIL_TEST_RECIPIENTS` in the secret (keep test mode on first).
-- [ ] Brevo SMTP (Stage 2): a verified sender that passes Brevo's checks (see `docs/09-email-service.md`), the SMTP key in Secrets Manager, then the SMTP backend in test mode.
+- [ ] Brevo SMTP (built, not switched on): rotate the SMTP key (the current one was shared in a chat), deploy this code, merge the SMTP fields with `infra/scripts/10-smtp-secret.py`, run `python -m app.email check` on the server, then `EMAIL_BACKEND=smtp` in test mode first. Steps in `docs/09-email-service.md` ("Switching production to Brevo SMTP").
+- [ ] Brevo Authorised IPs: add the remaining office VPN addresses (5 rotate) and keep the EC2 address.
 - [ ] After the hackathon: `bash infra/scripts/99-teardown.sh` to stop all costs.
 - Repository: `origin` = `Evoke-Hackathon-2026/InfinityStacks` (the final hackathon repo).
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
+- **2026-10-28, dkarasu + Claude Code (3):** email service, Stage 2 (not deployed yet; production stays on SNS).
+  - New `smtp` backend (Brevo SMTP over STARTTLS/TLS only; retries for transient failures only, within ~40 s; never retried after the email's DATA was sent). `brevo` (HTTP API) kept.
+  - Durable duplicate protection: new `email_sends` table; the Weekly Brief goes out once per reporting week per day (timer and "Send now" share the key); explicit resend by `--resend` on the server, or the API with a DEMO_TOKEN. No migration to run (created at start-up).
+  - Provider errors are sanitised (class and code only, not chained); "Send now" answers 409 `already_sent` or 502 `email_not_sent`. `python -m app.email check` tests the SMTP login without sending.
+  - Fixed the CI security scan (bandit B310 on the `brevo` backend's fixed https URL), which had stopped `a50c57c` and `0d5726e` from deploying.
+  - A one-off SMTP test from a Mac reached two internal addresses through Brevo (sent outside the app).
+  - SMTP credentials in production: the API reads the `SMTP_*` fields itself from `deliverylens/app` with boto3 and the EC2 instance role (`APP_SECRET_ID`, `app/runtime_secrets.py`); the deploy (workflow, 07, 09) keeps `SMTP_*` out of `app.env`, writes it owner-only through a temp file and adds `APP_SECRET_ID`. No IAM change needed (the role already has `GetSecretValue` on this secret only).
+  - `infra/scripts/10-smtp-secret.py` (boto3) merges the SMTP fields from `backend/.env` into the secret: dry run by default, keeps every field, refuses a missing secret or the wrong account, verifies, prints key names only. `05-secrets-rds.sh` now merges instead of replacing the secret.
+  - The API checks the secret's name, region and account (`APP_SECRET_ACCOUNT`, set by the deploy) before using it. `05` and `09` keep secret values off command lines and in owner-only temp files.
+  - Tests no longer read a developer's `backend/.env`.
 - **2026-10-28, Sai M + Claude Code (6):** Stock & routes page simplified for the demo: each problem shows "1 in N" plus two big numbers (on time with vs without the problem, "X in 100") and one short table of 3 numbers; dumbbell charts, gap and deliveries columns, the region table and the "no route record" column removed; clients list cut to 5.
 - **2026-10-28, Sai M + Claude Code (5):** Vendor business case cut to 3 rows (the "perfectly" limit dropped) and 4 numbers per row: on time, penalties saved, cost, gain (penalties only), plus one takeaway line ("The software alone loses $160K a year; fixing our own work gains $818K and costs about 4x less").
 - **2026-10-28, Sai M + Claude Code (4):** Vendor decision tab in plain words. The four options are now "Buy the routing software only", "Fix our own work only", "Fix all 5 problems (likely)" and "Fix all 5 problems perfectly", each with a one-line meaning in the business-case table. Same names on Overview, Simulator and help (backend scenario names unchanged).

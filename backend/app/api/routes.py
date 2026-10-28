@@ -28,7 +28,9 @@ from app.api.errors import ApiError
 from app.api.security import agent_guard
 from app.api.schemas import (AccountPlanRequest, AskRequest, CarrierClaimRequest, ClientReplyRequest, DelayAlertRequest,
                              LateOrdersRequest, MorningNoteRequest, OrderIntakeRequest, SimulateRequest,
-                             WeeklyBriefRequest)
+                             WeeklyBriefRequest, WeeklyBriefSendRequest)
+from app.email import EmailDeliveryError
+from app.email.dedupe import AlreadySent
 from app.config import get_settings
 from app.db import get_engine, get_session
 from app.models import AgentRun, Delivery, InboxMessage, WmsOrder
@@ -217,17 +219,30 @@ def weekly_brief(body: WeeklyBriefRequest | None = None):
 
 
 @router.post("/briefs/weekly/send", tags=["agents"], dependencies=AGENT_GUARD)
-def weekly_brief_send(body: WeeklyBriefRequest | None = None):
-    """Send the brief now to the confirmed subscribers of the brief topic (never to an address from the request)."""
+def weekly_brief_send(body: WeeklyBriefSendRequest | None = None):
+    """Send the brief now to the server's recipients (never to an address from the request). Once per reporting
+    week per day; `resend` sends again on purpose and needs the server's DEMO_TOKEN."""
+    resend = bool(body and body.resend)
+    if resend and not get_settings().demo_token:  # with a token set, agent_guard has already checked it
+        raise ApiError(403, "Resending needs a DEMO_TOKEN on the server; or run "
+                            "`python -m app.agents.weekly_brief send --resend` on the server")
     try:
         result = run_weekly_brief(get_dataset(), body.week_of if body else None)
-        return {**send_brief(result), "brief": result["brief"], "guardrail_flags": result["guardrail_flags"]}
+        return {**send_brief(result, resend=resend), "brief": result["brief"],
+                "guardrail_flags": result["guardrail_flags"]}
     except UnknownWeek:
         raise ApiError(404, f"No deliveries in the week of {body.week_of}") from None
     except NotConfigured as e:
         raise ApiError(409, f"Email sending is not set up on this server ({e})") from None
     except TooSoon as e:
         raise ApiError(429, f"The brief was sent a moment ago; try again in {e.args[0] // 60 + 1} minutes") from None
+    except AlreadySent as e:
+        when = f" at {e.at:%H:%M} UTC" if e.at else ""
+        raise ApiError(409, f"This week's brief was already {e.status} today{when}; it is sent once a day",
+                       code="already_sent", details={"status": e.status}) from None
+    except EmailDeliveryError as e:  # the message carries the error class and code only
+        raise ApiError(502, str(e), code="email_not_sent",
+                       details={"outcome_unknown": getattr(e, "outcome_unknown", False)}) from None
 
 
 @router.get("/agents/runs", tags=["agents"], dependencies=AGENT_GUARD)

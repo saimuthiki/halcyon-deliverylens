@@ -28,6 +28,7 @@ from app.config import get_settings
 from app.email import (EmailConfigError, EmailMessage, describe, get_backend, missing_recipients, recipients_for,
                        render_email, send_email)
 from app.email.backends import SnsBackend
+from app.email.dedupe import AlreadySent, send_date
 from app.guardrails import unverified_numbers
 
 log = logging.getLogger(__name__)
@@ -244,7 +245,7 @@ def _backend():
 def delivery_status() -> dict:
     info = describe(RECIPIENT_LIST)
     if info["backend"] != "sns":
-        available = info["backend"] in ("console", "memory", "brevo")
+        available = info["backend"] in ("console", "memory", "brevo", "smtp")
         configured = available and not info["missing"]
         note = None if configured else (info["missing"] if available else
                                         f"EMAIL_BACKEND={info['backend']} is not available yet")
@@ -269,28 +270,48 @@ def brief_message(result: dict) -> EmailMessage:
                         to=r.to, cc=r.cc, bcc=r.bcc, category="weekly_brief")
 
 
-def send_brief(result: dict, *, enforce_cooldown: bool = True) -> dict:
+def send_key(week_of: str) -> str:
+    """One brief per reporting week per send date (warehouse time): the timer and "Send now" on the same day
+    share it, and next Monday's send gets a new key even though the data's latest week does not change."""
+    return f"weekly_brief:{week_of}:{send_date().isoformat()}"
+
+
+def send_brief(result: dict, *, enforce_cooldown: bool = True, resend: bool = False, trigger: str = "api") -> dict:
+    """Send the brief once. Raises NotConfigured, TooSoon, or AlreadySent (sent, or being sent, for this week
+    today); resend=True sends again on purpose."""
     global _last_sent
     backend = _backend()
     message = brief_message(result)
+    key = send_key(result["week_of"])
     with _send_lock:
         wait = SEND_COOLDOWN_S - (time.time() - _last_sent)
         if enforce_cooldown and wait > 0:
             raise TooSoon(int(wait))
-        sent = send_email(message, backend=backend)
+        sent = send_email(message, backend=backend, idempotency_key=key, trigger=trigger, resend=resend)
         _last_sent = time.time()
     return {"sent": True, "message_id": sent.message_id, "week_of": result["week_of"],
-            "subject": result["brief"]["subject"], "backend": sent.provider}
+            "subject": result["brief"]["subject"], "backend": sent.provider, "resend": resend}
+
+
+USAGE = "usage: python -m app.agents.weekly_brief send [WEEK_OF] [--resend]"
 
 
 def _main(argv: list[str]) -> int:
-    if argv[:1] != ["send"]:
-        print("usage: python -m app.agents.weekly_brief send [WEEK_OF]")
+    """The Monday timer runs `send`. `--resend` sends again on purpose (run by hand on the server)."""
+    args = [a for a in argv if a != "--resend"]
+    resend = len(args) != len(argv)
+    if args[:1] != ["send"] or len(args) > 2:
+        print(USAGE)
         return 2
     from app.analytics.store import get_dataset
 
-    result = run_weekly_brief(get_dataset(), argv[1] if len(argv) > 1 else None)
-    print(json.dumps(send_brief(result, enforce_cooldown=False)))
+    result = run_weekly_brief(get_dataset(), args[1] if len(args) > 1 else None)
+    try:
+        out = send_brief(result, enforce_cooldown=False, resend=resend, trigger="cli" if resend else "timer")
+    except AlreadySent as exc:  # e.g. someone pressed "Send now" this morning: not an error for the timer
+        out = {"sent": False, "reason": f"already {exc.status}", "key": exc.key,
+               "hint": "add --resend to send it again on purpose"}
+    print(json.dumps(out))
     return 0
 
 

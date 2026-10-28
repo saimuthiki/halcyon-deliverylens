@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
+from app.runtime_secrets import value as runtime_secret
+
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = BACKEND_DIR.parent / "data" / "halcyon-dataset"
 
@@ -70,7 +72,7 @@ class Settings:
     smtp_username: str = field(default="", repr=False)  # secret: from Secrets Manager, never logged
     smtp_password: str = field(default="", repr=False)  # secret: the provider's SMTP key
     smtp_timeout_seconds: int = 15
-    smtp_max_retries: int = 3
+    smtp_max_retries: int = 2  # transient failures only, within a ~40 s budget
 
 
 @lru_cache
@@ -106,11 +108,12 @@ def get_settings() -> Settings:
         weekly_brief_cc=_csv("WEEKLY_BRIEF_CC"),
         weekly_brief_bcc=_csv("WEEKLY_BRIEF_BCC"),
         brevo_api_key=os.getenv("BREVO_API_KEY", "").strip(),
-        smtp_host=os.getenv("SMTP_HOST", "").strip(),
-        smtp_port=int(os.getenv("SMTP_PORT", "587")),
-        smtp_security=os.getenv("SMTP_SECURITY", "").strip().lower() or "starttls",
-        smtp_username=os.getenv("SMTP_USERNAME", "").strip(),
-        smtp_password=os.getenv("SMTP_PASSWORD", "").strip(),
+        # SMTP_*: the environment, else the runtime secret (APP_SECRET_ID, read with boto3; see runtime_secrets.py)
+        smtp_host=runtime_secret("SMTP_HOST").strip(),
+        smtp_port=int(runtime_secret("SMTP_PORT", "587")),
+        smtp_security=runtime_secret("SMTP_SECURITY").strip().lower() or "starttls",
+        smtp_username=runtime_secret("SMTP_USERNAME").strip(),
+        smtp_password=runtime_secret("SMTP_PASSWORD").strip(),
         smtp_timeout_seconds=int(os.getenv("SMTP_TIMEOUT_SECONDS", "15")),
-        smtp_max_retries=int(os.getenv("SMTP_MAX_RETRIES", "3")),
+        smtp_max_retries=int(os.getenv("SMTP_MAX_RETRIES", "2")),
     )

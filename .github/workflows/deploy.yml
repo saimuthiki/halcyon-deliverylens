@@ -57,9 +57,13 @@ jobs:
           set -euo pipefail
           cd /home/ec2-user
           set -a; . ./.env; set +a
-          aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$SECRET_NAME" --query SecretString \
-            --output text | jq -r 'to_entries[] | "\(.key)=\(.value)"' > app.env
-          chmod 600 app.env && chown ec2-user app.env
+          # SMTP_* stay out of app.env: the API reads them itself from the secret (APP_SECRET_ID, boto3, instance role).
+          trap 'rm -f /home/ec2-user/app.env.tmp' EXIT
+          (umask 077
+           aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$SECRET_NAME" --query SecretString \
+             --output text | jq -r 'to_entries[] | select(.key | startswith("SMTP_") | not) | "\(.key)=\(.value)"' > app.env.tmp
+           printf 'APP_SECRET_ID=%s\nAPP_SECRET_ACCOUNT=%s\n' "$SECRET_NAME" "${IMAGE%%.*}" >> app.env.tmp)
+          mv app.env.tmp app.env && chmod 600 app.env && chown ec2-user app.env
           aws ecr get-login-password --region "$AWS_REGION" | sudo -u ec2-user docker login --username AWS --password-stdin "${IMAGE%%/*}"
           sudo -u ec2-user docker compose -f docker-compose.prod.yml pull api
           sudo -u ec2-user docker compose -f docker-compose.prod.yml up -d api

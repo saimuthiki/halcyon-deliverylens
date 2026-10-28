@@ -63,6 +63,11 @@ class WeeklyBriefRequest(BaseModel):
                                 description="Monday of the week (YYYY-MM-DD); default the latest week in the data")
 
 
+class WeeklyBriefSendRequest(WeeklyBriefRequest):
+    resend: bool = Field(default=False, description="Send again although this week's brief was already sent today. "
+                                                    "Only when the server has a DEMO_TOKEN (sent as X-Demo-Token)")
+
+
 class ClientReplyRequest(BaseModel):
     text: str = Field(min_length=1, max_length=5000, description="The client's reply to the address confirmation email")
 

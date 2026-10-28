@@ -11,9 +11,13 @@ scp -i "$KEY" -o StrictHostKeyChecking=accept-new "$INFRA/docker-compose.prod.ym
 "${SSH[@]}" bash -s <<REMOTE
 set -euo pipefail
 cd /home/ec2-user
-aws secretsmanager get-secret-value --region $AWS_REGION --secret-id $SECRET_NAME --query SecretString --output text \
-  | jq -r 'to_entries[] | "\(.key)=\(.value)"' > app.env
-chmod 600 app.env
+# SMTP_* stay out of app.env: the API reads them itself from the secret (APP_SECRET_ID, boto3, instance role).
+trap 'rm -f /home/ec2-user/app.env.tmp' EXIT
+(umask 077
+ aws secretsmanager get-secret-value --region $AWS_REGION --secret-id $SECRET_NAME --query SecretString --output text \
+   | jq -r 'to_entries[] | select(.key | startswith("SMTP_") | not) | "\(.key)=\(.value)"' > app.env.tmp
+ printf 'APP_SECRET_ID=%s\nAPP_SECRET_ACCOUNT=%s\n' "$SECRET_NAME" "$AWS_ACCOUNT_ID" >> app.env.tmp)
+mv app.env.tmp app.env && chmod 600 app.env
 cat > .env <<ENV
 IMAGE=$IMAGE
 API_HOSTNAME=$HOSTNAME_TLS

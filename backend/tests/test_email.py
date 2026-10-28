@@ -100,8 +100,8 @@ def test_backend_selection():
     assert get_backend(settings(email_backend="memory")) is MEMORY
     with pytest.raises(EmailConfigError, match="topic ARN"):
         get_backend(settings(email_backend="sns"))
-    with pytest.raises(EmailConfigError, match="not available yet"):
-        get_backend(settings(email_backend="smtp"))
+    with pytest.raises(EmailConfigError, match="needs SMTP_HOST"):  # smtp exists, but fails closed without settings
+        get_backend(settings(email_backend="smtp", smtp_host="", smtp_username="", smtp_password=""))
     with pytest.raises(EmailConfigError, match="Unknown EMAIL_BACKEND"):
         get_backend(settings(email_backend="pigeon"))
 
@@ -164,12 +164,14 @@ def test_provider_failure_is_wrapped_and_logged_without_content(caplog):
         name, addresses_recipients, requires_sender = "broken", True, False
 
         def send(self, message):
-            raise ConnectionError("smtp down")
+            raise ConnectionError(f"smtp down while sending to {TO}")
 
     s = settings(email_test_mode=False)
     with caplog.at_level(logging.INFO, logger="app.email.service"), pytest.raises(EmailDeliveryError) as e:
         send_email(EmailMessage(subject="Secret subject", text_body="secret body", to=(TO,)), backend=Broken(), settings=s)
-    assert isinstance(e.value.__cause__, ConnectionError)
+    # Not chained: the provider's text (here it echoes an address) never reaches a traceback.
+    assert e.value.__cause__ is None and e.value.__suppress_context__ and TO not in str(e.value)
+    assert e.value.provider_error == "ConnectionError" and e.value.outcome_unknown is False
     record = json.loads(caplog.records[-1].getMessage())
     assert record["event"] == "email_failed" and record["error"] == "ConnectionError" and record["to"] == 1
     assert not any(x in caplog.text for x in ("Secret subject", "secret body", TO))
@@ -302,7 +304,7 @@ def test_weekly_brief_not_configured_without_recipients(dataset, monkeypatch):
     with pytest.raises(wb.NotConfigured, match="WEEKLY_BRIEF_TO is empty"):
         wb.send_brief(wb.run_weekly_brief(dataset))
     assert MEMORY.outbox == []
-    monkeypatch.setattr(service, "get_settings", lambda: replace(s, email_backend="smtp"))
+    monkeypatch.setattr(service, "get_settings", lambda: replace(s, email_backend="pigeon"))
     status = wb.delivery_status()
     assert status["configured"] is False and "not available yet" in status["note"]
 
