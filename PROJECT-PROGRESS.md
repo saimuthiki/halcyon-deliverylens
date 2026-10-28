@@ -31,7 +31,7 @@ Last updated: 2026-10-28 by dkarasu (with Claude Code, email Stage 2).
 | API health | https://35-175-32-49.sslip.io/api/health |
 | API docs | https://35-175-32-49.sslip.io/docs |
 
-These links are open to everyone on purpose (hackathon demo), with no login.
+The **website** now asks for a username and password (Amplify basic auth, set in the AWS console on 2026-10-28; the password is not in the repo, ask the team). The **API** has no login: anyone with its URL can call it. Client links that open the website (address confirmation `/confirm-address/...`, the brief's "Open the full brief") also hit the password prompt.
 
 ## 3. Features built (all live and tested on AWS)
 | Feature | Where (frontend page / backend) | Status |
@@ -113,6 +113,7 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
+- **2026-10-28, Sai M + Claude Code (12):** recorded that the website now has a login (Amplify basic auth, enabled in the AWS console, not in the repo); the API stays open. Checked live: API healthy, latest backend (own-email route, wrong-warehouse numbers) deployed.
 - **2026-10-28, Sai M + Claude Code (11):** security audit (Cloudflare security-audit skill, quick profile, source only): no confirmed vulnerabilities; one lead fixed: `deploy.yml` now deploys only when the CI run was for a `push` in this repository (a pull request, even from a fork branch named `main`, also runs CI and could otherwise have triggered a deploy). Hardening ideas from the audit (pin Actions to SHAs, deploy `:sha` not `:latest`, expiring confirmation links, a brief send limit) are not done.
 - **2026-10-28, Sai M + Claude Code (10):** checked a colleague's 6-finding review against the raw data. Added finding 4 to Stock & routes (`views.wrong_warehouse`, `/api/stock/placement` -> `wrong_warehouse`): 691 orders shipped from a far warehouse (about 1,246 vs 127 miles) although the nearest had stock, 51% vs 74% on time, $20,880 penalties; they explain all 213 late deliveries with none of the five causes; the Order desk warehouse rule already prevents it. Not added: 62% after 08:00 (only same-day orders are hurt, already covered), 450 delivered-before-collected (data error, all marked on time; 71.0% -> 70.7% without them), collection times outside 14:00-18:00 (no on-time difference), 24 of 34 complaints from at-risk clients (already shown).
 - **2026-10-28, Sai M + Claude Code (9):** Order intake merged into the Order desk. New "Type your own" form on the desk (sender, received time, subject, body) calls `POST /api/desk/own-email`, which saves it as inbox message `U01` (no expected result; a new one replaces it; reset removes it; Run all skips it) and runs the same 10 steps. `/order-intake` now redirects to `/order-desk`; the page and its menu item are removed (the `/api/agents/order-intake` endpoint stays).
