@@ -5,6 +5,7 @@ replaces inbox_messages (and clears wms_orders, which depend on them) on every r
 """
 import json
 import logging
+from datetime import datetime
 from email import policy
 from email.parser import BytesParser
 from email.utils import parsedate_to_datetime
@@ -15,6 +16,7 @@ from sqlalchemy import delete, insert
 from sqlalchemy.engine import Engine
 
 from app.config import get_settings
+from app.db import get_session
 from app.models import InboxMessage, WmsOrder
 
 log = logging.getLogger(__name__)
@@ -63,6 +65,24 @@ def load_inbox(engine: Engine, inbox_dir: Path | None = None) -> int:
         conn.execute(delete(InboxMessage))
         conn.execute(insert(InboxMessage), rows)
     return len(rows)
+
+
+OWN_EMAIL_ID = "U01"  # the one slot for an email typed on the Order desk; each new one replaces it
+
+
+def save_own_email(body: str, from_email: str, subject: str, received_at: datetime) -> str:
+    """Put a typed email in the inbox as U01 (replacing the previous one and its WMS order). It has no expected
+    decision, because nobody wrote the answer in advance."""
+    with get_session() as s:
+        s.execute(delete(WmsOrder).where(WmsOrder.message_id == OWN_EMAIL_ID))
+        s.execute(delete(InboxMessage).where(InboxMessage.id == OWN_EMAIL_ID))
+        s.add(InboxMessage(id=OWN_EMAIL_ID, file="", from_name=from_email.split("@")[0], from_email=from_email,
+                           client_id=None, subject=subject, received_at=received_at, body=body.strip(),
+                           attachments_json=[], scenario="Your own email", expected_decision="",
+                           what_it_demonstrates="An email typed or pasted on this page, run through the same steps.",
+                           status="new", decision=None, processed_at=None))
+        s.commit()
+    return OWN_EMAIL_ID
 
 
 def message_summary(m: InboxMessage) -> dict:

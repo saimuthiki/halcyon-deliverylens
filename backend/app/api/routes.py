@@ -1,4 +1,7 @@
 """All /api endpoints."""
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select, text
 
@@ -11,7 +14,7 @@ from app.agents.llm_client import LLMClient
 from app.agents.order_intake import run_order_intake
 from app.agents.weekly_brief import NotConfigured, UnknownWeek, available_weeks, run_weekly_brief, send_brief
 from app.desk import address_book
-from app.desk.inbox import message_detail, message_summary
+from app.desk.inbox import message_detail, message_summary, save_own_email
 from app.desk.pipeline import (AlreadyApproved, MessageNotFound, NotAwaitingApproval, approve_all, approve_order,
                                process_all, process_message, reset_desk, wms_order_dict)
 from app.guardrails import redact_payload
@@ -27,7 +30,7 @@ from app.analytics.vendor import vendor_assessment
 from app.api.errors import ApiError
 from app.api.security import agent_guard
 from app.api.schemas import (AccountPlanRequest, AskRequest, CarrierClaimRequest, ClientReplyRequest, DelayAlertRequest,
-                             LateOrdersRequest, MorningNoteRequest, OrderIntakeRequest, SimulateRequest,
+                             LateOrdersRequest, MorningNoteRequest, OrderIntakeRequest, OwnEmailRequest, SimulateRequest,
                              WeeklyBriefRequest, WeeklyBriefSendRequest)
 from app.email import EmailDeliveryError
 from app.email.dedupe import AlreadySent
@@ -285,6 +288,20 @@ def desk_process(message_id: str):
         raise ApiError(404, f"Message {message_id!r} not found") from None
     except AlreadyApproved:
         raise ApiError(409, "Already approved into the WMS; reset the demo to run it again") from None
+
+
+@router.post("/desk/own-email", tags=["desk"], dependencies=AGENT_GUARD)
+def desk_own_email(body: OwnEmailRequest):
+    """Run an email typed on the Order desk through the same 10 steps (it replaces the previous typed email)."""
+    tz = ZoneInfo(get_settings().warehouse_tz)
+    now = datetime.now(tz).replace(tzinfo=None, second=0, microsecond=0)
+    received = now
+    if body.received_time:
+        hh, mm = map(int, body.received_time.split(":"))
+        received = now.replace(hour=hh, minute=mm)
+    mid = save_own_email(body.body, body.from_email.strip() or "orders@unknown.example",
+                         body.subject.strip() or "Order", received)
+    return process_message(mid)
 
 
 @router.get("/desk/wms-orders", tags=["desk"])

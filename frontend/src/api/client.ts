@@ -782,6 +782,12 @@ export const api = {
       'desk',
     ),
 
+  /** An email typed on the Order desk, run through the same steps. Live only: there is no sample answer for it. */
+  deskOwnEmail: async (req: { body: string; from_email: string; subject: string; received_time: string }) => ({
+    data: normaliseDeskProcess(await http<unknown>('/desk/own-email', agentPost(req), DESK_TIMEOUT_MS)),
+    source: 'live' as DataSource,
+  }),
+
   deskProcessAll: () =>
     withFallback(
       async () => normaliseDeskProcessAll(await http<unknown>('/desk/process-all', agentPost({}), DESK_ALL_TIMEOUT_MS)),

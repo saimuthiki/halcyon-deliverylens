@@ -68,6 +68,16 @@ class WeeklyBriefSendRequest(WeeklyBriefRequest):
                                                     "Only when the server has a DEMO_TOKEN (sent as X-Demo-Token)")
 
 
+class OwnEmailRequest(BaseModel):
+    """An order email typed or pasted on the Order desk; it runs through the same 10 steps as the inbox."""
+    body: str = Field(min_length=1, max_length=8000)
+    from_email: str = Field(default="orders@client-042.example", max_length=200,
+                            description="The sender identifies the client (orders@client-NNN.example)")
+    subject: str = Field(default="Order", max_length=300)
+    received_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$",
+                                      description="Received today at HH:MM warehouse time; default now")
+
+
 class ClientReplyRequest(BaseModel):
     text: str = Field(min_length=1, max_length=5000, description="The client's reply to the address confirmation email")
 

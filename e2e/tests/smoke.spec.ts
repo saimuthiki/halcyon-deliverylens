@@ -12,7 +12,6 @@ const PAGES: { path: string; heading: RegExp }[] = [
   { path: '/carriers', heading: /Carrier D is weak in every region/ },
   { path: '/clients', heading: /./ },
   { path: '/stock-routes', heading: /Two problems that happen everywhere/ },
-  { path: '/order-intake', heading: /Check every email order/ },
   { path: '/ask', heading: /Ask DeliveryLens/ },
   { path: '/activity', heading: /Agent activity/ },
 ];

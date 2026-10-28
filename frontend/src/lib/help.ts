@@ -29,7 +29,8 @@ export const HELP: Record<string, HelpContent> = {
   '/order-desk': {
     intro: 'A live demo of DeliveryLens doing the job staff do by hand today: reading client order emails and entering them into the warehouse system (WMS).',
     items: [
-      { term: 'Inbox (left)', text: 'Seventeen sample client emails, each built to show one situation. The chip shows what DeliveryLens should decide; the status shows whether it has been run.', example: 'Email 02 "Missing postcode" should end On hold.' },
+      { term: 'Inbox (left)', text: 'Eleven sample client emails, one per situation. The chip shows what DeliveryLens should decide; the status shows whether it has been run.', example: 'Email 2 "Address missing its postcode" should end On hold.' },
+      { term: 'Type your own', text: 'Type or paste any order email, pick the time it arrived, and run it through the same 10 steps. It appears in the inbox as "Your own email"; a new one replaces it.', example: 'Remove the postcode from the example and it goes On hold.' },
       { term: 'Selected email (middle)', text: 'The email exactly as the client sent it: sender, time, subject, body and any attachment.', example: 'Email 12 has its order lines in a CSV file, not in the body.' },
       { term: 'Run DeliveryLens on this email', text: 'Sends the email through the 10-step pipeline. Run all does every email and counts how many match the expected result.' },
       { term: 'Pipeline trace', text: 'Each step in order: who did it (AI agent, Rule, Data lookup or Guardrail), whether it passed, warned, failed or was skipped, a one-line reason and how long it took. Select Details to see the raw values.', example: 'Email 09: the carrier step warns that the rate card would pick Carrier F (54% on time to the Southeast) and picks Carrier B instead.' },
@@ -108,16 +109,6 @@ export const HELP: Record<string, HelpContent> = {
       { term: 'No stock at the nearest warehouse', text: 'How often the warehouse nearest the client had no stock, and how often those orders still arrived on time.', example: 'About 12% of orders ship from further away; those are on time about 50% of the time.' },
       { term: 'Worst 10 clients by stock-out', text: 'The clients whose orders most often ship from a further warehouse. Good candidates for moving stock closer.' },
       { term: 'Drivers going off route', text: 'How often drivers drive more than 20% further than planned, and how often those deliveries still arrive on time. This is the only cause a routing tool fixes.', example: 'Planned 150 km, drove 190 km.' },
-    ],
-  },
-  '/order-intake': {
-    intro: 'The single-email version of the Order Intake Agent. Paste any email; for the full pipeline with the warehouse system, use the Order desk.',
-    items: [
-      { term: 'Order email', text: 'Pick a sample or paste your own email, then select Check this order.' },
-      { term: 'Extracted order', text: 'What the AI read from the email: client, PO, promise type, received time and order lines.' },
-      { term: 'Address check', text: 'A rule checks name, street, city, state and ZIP. Missing fields are highlighted.', example: 'The Client 117 sample is missing street and ZIP code, so it is not ready for the pick list.' },
-      { term: 'Same-day warning', text: 'Shown when a same-day order arrives after the 08:00 pick list; those are on time only 39% of the time.' },
-      { term: 'Draft follow-up', text: 'A reply asking the client for what is missing, for a person to send.' },
     ],
   },
   '/ask': {

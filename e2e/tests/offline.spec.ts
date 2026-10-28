@@ -21,10 +21,6 @@ test('API down: the "Showing sample data" banner appears and pages still work', 
   const answer = page.getByRole('listitem').filter({ hasText: 'DeliveryLens:' }).first();
   await expect(answer.getByText('Sample response — API offline.')).toBeVisible();
 
-  await page.goto('/order-intake');
-  await page.getByRole('button', { name: 'Check this order' }).click();
-  await expect(page.getByRole('region', { name: 'Agent result' }).getByText('Sample response — API offline.')).toBeVisible();
-
   // The new page works from the saved analysis too.
   await page.goto('/stock-routes');
   await expect(page.getByRole('table', { name: 'No stock at the nearest warehouse' }).locator('tbody tr')).toHaveCount(5);

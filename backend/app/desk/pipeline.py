@@ -37,6 +37,7 @@ from app.analytics.store import get_dataset
 from app.config import get_settings
 from app.db import get_session
 from app.desk import address_book, rules
+from app.desk.inbox import OWN_EMAIL_ID
 from app.guardrails import check_input
 from app.models import InboxMessage, WmsOrder
 
@@ -662,7 +663,8 @@ def approve_all() -> dict:
 def process_all(llm: LLMClient | None = None) -> dict:
     llm = llm or LLMClient()
     with get_session() as s:
-        ids = s.scalars(select(InboxMessage.id).where(InboxMessage.status == "new").order_by(InboxMessage.id)).all()
+        ids = s.scalars(select(InboxMessage.id).where(InboxMessage.status == "new", InboxMessage.id != OWN_EMAIL_ID)
+                        .order_by(InboxMessage.id)).all()
     results, counts = [], {"accepted": 0, "on_hold": 0, "needs_review": 0, "blocked": 0}
     for mid in ids:
         try:
@@ -680,6 +682,7 @@ def process_all(llm: LLMClient | None = None) -> dict:
 def reset_desk() -> dict:
     with get_session() as s:
         cleared = s.execute(delete(WmsOrder)).rowcount
+        s.execute(delete(InboxMessage).where(InboxMessage.id == OWN_EMAIL_ID))
         s.execute(update(InboxMessage).values(status="new", decision=None, processed_at=None))
         s.commit()
     address_book.clear()

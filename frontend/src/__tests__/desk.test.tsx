@@ -191,7 +191,7 @@ describe('HelpPanel', () => {
   });
 
   it('has content for every page in the navigation', () => {
-    for (const path of ['/how-it-works', '/order-desk', '/overview', '/why-late', '/vendor', '/what-if', '/carriers', '/clients', '/stock-routes', '/order-intake', '/ask', '/activity', '/late-orders']) {
+    for (const path of ['/how-it-works', '/order-desk', '/overview', '/why-late', '/vendor', '/what-if', '/carriers', '/clients', '/stock-routes', '/ask', '/activity', '/late-orders']) {
       expect(HELP[path]?.items.length ?? 0).toBeGreaterThan(0);
     }
   });

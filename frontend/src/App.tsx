@@ -15,7 +15,6 @@ const LateOrders = lazy(() => import('./pages/LateOrders'));
 const Carriers = lazy(() => import('./pages/Carriers'));
 const Clients = lazy(() => import('./pages/Clients'));
 const StockRoutes = lazy(() => import('./pages/StockRoutes'));
-const OrderIntake = lazy(() => import('./pages/OrderIntake'));
 const Ask = lazy(() => import('./pages/Ask'));
 const Activity = lazy(() => import('./pages/Activity'));
 const WeeklyBrief = lazy(() => import('./pages/WeeklyBrief'));
@@ -60,7 +59,7 @@ function AppPages() {
           <Route path="/carriers" element={<Carriers />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/stock-routes" element={<StockRoutes />} />
-          <Route path="/order-intake" element={<OrderIntake />} />
+          <Route path="/order-intake" element={<Navigate to="/order-desk" replace />} />
           <Route path="/ask" element={<Ask />} />
           <Route path="/activity" element={<Activity />} />
           <Route path="/weekly-brief" element={<WeeklyBrief />} />

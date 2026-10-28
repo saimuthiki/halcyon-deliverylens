@@ -2,49 +2,18 @@ import { expect, test } from '@playwright/test';
 import { API_URL, DEMO_TOKEN_HEADERS, evidenceShot, expectLiveData } from './helpers';
 
 test.describe('AI agents (mock provider)', () => {
-  test('order intake: incomplete address is flagged and a follow-up is drafted', async ({ page }, testInfo) => {
-    await page.goto('/order-intake');
-    await page.getByLabel('Start from a sample').selectOption('02_incomplete_address');
-
-    const resp = page.waitForResponse((r) => r.url().includes('/api/agents/order-intake'));
-    await page.getByRole('button', { name: 'Check this order' }).click();
+  test('order desk: an email typed by hand runs the same steps', async ({ page }, testInfo) => {
+    await page.goto('/order-intake'); // the old page now opens the Order desk
+    await expect(page).toHaveURL(/\/order-desk$/);
+    await page.getByRole('button', { name: 'Type your own' }).click();
+    await page.getByLabel('Received today at').fill('07:30');
+    const resp = page.waitForResponse((r) => r.url().includes('/api/desk/own-email'));
+    await page.getByRole('button', { name: 'Run DeliveryLens on this email' }).click();
     expect((await resp).status()).toBe(200);
-
-    const result = page.getByRole('region', { name: 'Agent result' });
-    await expect(result.getByText('Client 117').first()).toBeVisible();
-    // Country is no longer required (defaults to US, recorded as an assumption), so 2 fields are missing.
-    await expect(result.getByText('2 fields missing')).toBeVisible();
-    for (const field of ['Street', 'ZIP code']) {
-      const tile = result.locator('dl > div').filter({ has: page.getByText(field, { exact: true }) });
-      await expect(tile.getByText('Missing')).toBeVisible();
-    }
-    await expect(result.getByText('Draft follow-up to the client')).toBeVisible();
-    await expect(result.locator('pre')).toContainText('street address');
-    await expect(result.getByRole('alert')).toHaveCount(0);
-    // A live agent answer never carries the offline label.
-    await expect(result.getByTestId('sample-response')).toHaveCount(0);
-
+    await expect(page.getByTestId('trace-step')).toHaveCount(10);
+    await expect(page.getByRole('list', { name: 'Client emails' }).getByText('Your own email')).toBeVisible();
     await expectLiveData(page);
-    await evidenceShot(page, testInfo, '06-order-intake-incomplete-address');
-  });
-
-  test('order intake: same-day order after the 08:00 cutoff shows a warning', async ({ page }, testInfo) => {
-    await page.goto('/order-intake');
-    await page.getByLabel('Start from a sample').selectOption('03_same_day_after_cutoff');
-
-    const resp = page.waitForResponse((r) => r.url().includes('/api/agents/order-intake'));
-    await page.getByRole('button', { name: 'Check this order' }).click();
-    expect((await resp).status()).toBe(200);
-
-    const result = page.getByRole('region', { name: 'Agent result' });
-    const warning = result.getByRole('alert');
-    await expect(warning).toBeVisible();
-    await expect(warning).toContainText('Same-day order after the 08:00 cutoff');
-    await expect(warning).toContainText('09:40');
-    await expect(result.getByText('Ready for the pick list')).toBeVisible();
-
-    await expectLiveData(page);
-    await evidenceShot(page, testInfo, '07-order-intake-after-cutoff');
+    await evidenceShot(page, testInfo, '06-order-desk-own-email');
   });
 
   test('ask: a suggested question returns an answer with a number', async ({ page }, testInfo) => {

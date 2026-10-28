@@ -5,7 +5,6 @@ import {
   BarChart3,
   Building2,
   Gauge,
-  Inbox,
   Clock,
   Mail,
   Map as MapIcon,
@@ -58,7 +57,6 @@ const NAV: { group: string; items: NavItem[] }[] = [
     group: 'AI agents',
     items: [
       { to: '/order-desk', label: 'Order desk (live)', icon: Mail },
-      { to: '/order-intake', label: 'Order intake agent', icon: Inbox },
       { to: '/weekly-brief', label: 'Weekly brief (COO, CFO)', icon: Newspaper },
       { to: '/ask', label: 'Ask DeliveryLens', icon: MessageSquareText },
       { to: '/activity', label: 'Agent activity', icon: Activity },

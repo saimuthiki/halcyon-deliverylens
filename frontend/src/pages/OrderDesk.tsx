@@ -12,6 +12,7 @@ import {
   PauseCircle,
   Play,
   PlayCircle,
+  PenLine,
   RotateCcw,
   Sparkles,
   UserCheck,
@@ -115,6 +116,28 @@ const humanKey = (k: string) => {
 
 /* ---------- page ---------- */
 
+/** The inbox slot for an email typed on this page (backend/app/desk/inbox.py OWN_EMAIL_ID); it has no expected result. */
+export const OWN_EMAIL_ID = 'U01';
+const NEW_EMAIL = '__new__';
+
+const OWN_EMAIL_EXAMPLE = `Hello Halcyon team,
+
+Please ship the following for Client 042:
+- SKU HX-1001 x 10
+- SKU HX-2040 x 4
+
+Ship to:
+Name: Client 042 Receiving Dock
+Street: 250 West Spring Street
+City: Columbus
+State: OH
+Country: US
+
+Same day please, our production line stops at 3pm without these parts.
+
+Thanks,
+Purchasing, Client 042`;
+
 export default function OrderDesk() {
   const inbox = useApi(() => api.deskInbox());
   const wms = useApi(() => api.deskWmsOrders());
@@ -134,7 +157,7 @@ export default function OrderDesk() {
   }, [messages, selected]);
 
   const message = useApi<DeskMessageDetail | null>(
-    () => (selected ? api.deskMessage(selected) : Promise.resolve({ data: null, source: 'live' as DataSource })),
+    () => (selected && selected !== NEW_EMAIL ? api.deskMessage(selected) : Promise.resolve({ data: null, source: 'live' as DataSource })),
     [selected],
   );
 
@@ -161,6 +184,21 @@ export default function OrderDesk() {
     try {
       const r = await api.deskProcess(id);
       setResults((prev) => ({ ...prev, [id]: { data: r.data, source: r.source } }));
+      refresh();
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRunning(null);
+    }
+  }
+
+  async function runOwn(req: { body: string; from_email: string; subject: string; received_time: string }) {
+    setRunning(OWN_EMAIL_ID);
+    setRunError(null);
+    try {
+      const r = await api.deskOwnEmail(req);
+      setResults((prev) => ({ ...prev, [OWN_EMAIL_ID]: { data: r.data, source: r.source } }));
+      setSelected(OWN_EMAIL_ID);
       refresh();
     } catch (err) {
       setRunError(err instanceof Error ? err.message : String(err));
@@ -258,10 +296,23 @@ export default function OrderDesk() {
             <h2 id="inbox-title" className="text-lg font-semibold">
               Inbox <span className="num font-normal text-slate">({messages.length})</span>
             </h2>
-            <button type="button" className="btn-secondary min-h-[36px] px-3 text-sm" onClick={runAll} disabled={batchRunning || !messages.length}>
-              <PlayCircle className="h-4 w-4" aria-hidden="true" />
-              {batchRunning ? 'Running all…' : `Run all ${messages.length || 17}`}
-            </button>
+            <span className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn-secondary min-h-[36px] px-3 text-sm"
+                onClick={() => setSelected(NEW_EMAIL)}
+                aria-pressed={selected === NEW_EMAIL}
+                disabled={offline}
+                title={offline ? 'Needs the live server' : undefined}
+              >
+                <PenLine className="h-4 w-4" aria-hidden="true" />
+                Type your own
+              </button>
+              <button type="button" className="btn-secondary min-h-[36px] px-3 text-sm" onClick={runAll} disabled={batchRunning || !messages.length}>
+                <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                {batchRunning ? 'Running all…' : `Run all ${messages.filter((m) => m.id !== OWN_EMAIL_ID).length || 11}`}
+              </button>
+            </span>
           </div>
           {batch && (
             <p data-testid="batch-summary" className="border-b border-line bg-paper px-4 py-2 text-sm text-ink">
@@ -293,7 +344,9 @@ export default function OrderDesk() {
           <h2 id="email-title" className="sr-only">
             Selected email
           </h2>
-          {message.loading && !message.data ? (
+          {selected === NEW_EMAIL ? (
+            <OwnEmailForm running={running === OWN_EMAIL_ID} disabled={!!running || batchRunning} onRun={runOwn} />
+          ) : message.loading && !message.data ? (
             <div className="p-5">
               <LoadingBlock label="Loading email" rows={8} />
             </div>
@@ -390,15 +443,18 @@ function InboxItem({ n, m, active, running, onSelect }: { n: number; m: DeskMess
           </span>
         </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-1.5 pl-5">
-          <DecisionChip decision={m.expected_decision} prefix="Expect: " />
+          {m.id !== OWN_EMAIL_ID && <DecisionChip decision={m.expected_decision} prefix="Expect: " />}
           {running ? (
             <span className="inline-flex items-center gap-1 text-sm text-slate">
               <Clock className="h-3.5 w-3.5" aria-hidden="true" />
               Running…
             </span>
           ) : processed ? (
-            <span className={`inline-flex items-center gap-1 text-sm font-medium ${matches ? 'text-route-dark' : 'text-guard'}`} data-testid="inbox-status">
-              {matches ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <X className="h-3.5 w-3.5" aria-hidden="true" />}
+            <span
+              className={`inline-flex items-center gap-1 text-sm font-medium ${m.id === OWN_EMAIL_ID ? 'text-ink' : matches ? 'text-route-dark' : 'text-guard'}`}
+              data-testid="inbox-status"
+            >
+              {m.id === OWN_EMAIL_ID ? null : matches ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <X className="h-3.5 w-3.5" aria-hidden="true" />}
               Done: {DECISION_META[m.decision!].label}
             </span>
           ) : (
@@ -413,6 +469,74 @@ function InboxItem({ n, m, active, running, onSelect }: { n: number; m: DeskMess
 }
 
 /* ---------- email ---------- */
+
+/** Type or paste any order email; it runs through the same 10 steps as the inbox. */
+function OwnEmailForm({
+  running,
+  disabled,
+  onRun,
+}: {
+  running: boolean;
+  disabled: boolean;
+  onRun: (req: { body: string; from_email: string; subject: string; received_time: string }) => void;
+}) {
+  const now = new Date();
+  const [fromEmail, setFromEmail] = useState('purchasing@client-042.example');
+  const [time, setTime] = useState(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+  const [subject, setSubject] = useState('Order - Client 042');
+  const [body, setBody] = useState(OWN_EMAIL_EXAMPLE);
+  return (
+    <form
+      className="flex flex-1 flex-col"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onRun({ body, from_email: fromEmail, subject, received_time: time });
+      }}
+    >
+      <div className="border-b border-line px-5 py-4">
+        <p className="text-lg font-semibold leading-snug">Type or paste your own order email</p>
+        <p className="mt-1 text-sm text-ink-soft">
+          It runs through the same 10 steps. The sender picks the client (client-NNN), and the time decides the same-day rules. Change anything, for example
+          remove the street or the postcode.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="text-sm text-slate">
+            From
+            <input className="field mt-1 w-full" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} maxLength={200} />
+          </label>
+          <label className="text-sm text-slate">
+            Received today at
+            <input type="time" className="field mt-1 w-full" value={time} onChange={(e) => setTime(e.target.value)} required />
+          </label>
+        </div>
+        <label className="mt-3 block text-sm text-slate">
+          Subject
+          <input className="field mt-1 w-full" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={300} />
+        </label>
+      </div>
+      <div className="flex-1 px-5 py-4">
+        <label htmlFor="own-email-body" className="sr-only">
+          Email text
+        </label>
+        <textarea
+          id="own-email-body"
+          className="field min-h-[260px] w-full font-sans leading-relaxed"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          maxLength={8000}
+          required
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-4">
+        <button type="submit" className="btn-primary" disabled={disabled || !body.trim()}>
+          <Play className="h-4 w-4" aria-hidden="true" />
+          {running ? 'Running DeliveryLens…' : 'Run DeliveryLens on this email'}
+        </button>
+        <span className="text-sm text-slate">It shows up in the inbox as "Your own email"; a new one replaces it.</span>
+      </div>
+    </form>
+  );
+}
 
 function EmailView({ m, running, onRun, disabled }: { m: DeskMessageDetail; running: boolean; onRun: () => void; disabled: boolean }) {
   return (
@@ -730,15 +854,17 @@ export function DecisionCard({
       </p>
       <p className="mt-1 text-sm text-ink-soft">{m.meaning}</p>
       <p className="mt-3 text-[15px] leading-relaxed text-ink">{r.decision_reason}</p>
-      <p
-        className={`mt-4 inline-flex items-center gap-1.5 rounded-full border bg-surface px-2.5 py-1 text-sm font-semibold ${
-          r.matches_expected ? 'border-route/40 text-route-dark' : 'border-guard/40 text-guard'
-        }`}
-        data-testid="matches-expected"
-      >
-        {r.matches_expected ? <Check className="h-4 w-4" aria-hidden="true" /> : <X className="h-4 w-4" aria-hidden="true" />}
-        {r.matches_expected ? 'Matches expected' : `Expected ${DECISION_META[r.expected_decision].label}`}
-      </p>
+      {r.message_id !== OWN_EMAIL_ID && (
+        <p
+          className={`mt-4 inline-flex items-center gap-1.5 rounded-full border bg-surface px-2.5 py-1 text-sm font-semibold ${
+            r.matches_expected ? 'border-route/40 text-route-dark' : 'border-guard/40 text-guard'
+          }`}
+          data-testid="matches-expected"
+        >
+          {r.matches_expected ? <Check className="h-4 w-4" aria-hidden="true" /> : <X className="h-4 w-4" aria-hidden="true" />}
+          {r.matches_expected ? 'Matches expected' : `Expected ${DECISION_META[r.expected_decision].label}`}
+        </p>
+      )}
       {r.wms_order && (
         <p className="mt-3 text-sm text-ink-soft">
           WMS order <span className="font-semibold text-ink">{r.wms_order.wms_order_id}</span>
