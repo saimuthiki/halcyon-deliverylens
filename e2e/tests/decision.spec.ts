@@ -12,7 +12,7 @@ test.describe('The decision pages', () => {
     });
     await expect(track).toBeVisible();
     for (const value of ['71.0%', '80.2%', '86.7%', '90.2%', '99.0%']) await expect(track.getByText(value, { exact: true }).first()).toBeVisible();
-    await expect(track.getByText('Ceiling, if every cause were fully removed').first()).toBeVisible();
+    await expect(track.getByText('Best case, if every problem disappeared').first()).toBeVisible();
     // The headline is the realistic case; the ceiling is labelled as a ceiling.
     const lede = page.locator('header p').first();
     await expect(lede).toContainText('90.2%');
@@ -85,7 +85,7 @@ test.describe('The decision pages', () => {
 
     await expect(page.getByRole('heading', { level: 1, name: 'The routing vendor fixes the wrong problem' })).toBeVisible();
     await expect(
-      page.getByRole('img', { name: /Today: 71\.0%; Routing vendor only: 80\.2%; Process fixes only: 86\.7%; All five, realistic: 90\.2%; Ceiling, all fully removed: 99\.0%; benchmark 94%/ }),
+      page.getByRole('img', { name: /Today: 71\.0%; Only buy the routing vendor: 80\.2%; Only fix our own processes: 86\.7%; Do all five fixes \(expected\): 90\.2%; Best case, if every problem disappeared: 99\.0%; benchmark 94%/ }),
     ).toBeVisible();
     await expect(page.getByText('80.2%', { exact: true }).first()).toBeVisible();
 

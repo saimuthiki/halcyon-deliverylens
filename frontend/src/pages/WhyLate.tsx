@@ -94,15 +94,13 @@ export default function WhyLate() {
 function CauseTable({ rows, selected, onSelect }: { rows: CauseRow[]; selected: CauseKey | null; onSelect: (c: CauseKey) => void }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] border-collapse text-[15px]">
+      <table className="w-full min-w-[720px] border-collapse text-[15px]">
         <thead>
           <tr className="border-b border-line">
             <th className="th pl-5 sm:pl-6">Cause</th>
-            <th className="th text-right">Worth</th>
-            <th className="th text-right">Deliveries hit</th>
-            <th className="th text-right">On time when hit</th>
-            <th className="th text-right">Share of late</th>
-            <th className="th text-right">SLA penalties</th>
+            <th className="th text-right">On-time points lost</th>
+            <th className="th">What happened</th>
+            <th className="th text-right">Penalties paid</th>
             <th className="th">Fixed by</th>
             <th className="th pr-5 sm:pr-6">
               <span className="sr-only">Open</span>
@@ -134,9 +132,10 @@ function CauseTable({ rows, selected, onSelect }: { rows: CauseRow[]; selected: 
                   <div className="text-sm text-slate">{r.label}</div>
                 </td>
                 <td className="td num whitespace-nowrap text-right font-semibold text-route-dark">{pts(r.fair_share_points)}</td>
-                <td className="td num whitespace-nowrap text-right">{num(r.deliveries)}</td>
-                <td className="td num whitespace-nowrap text-right text-late">{pct(r.on_time_rate, 0)}</td>
-                <td className="td num whitespace-nowrap text-right">{pct(r.share_of_late_deliveries, 0)}</td>
+                <td className="td text-ink-soft">
+                  {num(r.deliveries)} deliveries had this problem; only{' '}
+                  <span className="num font-semibold text-late">{Math.round(r.on_time_rate * 100)} in 100</span> arrived on time.
+                </td>
                 <td className="td num whitespace-nowrap text-right">{usd(r.sla_penalties_usd)}</td>
                 <td className="td text-ink-soft">{meta?.owner === 'routing' ? 'Routing' : 'Process'}</td>
                 <td className="td pr-5 text-slate sm:pr-6">

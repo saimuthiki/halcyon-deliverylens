@@ -43,7 +43,7 @@ export const HELP: Record<string, HelpContent> = {
   '/overview': {
     items: [
       { term: 'Headline', text: 'On-time delivery today against the 94% benchmark, and where the realistic plan gets to.', example: '71% today; 90.2% with all five fixes working as well as we realistically expect.' },
-      { term: 'Where each option gets on-time delivery', text: 'One track, one marker per option. Further right is better.', example: 'Routing vendor only reaches 80.2% at best; 99.0% is the ceiling if every cause were fully removed, not a forecast.' },
+      { term: 'Where each option gets on-time delivery', text: 'One track, one marker per option. Further right is better.', example: 'Only buying the routing vendor reaches 80.2% at best; 99.0% is the best case if every problem disappeared, not a forecast.' },
       { term: 'Four cost cards', text: 'Late deliveries, SLA penalties and redelivery cost over the 6 months, and the yearly revenue of the 9 clients threatening to leave.', example: '14,019 late deliveries cost $872K in penalties.' },
       { term: 'Monthly on-time delivery', text: 'The on-time rate each month against the benchmark line. It stays near 71% every month, so this is not a seasonal blip.' },
       { term: 'Points each cause costs today', text: 'How many on-time points each of the five causes takes away, shared fairly where a delivery has two problems.', example: 'Weak carrier on a lane 7.7 pts, incomplete address 6.9 pts.' },
@@ -60,7 +60,7 @@ export const HELP: Record<string, HelpContent> = {
   },
   '/vendor': {
     items: [
-      { term: 'Projected on-time bars', text: 'Where each option gets on-time delivery, against the 94% benchmark.', example: 'The $680K routing vendor alone: 80.2% at best. All five fixes, realistic: 90.2%.' },
+      { term: 'Projected on-time bars', text: 'Where each option gets on-time delivery, against the 94% benchmark.', example: 'The $680K routing vendor alone: 80.2% at best. All five fixes, as we expect them to work: 90.2%.' },
       { term: 'What the vendor really adds', text: 'Which causes need the vendor and which do not. Only route deviation (about 3 points) needs routing software; carrier choice is a spreadsheet change.' },
       { term: 'Money bars', text: 'The vendor contract next to the $14.2M a year of revenue at risk.' },
       { term: 'Business case table', text: 'For each option: penalties and redeliveries avoided per year, cost per year and net benefit. The cautious column counts penalties only.', example: 'Vendor only is −$160K a year on the cautious view.' },
@@ -70,7 +70,7 @@ export const HELP: Record<string, HelpContent> = {
   '/what-if': {
     items: [
       { term: 'Sliders', text: 'How well each fix works, from 0% (not at all) to 100% (cause fully removed). They start at the realistic plan.', example: 'Order intake agent at 80% means it catches 8 of 10 incomplete addresses.' },
-      { term: 'Presets', text: 'One click to set every slider: Realistic plan, Routing vendor only, Process fixes only, Ceiling (all fully fixed), or Reset to nothing fixed.' },
+      { term: 'Presets', text: 'One click to set every slider: Realistic plan, Only buy the routing vendor, Only fix our own processes, Best case: fix everything, or Reset to nothing fixed.' },
       { term: 'Projected on-time gauge', text: 'Where on-time delivery lands with these settings, and how far from the 94% benchmark.' },
       { term: 'Points per cause, penalties avoided', text: 'What each fix adds, and the late deliveries and SLA penalties avoided over the 6 months.', example: 'The three process fixes fully working reach 86.7%, still 7.3 points short.' },
     ],

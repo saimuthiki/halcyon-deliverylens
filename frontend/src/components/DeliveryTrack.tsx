@@ -50,10 +50,10 @@ export default function DeliveryTrack({ today, routingOnly, processOnly, realist
   const pos = (r: number) => `${(frac(r) * 100).toFixed(2)}%`;
   const stops: TrackStop[] = [
     { key: 'today', rate: today, label: 'Today', tone: 'today', side: 'above' },
-    { key: 'vendor', rate: routingOnly, label: 'Routing vendor only', tone: 'vendor', side: 'above' },
-    { key: 'process', rate: processOnly, label: 'Process fixes only', tone: 'process', side: 'below' },
-    { key: 'realistic', rate: realistic, label: 'All five fixes, realistic', tone: 'realistic', side: 'above' },
-    { key: 'ceiling', rate: ceiling, label: 'Ceiling, if every cause were fully removed', tone: 'ceiling', side: 'below' },
+    { key: 'vendor', rate: routingOnly, label: 'Only buy the routing vendor', tone: 'vendor', side: 'above' },
+    { key: 'process', rate: processOnly, label: 'Only fix our own processes', tone: 'process', side: 'below' },
+    { key: 'realistic', rate: realistic, label: 'Do all five fixes (expected)', tone: 'realistic', side: 'above' },
+    { key: 'ceiling', rate: ceiling, label: 'Best case, if every problem disappeared', tone: 'ceiling', side: 'below' },
   ];
   const ticks: number[] = [];
   for (let t = Math.ceil(min * 10) / 10; t <= max + 1e-9; t += 0.1) ticks.push(Math.round(t * 100) / 100);
@@ -84,7 +84,7 @@ export default function DeliveryTrack({ today, routingOnly, processOnly, realist
   return (
     <figure
       className="w-full"
-      aria-label={`On-time delivery today ${pct(today)}; routing vendor only ${pct(routingOnly)}; process fixes only ${pct(processOnly)}; all five fixes, realistic ${pct(realistic)}; ceiling if every cause were fully removed ${pct(ceiling)}; benchmark ${pct(benchmark, 0)}.`}
+      aria-label={`On-time delivery today ${pct(today)}; only buy the routing vendor ${pct(routingOnly)}; only fix our own processes ${pct(processOnly)}; do all five fixes (expected) ${pct(realistic)}; best case, if every problem disappeared ${pct(ceiling)}; benchmark ${pct(benchmark, 0)}.`}
     >
       {/* Tablet / desktop: positioned track */}
       <div className="relative hidden md:block" aria-hidden="true">

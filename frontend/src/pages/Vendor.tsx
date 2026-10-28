@@ -46,10 +46,10 @@ export default function Vendor() {
 function VendorBody({ data, causes, effectivenessNeeded }: { data: VendorAssessment; causes: CauseRow[]; effectivenessNeeded?: number }) {
   const bars = [
     { key: 'today', label: 'Today', value: data.today, fill: '#A84F0B' },
-    { key: 'vendor', label: 'Routing vendor only', value: data.routing_only, fill: '#5E6B75' },
-    { key: 'process', label: 'Process fixes only', value: data.process_only, fill: '#0E6B63' },
-    { key: 'realistic', label: 'All five, realistic', value: data.realistic, fill: '#0A524C' },
-    { key: 'ceiling', label: 'Ceiling, all fully removed', value: data.all_fixed, fill: '#B9D9D3' },
+    { key: 'vendor', label: 'Only buy the routing vendor', value: data.routing_only, fill: '#5E6B75' },
+    { key: 'process', label: 'Only fix our own processes', value: data.process_only, fill: '#0E6B63' },
+    { key: 'realistic', label: 'Do all five fixes (expected)', value: data.realistic, fill: '#0A524C' },
+    { key: 'ceiling', label: 'Best case, if every problem disappeared', value: data.all_fixed, fill: '#B9D9D3' },
   ].map((b) => ({ ...b, pctValue: Math.round(b.value * 1000) / 10 }));
   const label1 = (x: number) => `${x.toFixed(1)}%`;
 
@@ -89,7 +89,7 @@ function VendorBody({ data, causes, effectivenessNeeded }: { data: VendorAssessm
           </ResponsiveContainer>
         </div>
         <p className="mt-2 text-sm text-ink-soft">
-          The ceiling assumes every cause is removed completely, so it is a limit, not a forecast. The vendor bar is also a best case: it assumes the software
+          The best case assumes every problem disappears completely, so it is a limit, not a forecast. The vendor bar is also a best case: it assumes the software
           removes both routing causes completely.
         </p>
         {effectivenessNeeded != null && (

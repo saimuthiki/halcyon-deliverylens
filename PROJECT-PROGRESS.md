@@ -111,6 +111,7 @@ These links are open to everyone on purpose (hackathon demo), with no login.
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
+- **2026-10-28, Sai M + Claude Code (3):** plain-language UI. Why-late table: "Deliveries hit", "On time when hit" and "Share of late" merged into one sentence ("N deliveries had this problem; only X in 100 arrived on time"); "Worth" renamed "On-time points lost". Option names on Overview, Vendor and Simulator: "Only buy the routing vendor", "Only fix our own processes", "Do all five fixes (expected)", "Best case, if every problem disappeared" (backend scenario names unchanged). A Brevo HTML-brief version is kept on local branch `brevo-html-brief`, not merged, because dkarasu's email service now owns sending.
 - **2026-10-28, dkarasu + Claude Code (2):** email service, Stage 1 (not deployed yet).
   - New shared module `backend/app/email` (message, backends, `send_email()`, Jinja2 templates); see `docs/09-email-service.md`.
   - The Weekly Brief sends through it; delivery is still SNS by default (`EMAIL_BACKEND=sns`), same recipients, timer and cooldown.
