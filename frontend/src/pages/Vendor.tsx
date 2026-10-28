@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { Check, X } from 'lucide-react';
 import { api } from '../api/client';
-import type { CauseKey, CauseRow, DataSource, RoiResponse, RoiScenario, VendorAssessment } from '../api/types';
+import type { CauseKey, CauseRow, DataSource, RoiResponse, VendorAssessment } from '../api/types';
 import { useApi } from '../lib/useApi';
 import { CAUSE_META, CAUSE_ORDER } from '../lib/causes';
 import { pct, usd } from '../lib/format';
@@ -166,93 +166,60 @@ function money(value: number): string {
 }
 
 function BusinessCase({ roi, source }: { roi: RoiResponse; source: DataSource | null }) {
-  const isRealistic = (s: RoiScenario) => /realistic/i.test(s.name);
-  const vendor = roi.scenarios.find((s) => /vendor/i.test(s.name));
-  const plan = roi.scenarios.find(isRealistic);
-  const eff = roi.assumptions.effectiveness;
-  const cost = roi.assumptions.fix_cost_per_year_usd;
-  const causeKeys = CAUSE_ORDER.filter((c) => eff[c] != null || cost[c] != null);
+  // Only the three options someone can actually choose; "perfectly" is a limit, not a plan.
+  const rows = roi.scenarios.filter((s) => optionOf(s.name) !== 'ceiling');
+  const vendor = rows.find((s) => optionOf(s.name) === 'vendor');
+  const own = rows.find((s) => optionOf(s.name) === 'process');
 
   return (
     <section className="panel overflow-hidden" aria-labelledby="roi-title">
       <div className="panel-pad pb-0 sm:pb-0">
         <SectionTitle note={<SourceTag source={source} />}>
-          <span id="roi-title">Business case</span>
+          <span id="roi-title">Business case, per year</span>
         </SectionTitle>
-        <p className="-mt-2 mb-4 max-w-[80ch] text-[15px] text-ink-soft">
-          Yearly savings against yearly cost. Costs are our estimates, to be confirmed with Halcyon. The last column counts SLA penalties only, because every
-          late delivery carries the same $34 redelivery charge and that may be a recording rule rather than a real cost.
-        </p>
+        <p className="-mt-2 mb-4 max-w-[80ch] text-[15px] text-ink-soft">Penalties saved minus what it costs. Costs are our estimates.</p>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-collapse text-[15px]" aria-labelledby="roi-title">
+        <table className="w-full min-w-[620px] border-collapse text-[15px]" aria-labelledby="roi-title">
           <thead>
             <tr className="border-b border-line">
               <th scope="col" className="th pl-5 sm:pl-6">Option</th>
-              <th scope="col" className="th whitespace-nowrap text-right">On time</th>
-              <th scope="col" className="th text-right">Penalties avoided / yr</th>
-              <th scope="col" className="th text-right">Redelivery avoided / yr</th>
-              <th scope="col" className="th text-right">Cost / yr (estimate)</th>
-              <th scope="col" className="th text-right">Net benefit / yr</th>
-              <th scope="col" className="th pr-5 text-right sm:pr-6">Net, penalties only</th>
+              <th scope="col" className="th text-right">On time</th>
+              <th scope="col" className="th text-right">Penalties saved</th>
+              <th scope="col" className="th text-right">Cost</th>
+              <th scope="col" className="th pr-5 text-right sm:pr-6">Gain</th>
             </tr>
           </thead>
           <tbody>
-            {roi.scenarios.map((s) => {
+            {rows.map((s) => {
               const opt = optionOf(s.name);
+              const plan = opt === 'realistic';
+              const gain = s.net_benefit_penalties_only_usd;
               return (
-              <tr key={s.name} className={`border-b border-line last:border-b-0 ${isRealistic(s) ? 'bg-route-tint' : ''}`}>
-                <th scope="row" className="td pl-5 text-left font-semibold sm:pl-6">
-                  {opt ? OPTIONS[opt].name : s.name}
-                  {opt && <div className={`max-w-[42ch] text-sm font-normal ${isRealistic(s) ? 'text-route-dark' : 'text-slate'}`}>{OPTIONS[opt].means}</div>}
-                </th>
-                <td className="td num text-right font-semibold">{pct(s.on_time_rate)}</td>
-                <td className="td num text-right">{usd(s.sla_penalties_avoided_usd)}</td>
-                <td className="td num text-right">{usd(s.redelivery_avoided_usd)}</td>
-                <td className="td num text-right">{usd(s.cost_per_year_usd)}</td>
-                <td className={`td num text-right font-semibold ${s.net_benefit_per_year_usd < 0 ? 'text-late' : 'text-route-dark'}`}>{money(s.net_benefit_per_year_usd)}</td>
-                <td className={`td num pr-5 text-right font-semibold sm:pr-6 ${s.net_benefit_penalties_only_usd < 0 ? 'text-late' : 'text-ink'}`}>
-                  {money(s.net_benefit_penalties_only_usd)}
-                </td>
-              </tr>
+                <tr key={s.name} className={`border-b border-line last:border-b-0 ${plan ? 'bg-route-tint' : ''}`}>
+                  <th scope="row" className="td pl-5 text-left font-semibold sm:pl-6">
+                    {opt ? OPTIONS[opt].name : s.name}
+                    {plan && <div className="text-sm font-normal text-route-dark">Our plan</div>}
+                  </th>
+                  <td className="td num text-right font-semibold">{pct(s.on_time_rate)}</td>
+                  <td className="td num text-right">{usd(s.sla_penalties_avoided_usd)}</td>
+                  <td className="td num text-right">{usd(s.cost_per_year_usd)}</td>
+                  <td className={`td num pr-5 text-right text-[17px] font-bold sm:pr-6 ${gain < 0 ? 'text-late' : 'text-route-dark'}`}>{money(gain)}</td>
+                </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      <div className="panel-pad flex flex-col gap-3 border-t border-line text-sm text-ink-soft">
-        {vendor && plan && (
-          <p data-testid="roi-summary">
-            Counting penalties only, buying the routing software only {vendor.net_benefit_penalties_only_usd < 0 ? 'loses' : 'gains'}{' '}
-            <strong className="num text-ink">{usd(Math.abs(vendor.net_benefit_penalties_only_usd))}</strong> a year, while fixing all 5 problems (likely) gains{' '}
-            <strong className="num text-ink">{money(plan.net_benefit_penalties_only_usd)}</strong> a year.
-          </p>
-        )}
-        {causeKeys.length > 0 && (
-          <details className="group">
-            <summary className="cursor-pointer font-semibold text-route">Assumptions behind “Fix all 5 problems (likely)”</summary>
-            <table className="mt-3 w-full max-w-[640px] border-collapse text-[15px] text-ink">
-              <thead>
-                <tr className="border-b border-line">
-                  <th scope="col" className="th pl-0">Fix</th>
-                  <th scope="col" className="th text-right">Share of the cause removed</th>
-                  <th scope="col" className="th pr-0 text-right">Cost / yr (estimate)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {causeKeys.map((c) => (
-                  <tr key={c} className="border-b border-line last:border-b-0">
-                    <td className="td pl-0">{CAUSE_META[c].short}</td>
-                    <td className="td num text-right">{eff[c] != null ? `${Math.round(eff[c]! * 100)}%` : '–'}</td>
-                    <td className="td num pr-0 text-right">{cost[c] != null ? usd(cost[c]!) : '–'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {roi.assumptions.note && <p className="mt-2">{roi.assumptions.note}</p>}
-          </details>
-        )}
-      </div>
+      {vendor && own && (
+        <p className="panel-pad border-t border-line text-[15px] text-ink" data-testid="roi-summary">
+          The software alone <strong className={vendor.net_benefit_penalties_only_usd < 0 ? 'text-late' : ''}>
+            {vendor.net_benefit_penalties_only_usd < 0 ? 'loses' : 'gains'} {usd(Math.abs(vendor.net_benefit_penalties_only_usd))}
+          </strong>{' '}
+          a year. Fixing our own work <strong className="text-route-dark">gains {usd(own.net_benefit_penalties_only_usd)}</strong> and costs about{' '}
+          {Math.round(vendor.cost_per_year_usd / own.cost_per_year_usd)}× less.
+        </p>
+      )}
     </section>
   );
 }

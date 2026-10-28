@@ -116,20 +116,19 @@ test.describe('The decision pages', () => {
     for (const header of ['On time', 'Penalties avoided / yr', 'Redelivery avoided / yr', 'Cost / yr (estimate)', 'Net benefit / yr', 'Net, penalties only']) {
       await expect(table.getByRole('columnheader', { name: header, exact: true })).toBeVisible();
     }
-    // One row per scenario in findings.json, with the yearly figures it holds.
+    // One row per choosable option (the perfect-fix limit is left out), with its yearly figures.
     const rows = table.locator('tbody tr');
-    await expect(rows).toHaveCount(4);
+    await expect(rows).toHaveCount(3);
     const row = (name: RegExp) => rows.filter({ has: page.getByRole('rowheader', { name }) });
     const expectCells = async (name: RegExp, cells: string[]) => {
       const r = row(name);
       await expect(r).toHaveCount(1);
       for (const c of cells) await expect(r.getByRole('cell', { name: c, exact: true })).toBeVisible();
     };
-    await expectCells(/^Buy the routing software only/, ['80.2%', '$520K', '$314K', '$680K', '$154K', '−$160K']);
-    await expectCells(/^Fix our own work only/, ['86.7%', '$993K', '$516K', '$175K', '$1.3M', '$818K']);
-    await expectCells(/^Fix all 5 problems \(likely\)/, ['90.2%', '$1.2M', '$633K', '$359K', '$1.4M', '$806K']);
-    await expectCells(/^Fix all 5 problems perfectly/, ['99.0%', '$1.7M', '$920K', '$359K', '$2.2M', '$1.3M']);
-    await expect(page.getByTestId('roi-summary')).toContainText('buying the routing software only loses $160K a year');
+    await expectCells(/^Buy the routing software only/, ['80.2%', '$520K', '$680K', '−$160K']);
+    await expectCells(/^Fix our own work only/, ['86.7%', '$993K', '$175K', '$818K']);
+    await expectCells(/^Fix all 5 problems \(likely\)/, ['90.2%', '$1.2M', '$359K', '$806K']);
+    await expect(page.getByTestId('roi-summary')).toContainText('The software alone loses $160K a year');
 
     await expectLiveData(page);
     await evidenceShot(page, testInfo, '03b-vendor-business-case');
