@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
 import { useInView, useReducedMotion } from '../lib/motion';
 
 /**
  * A three-second explainer of the 08:00 cutoff: the clock reaches 08:00, the pick list prints and the truck
  * leaves with the day's orders (teal); an order arriving at 08:05 (orange) misses it and waits for tomorrow.
- * Plays once when it comes into view; Replay plays it again. Reduced motion and tests show the final frame.
+ * Loops while it is on screen: the story plays, holds on the last frame so it can be read, then starts again.
+ * It pauses when scrolled away. Reduced motion and tests show the final frame.
  */
 
-const DURATION_MS = 3000;
+const DURATION_MS = 4000;
+/** How long the final frame stays before the loop restarts. */
+const HOLD_MS = 2500;
 const ROUTE = '#0E6B63';
 const LATE = '#A84F0B';
 const SLATE = '#5E6B75';
@@ -26,10 +28,9 @@ const AT_0805 = 0.6;
 
 export default function CutoffClock() {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { threshold: 0.4 });
+  const inView = useInView(ref, { once: false, threshold: 0.2 });
   const instant = useReducedMotion() || import.meta.env.MODE === 'test';
   const [p, setP] = useState(instant ? 1 : 0);
-  const [run, setRun] = useState(0);
 
   useEffect(() => {
     if (instant || typeof requestAnimationFrame === 'undefined') {
@@ -37,17 +38,16 @@ export default function CutoffClock() {
       return;
     }
     if (!inView) return;
-    setP(0);
-    const t0 = performance.now();
+    let t0: number | null = null;
     let raf = 0;
     const tick = (now: number) => {
-      const v = Math.min(1, (now - t0) / DURATION_MS);
-      setP(v);
-      if (v < 1) raf = requestAnimationFrame(tick);
+      if (t0 === null) t0 = now;
+      setP(Math.min(1, ((now - t0) % (DURATION_MS + HOLD_MS)) / DURATION_MS));
+      raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [inView, run, instant]);
+  }, [inView, instant]);
 
   // Time of day in minutes: 06:00 to 08:00, then on to 08:05.
   const minutes = p < AT_0800 ? lerp(360, 480, seg(p, 0, AT_0800)) : lerp(480, 485, clamp((p - AT_0800) / (AT_0805 - AT_0800)));
@@ -73,17 +73,9 @@ export default function CutoffClock() {
 
   return (
     <section className="panel panel-pad mb-6" aria-labelledby="cutoff-clock-title" data-testid="cutoff-clock">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <h2 id="cutoff-clock-title" className="text-lg font-semibold">
-          Why an order at 08:05 is late
-        </h2>
-        {!instant && (
-          <button type="button" className="btn-secondary min-h-[36px] px-3 text-sm" onClick={() => setRun((n) => n + 1)}>
-            <RotateCcw className="h-4 w-4" aria-hidden="true" />
-            Replay
-          </button>
-        )}
-      </div>
+      <h2 id="cutoff-clock-title" className="mb-3 text-lg font-semibold">
+        Why an order at 08:05 is late
+      </h2>
       <div ref={ref}>
         <svg
           viewBox="0 0 640 176"

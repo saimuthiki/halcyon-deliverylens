@@ -187,9 +187,8 @@ actor badges and step numbers. Icons are Lucide, 16px, at one stroke weight.
 - State the finding in the page title, using the real number.
 - Keep colour semantic: if something is not late, a fix or AI, it is neutral.
 - Label who acted (AI agent, rule, data lookup, guardrail) and show the evidence behind each decision.
-- Keep routine motion at 150 to 250ms. Longer motion is only for the explainers (How it works journey, Order
-  desk run, Stock & routes trucks, the 08:00 clock): it shows a process, plays when on screen, and can be
-  paused, skipped or replayed. Count-ups and bar growth ease out (`EASE_OUT`). Everything goes through
+- Keep routine motion at 150 to 250ms. Longer motion is only for the explainers (Order desk run, Stock & routes
+  trucks, the 08:00 clock): it shows a process, plays when on screen, and pauses or stops when off screen. Count-ups and bar growth ease out (`EASE_OUT`). Everything goes through
   `lib/motion.ts`, so `prefers-reduced-motion` shows the final state with no movement.
 - Mark sample or estimated numbers as such.
 
