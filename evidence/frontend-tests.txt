@@ -1,7 +1,82 @@
-Frontend vitest + typecheck, run 2026-10-23T12:25Z
+Frontend typecheck + vitest, run 2026-10-29T16:13Z on Windows 11, Node v24.22.1
+Command: cd frontend && npx tsc -b --noEmit && npx vitest run
+tsc exit code: 0 (0 = no type errors)
 
- Test Files  2 passed (2)
-      Tests  15 passed (15)
-   Start at  12:25:45
-   Duration  2.00s (transform 609ms, setup 233ms, collect 942ms, tests 288ms, environment 1.14s, prepare 393ms)
+ RUN  v2.1.2 <repo>/frontend
+
+ ✓ src/__tests__/approve.test.ts > Order desk approval > surfaces a network error when the API is live, instead of approving sample orders
+ ✓ src/__tests__/calc.test.ts > buildWaterfall > starts at today, ends at the 99.0% ceiling, with one floating bar per cause
+ ✓ src/__tests__/calc.test.ts > buildWaterfall > orders causes largest first and stacks each on the running total
+ ✓ src/__tests__/calc.test.ts > simulateExact (same model as the API and analysis/root_cause_analysis.py) > returns today when nothing is fixed
+ ✓ src/__tests__/calc.test.ts > simulateExact (same model as the API and analysis/root_cause_analysis.py) > reproduces every scenario in findings.json
+ ✓ src/__tests__/calc.test.ts > simulateExact (same model as the API and analysis/root_cause_analysis.py) > matches the yearly money in the realistic ROI scenario
+ ✓ src/__tests__/calc.test.ts > simulateExact (same model as the API and analysis/root_cause_analysis.py) > splits the ceiling fairly: points per cause equal the fair-share points
+ ✓ src/__tests__/calc.test.ts > simulateExact (same model as the API and analysis/root_cause_analysis.py) > needs about 84% effectiveness on every fix to reach the 94% benchmark
+ ✓ src/__tests__/calc.test.ts > simulateExact (same model as the API and analysis/root_cause_analysis.py) > clamps out-of-range effectiveness
+ ✓ src/__tests__/calc.test.ts > mockOrderIntake > passes a complete next-day order
+ ✓ src/__tests__/calc.test.ts > mockOrderIntake > flags the missing street, postcode and country and drafts a follow-up
+ ✓ src/__tests__/calc.test.ts > mockOrderIntake > warns about a same-day order after 08:00 but not before
+ ✓ src/__tests__/calc.test.ts > mockOrderIntake > reads an address written on one line
+ ✓ src/__tests__/approve.test.ts > Order desk approval > uses the sample approvals when the API was unreachable at load
+ ✓ src/__tests__/newfeatures.test.tsx > address from history > offers the confirmation only while the order is on hold with a suggestion
+stderr | src/__tests__/newfeatures.test.tsx > address from history > lets the client confirm the address on file with one click
+
+stderr | src/__tests__/ask.test.tsx > Ask DeliveryLens > answers a too-short question with guidance instead of calling the agent
+
+ ✓ src/__tests__/ask.test.tsx > Ask DeliveryLens > answers a too-short question with guidance instead of calling the agent
+ ✓ src/__tests__/ask.test.tsx > Ask DeliveryLens > keeps the plain-language messages for errors a person can act on
+ ✓ src/__tests__/newfeatures.test.tsx > address from history > lets the client confirm the address on file with one click
+ ✓ src/__tests__/lateorders.test.tsx > Late same-day orders offline snapshot > is the API replay, not an estimate: default times match backend/app/analytics/late_orders.py
+ ✓ src/__tests__/lateorders.test.tsx > Late same-day orders offline snapshot > has every valid pair of half-hour times, and falls back to the defaults for an invalid one
+ ✓ src/__tests__/lateorders.test.tsx > Late same-day orders offline snapshot > normalises a contract-shaped response and fills in missing windows and rules
+ ✓ src/__tests__/lateorders.test.tsx > Late same-day orders offline snapshot > states the finding with the real numbers
+ ✓ src/__tests__/lateorders.test.tsx > Late same-day orders offline snapshot > has help content for the page
+stderr | src/__tests__/lateorders.test.tsx > Late same-day orders page > starts at the Order desk settings and shows the finding, the sample notice and the help key
+
+ ✓ src/__tests__/components.test.tsx > SimulatorResults > shows the projected rate, points gained and the benchmark gap for process fixes
+ ✓ src/__tests__/components.test.tsx > SimulatorResults > says the benchmark is met when every cause is fixed
+ ✓ src/__tests__/components.test.tsx > DeliveryTrack > describes every option for screen readers
+ ✓ src/__tests__/lateorders.test.tsx > Late same-day orders page > starts at the Order desk settings and shows the finding, the sample notice and the help key
+stderr | src/__tests__/howitworks.test.tsx > How it works > shows the 10-step journey, the five causes and the routing bracket; badges appear only with DeliveryLens
+
+ ✓ src/__tests__/howitworks.test.tsx > How it works > shows the 10-step journey, the five causes and the routing bracket; badges appear only with DeliveryLens 411ms
+ ✓ src/__tests__/lateorders.test.tsx > Late same-day orders page > keeps grace before the hard stop: later grace times and earlier hard stops are disabled
+stderr | src/__tests__/desk.test.tsx > HelpPanel > is closed by default and remembers being opened
+
+ ✓ src/__tests__/desk.test.tsx > Order desk offline fixtures > has the 11 sample emails, one per scenario, with the agreed expected decisions
+ ✓ src/__tests__/desk.test.tsx > Order desk offline fixtures > every pre-computed trace has the 10 steps in contract order and matches the expected decision
+ ✓ src/__tests__/desk.test.tsx > Order desk offline fixtures > shows the scenario behaviour: far warehouse, carrier switch, on hold skips, injection blocked
+ ✓ src/__tests__/desk.test.tsx > Order desk offline fixtures > process-all fills the sample WMS (everything except the blocked email) and reset empties it
+ ✓ src/__tests__/desk.test.tsx > Human approval before the WMS (offline) > an accepted order waits for approval and step 9 says so
+ ✓ src/__tests__/desk.test.tsx > Human approval before the WMS (offline) > approve moves it to ready for pick list, and a second approve is a 409
+ ✓ src/__tests__/desk.test.tsx > Human approval before the WMS (offline) > approve all approves only the accepted orders
+ ✓ src/__tests__/desk.test.tsx > Human approval before the WMS (offline) > the decision card offers Approve into WMS and then shows Ready for pick list
+ ✓ src/__tests__/desk.test.tsx > Human approval before the WMS (offline) > a preview that has not been run cannot be approved
+ ✓ src/__tests__/desk.test.tsx > Human approval before the WMS (offline) > labels the WMS statuses in plain words
+ ✓ src/__tests__/desk.test.tsx > Order desk normalisers > keeps the contract fields and tolerates odd values
+ ✓ src/__tests__/desk.test.tsx > AI badge label > names the provider the way the header shows it
+ ✓ src/__tests__/desk.test.tsx > Trace and decision components > renders one row per step with actor, status and expandable friendly details
+ ✓ src/__tests__/desk.test.tsx > Trace and decision components > shows the decision and whether it matches the expected result
+ ✓ src/__tests__/desk.test.tsx > Trace and decision components > shows arrays of objects as small rows
+ ✓ src/__tests__/desk.test.tsx > HelpPanel > is closed by default and remembers being opened
+ ✓ src/__tests__/desk.test.tsx > HelpPanel > has content for every page in the navigation
+ ✓ src/__tests__/desk.test.tsx > Late same-day orders on the Order desk > M13: a valid reason in the urgent window adds the order to today, for any client
+ ✓ src/__tests__/desk.test.tsx > Late same-day orders on the Order desk > M14: "URGENT!!!" with no reason from a Tier 3 client goes to tomorrow
+ ✓ src/__tests__/desk.test.tsx > Late same-day orders on the Order desk > M17: after the 10:00 hard stop even a valid reason from an at-risk client goes to tomorrow
+ ✓ src/__tests__/desk.test.tsx > Late same-day orders on the Order desk > renders the window, the outcome, the rule and the AI evidence quote readably
+ ✓ src/__tests__/desk.test.tsx > Late same-day orders on the Order desk > says when an order is not added, and why
+ ✓ src/__tests__/desk.test.tsx > Late same-day orders on the Order desk > keeps steps without a late same-day window unchanged
+ ✓ src/__tests__/desk.test.tsx > Late same-day orders on the Order desk > shows an unverified-quote note from the API
+ ✓ src/__tests__/lateorders.test.tsx > Late same-day orders page > asks the API again when a time changes, and offers a way back to the Order desk settings
+ ✓ src/__tests__/lateorders.test.tsx > Late same-day orders page > colours the arrivals by window, labels the urgent figures as an upper bound and shows the decision table
+ ✓ src/__tests__/recovery.test.tsx > Delay alert recovery plan > normalises the API plan and tolerates its absence
+ ✓ src/__tests__/recovery.test.tsx > Delay alert recovery plan > shows priority, score, escalation, penalty and each action with its owner and cause
+ ✓ src/__tests__/recovery.test.tsx > Delay alert recovery plan > a medium or normal plan is neutral and has no escalation line
+ ✓ src/__tests__/recovery.test.tsx > Delay alert recovery plan > the offline delay alert carries a plausible plan: one action per cause, at-risk clients escalate
+ ✓ src/__tests__/recovery.test.tsx > Delay alert recovery plan > the offline plan values a late delivery at each client's expected penalty per late delivery
+
+ Test Files  9 passed (9)
+      Tests  60 passed (60)
+   Start at  21:43:13
+   Duration  4.92s (transform 1.28s, setup 4.53s, collect 6.61s, tests 2.38s, environment 16.87s, prepare 2.20s)
 

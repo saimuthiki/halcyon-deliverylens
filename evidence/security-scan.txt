@@ -1,4 +1,54 @@
 # Security scan
+# Fresh run: 2026-10-29, on the working tree of commit 390ce98 (Windows 11), by the QA agent session.
+# The first scan (2026-10-23) is kept unchanged at the bottom of this file, under "EARLIER RUN".
+
+## Summary, 2026-10-29 (plain English)
+1. Secrets in git (regex scan over every tracked text file, like gitleaks):
+   - Files scanned: 1,027 tracked text files (all 1,093 tracked files minus images, PDFs, Office files and lock files).
+   - The secret files are NOT in git: `git ls-files` lists none of backend/.env, infra/config.env, infra/.state/,
+     test.py, *.pem, *.key, id_rsa. They are in .gitignore. They were not opened by this scan.
+   - Patterns checked, with hits:
+       AWS access key id (AKIA/ASIA...) ............ 0
+       AWS secret access key assignment ............ 0
+       Private key block (BEGIN ... PRIVATE KEY) ... 0
+       Google / Gemini API key (AIza...) ........... 0
+       GitHub token (ghp_/gho_/ghs_...) ............ 0
+       Slack token (xox...) ........................ 0
+       Brevo API / SMTP key (xkeysib-/xsmtpsib-) ... 0
+       JWT (eyJ...eyJ...) .......................... 0
+       OpenAI / Anthropic style key (sk-...) ....... 12 lines, all false positives: ordinary words such as
+         "task-run", "risk-management", "desk-address-book" in docs, skill files and the audit JSON.
+       Password / token assignment ................. 16 lines, all placeholders: "YOUR_SEARCH_API_KEY" and
+         "development-secret-change-in-prod" in third-party skill docs under .claude/, and
+         "not-a-real-key", "smtp-password-placeholder", "demo-token-placeholder" in backend unit tests.
+       Database URL with a password ................. 16 lines, all examples: skill docs under .claude/ and the
+         throwaway CI Postgres service container in .github/workflows/ci.yml (user/password "deliverylens",
+         a container that lives only for one CI job).
+   - Result: no real secret in any tracked file.
+2. bandit 1.9.4 on backend/app (5,587 lines of code):
+   - Medium or high: 0 (this is the level CI fails on: `bandit -ll`).
+   - Low: 3, all accepted and explained:
+       app/email/backends.py:208 B311 random.uniform for retry jitter (not security use; marked noqa S311)
+       app/email/backends.py:243 B110 try/except/pass while closing a dead SMTP connection
+       app/email/backends.py:305 B110 same, second backend
+3. pip-audit on backend/requirements.txt: "No known vulnerabilities found".
+4. npm audit --omit=dev on frontend (what ships to the browser): 2 moderate, 0 high, 0 critical.
+   Both in react-router 6 (GHSA-wrjc-x8rr-h8h6 backslash open redirect in <Link>/useNavigate; GHSA-337j-9hxr-rhxg SSR
+   hydration). Same as on 23 Oct. Only fix is React Router 7 (breaking). Low risk here: no SSR, and every link target
+   is a fixed internal path, never user input. Accepted for the hackathon; on the roadmap.
+5. Earlier finding still open (outside the code): a Gemini key existed in the untracked local file test.py. It was
+   never on GitHub. Action for a human: revoke it in Google AI Studio (see docs/security/security-audit-2026-10-29.md, item 2).
+
+## How to repeat
+- Secrets: `git ls-files` piped to `grep -I -n -i -E <pattern>` for each pattern above (skip the secret files).
+- bandit: `pip install bandit && cd backend && bandit -q -r app` (CI runs `bandit -q -r app -x app/tests -ll`).
+- pip-audit: `pip install pip-audit && cd backend && pip-audit -r requirements.txt`.
+- npm: `cd frontend && npm audit --omit=dev`.
+
+====================================================================================================
+EARLIER RUN (2026-10-23), unchanged
+====================================================================================================
+# Security scan
 # Run: 2026-10-23 11:53 UTC
 
 ## Summary (plain English)

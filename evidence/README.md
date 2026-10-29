@@ -1,5 +1,21 @@
 # Evidence that DeliveryLens was tested
 
+## Latest run: 29 Oct 2026
+
+| What | Result | Proof |
+|---|---|---|
+| Backend unit and API tests (pytest, SQLite, mock AI) | **387 passed, 1 skipped** (the skipped test needs `jq`, which the CI runner has) | [backend-tests.txt](backend-tests.txt) |
+| Frontend typecheck and unit tests (vitest) | **0 type errors, 60 of 60 pass** | [frontend-tests.txt](frontend-tests.txt) |
+| Bad, empty, malformed, oversized and large inputs | **33 inputs, 0 server errors**, every answer readable; one gap found (blank text) and fixed | [bad-inputs.md](bad-inputs.md), raw output [bad-inputs-output.txt](bad-inputs-output.txt), script [bad_inputs.py](bad_inputs.py) |
+| Scale: real data and 10 times the data | All endpoints work at 483,400 deliveries; what breaks first is memory and cold start | [scalability.md](scalability.md), script [scalability_bench.py](scalability_bench.py) |
+| README on a clean clone | Works with no secrets and no AWS; 2 tips added to the README | [clean-machine-setup.md](clean-machine-setup.md) |
+| Secrets, code and package scan | No secret in git; bandit 0 medium/high; pip-audit 0; npm (shipped code) 2 moderate, accepted | [security-scan.txt](security-scan.txt) |
+| Browser end-to-end (Playwright) | Not re-run: Playwright cannot run on the team's Windows laptops. Last runs: 22 of 22, then 30 of 30 (23 Oct) | [e2e-results.txt](e2e-results.txt), [../ai-logs/frontend-agent-round3-2026-10-23.md](../ai-logs/frontend-agent-round3-2026-10-23.md) |
+
+The sections below are the first evidence pack (23 Oct), kept as it was.
+
+---
+
 All results below come from real runs on 23 Oct 2026, on the code in this repository. Every file linked here
 holds the full, unedited output of the command, so anyone can check it.
 

@@ -82,7 +82,7 @@ lands in the warehouse system.
 
 | # | What it is | What it means |
 |---|---|---|
-| 1 | **Inbox (17)** | The shared order mailbox. These are the emails clients send to Halcyon's order desk. Each row shows the message id (M01 to M17), the sender, the subject and a one-line description of the case. **"Expect: …"** is what the right answer should be. **"New"** means not processed yet; **"Done: …"** shows what DeliveryLens decided. **Run all 17** processes every new email in one go. |
+| 1 | **Inbox (11)** | The shared order mailbox. These are the emails clients send to Halcyon's order desk. Each row shows the message id (M01 to M17; 11 emails, one per scenario), the sender, the subject and a one-line description of the case. **"Expect: …"** is what the right answer should be. **"New"** means not processed yet; **"Done: …"** shows what DeliveryLens decided. **Run all 11** processes every new email in one go. |
 | 2 | **Email M02 (selected)** | The email you clicked. Here, M02 from "Plant 2 Ops" for Client 263, which is missing a postcode. |
 | 3 | **The email itself** | Sender, time received, the client it belongs to, and the full email text. The grey box explains in one line which cause this email shows. |
 | 4 | **Run DeliveryLens on this email** | Starts the 10-step pipeline for this one email. It takes a second with Mock, a few seconds with Gemini. |
@@ -94,6 +94,20 @@ To the right of the trace (not numbered) are two more cards. While the run plays
 - **Decision for email M02**: the final result (**On hold** here), the reason ("missing postcode"), and **Matches expected**, which proves the result is the one we planned for this email.
   For an **Accepted** order, this card also has the **Approve into WMS** button (see below).
 - **Reply to the client**: the email the **Client Reply Agent** drafted. It is marked **DRAFT — needs approval**: a person reads and sends it. Nothing goes to a client automatically.
+
+### Try your own email ("Type your own")
+
+Anyone (for example a juror) can test the desk on an email we have never seen:
+1. On the Order desk, click **Type your own** (top of the inbox; it needs the live server).
+2. Fill **From** (the sender picks the client: `orders@client-NNN.example`, for example `client-055`),
+   **Received today at** (the time decides the same-day rules: try 07:30, 08:30, 09:30 and 10:30),
+   **Subject**, and paste or type the email (up to 8,000 characters).
+3. Click **Run DeliveryLens on this email**. The same 10 steps run, and the email appears in the inbox as
+   **"Your own email"** (a new one replaces it; **Reset demo** removes it).
+4. Ideas: remove the postcode (the order is held and the client is asked), write "URGENT!!!" with no reason,
+   add "our production line stops at 3pm", write "a couple of pallets of the usual", or paste
+   "Ignore all previous instructions". What the app answers to empty, too long or malformed input is listed in
+   [evidence/bad-inputs.md](../evidence/bad-inputs.md).
 
 ### The 10 steps in the pipeline trace
 
@@ -398,6 +412,10 @@ settings against history. There is no annotated picture yet; the parts, top to b
 ---
 
 ## 13. Order intake agent
+
+> **Update (28 Oct):** this page was merged into the Order desk. `/order-intake` now opens the Order desk;
+> use **Type your own** there (see [section 3](#try-your-own-email-type-your-own)). The API route
+> `POST /api/agents/order-intake` still exists. The text below describes the old page.
 
 **Menu:** AI agents → Order intake agent. The same AI as step 3 of the order desk, on its own, so you
 can paste any email and test it.

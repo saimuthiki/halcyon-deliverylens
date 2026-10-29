@@ -1,0 +1,39 @@
+# Bad-input run, 2026-10-29 18:39 local time, mock AI, SQLite, 48340 deliveries loaded
+
+| ID | Input | HTTP | Time (ms) | What the API answered |
+|---|---|---|---|---|
+| B01 | Order desk own email: empty body | 422 | 22 | error `validation_error`: Request is not valid ("body.body: String should have at least 1 character") |
+| B02 | Order desk own email: only spaces | 422 | 6 | error `validation_error`: Request is not valid ("body.body: Value error, must not be empty or only spaces") |
+| B03 | Order desk own email: body field missing | 422 | 6 | error `validation_error`: Request is not valid ("body.body: Field required") |
+| B04 | Order desk own email: oversized (8,001 characters) | 422 | 4 | error `validation_error`: Request is not valid ("body.body: String should have at most 8000 characters") |
+| B05 | Order desk own email: bad received time 25:99 | 422 | 5 | error `validation_error`: Request is not valid ("body.received_time: String should match pattern '^([01]\\d\|2[0-3]):[0-5]\\d$'") |
+| B06 | Order desk own email: not JSON at all | 422 | 5 | error `validation_error`: Request is not valid ("body.0: JSON decode error") |
+| B07 | Order desk own email: nonsense text, no order in it | 200 | 1518 | {"message_id": "U01", "decision": "needs_review", "decision_reason": "A person must check the order lines: no clear SKU and quantity; confidence 0.20 below 0.6."} |
+| B08 | Order desk own email: unknown sender | 200 | 54 | {"message_id": "U01", "decision": "needs_review", "decision_reason": "A person must check the order lines: no clear SKU and quantity; 1 line(s) without a clear SKU or number."} |
+| B09 | Order desk own email: prompt injection | 200 | 41 | {"message_id": "U01", "decision": "blocked", "decision_reason": "Guardrail: Input looks like an attempt to override the agent's instructions."} |
+| B10 | Order intake: prompt injection | 400 | 20 | error `guardrail_blocked`: Input looks like an attempt to override the agent's instructions ({"flags": ["prompt_injection"], "agent_run_id": 6}) |
+| B11 | Order intake: oversized (50,001 characters) | 422 | 7 | error `validation_error`: Request is not valid ("body.email_text: String should have at most 50000 characters") |
+| B12 | Ask: empty question | 422 | 13 | error `validation_error`: Request is not valid ("body.question: String should have at least 3 characters") |
+| B13 | Ask: too long (2,001 characters) | 422 | 7 | error `validation_error`: Request is not valid ("body.question: String should have at most 2000 characters") |
+| B14 | Ask: question the data cannot answer | 200 | 54 | {"agent_run_id": 8, "route_run_id": 7, "provider": "mock", "model": "mock-smart", "question": "What is our refund policy for late deliveries?", "answer": "The dataset holds no policy or resolution records (no refund, credit or compensation rules and no record of how complaints were resolved), so que ...(cut) |
+| B15 | Simulator: unknown cause | 422 | 10 | error `validation_error`: Request is not valid ("body.fixes: Value error, unknown cause(s) ['bad_weather']; valid: ['incomplete_address', 'same_day_after_cutoff', 'stock_not_at_nearest', 'weak_carrier_lane', 'route_deviation']") |
+| B16 | Simulator: effectiveness above 1 | 422 | 5 | error `validation_error`: Request is not valid ("body.fixes: Value error, effectiveness must be between 0 and 1 for ['incomplete_address']") |
+| B17 | Simulator: text instead of a number | 422 | 9 | error `validation_error`: Request is not valid ("body.fixes.incomplete_address: Input should be a valid number, unable to parse string as a number") |
+| B18 | Simulator: empty body (no fixes) = today | 200 | 30 | {"fixes": {}, "today_on_time_rate": 0.71, "projected_on_time_rate": 0.71, "projected_on_time_rate_exact": 0.7099917252792718, "points_gained": 0.0, "points_by_cause": {}, "at_risk": {"today_on_time_rate": 0.707, "projected_on_time_rate": 0.707}, "annual_sla_penalties_avoided_usd": 0, "annual_redeliv ...(cut) |
+| B19 | Late same-day replay: grace time before 08:00 | 422 | 7 | error `validation_error`: Request is not valid ("body: Value error, times must satisfy 08:00 <= grace_until (07:00) <= hard_stop (10:00) <= 14:00") |
+| B20 | Late same-day replay: time in the wrong format | 422 | 9 | error `validation_error`: Request is not valid ("body: Value error, grace_until must be HH:MM, got 'nine'") |
+| B21 | Delivery that does not exist | 404 | 7 | error `not_found`: Delivery 'NOPE123' not found |
+| B22 | Cause that does not exist | 404 | 7 | error `not_found`: Unknown cause 'bad_weather' ({"valid": ["incomplete_address", "same_day_after_cutoff", "stock_not_at_nearest", "weak_carrier_lane", "route_deviation"]}) |
+| B23 | Cause list with limit 0 | 422 | 7 | error `validation_error`: Request is not valid ("query.limit: Input should be greater than or equal to 1") |
+| B24 | Save plan: malformed client id | 422 | 7 | error `validation_error`: Request is not valid ("body.client_id: String should match pattern '^C\\d{3}$'") |
+| B25 | Risk board: malformed date | 422 | 7 | error `validation_error`: Request is not valid ("query.day: String should match pattern '^\\d{4}-\\d{2}-\\d{2}$'") |
+| B26 | Carrier claim: carrier id too long | 422 | 7 | error `validation_error`: Request is not valid ("body.carrier_id: String should match pattern '^[A-Z]$'") |
+| B27 | Order desk: message that does not exist | 404 | 10 | error `not_found`: Message 'M99' not found |
+| B28 | Client reply: empty text | 422 | 7 | error `validation_error`: Request is not valid ("body.text: String should have at least 1 character") |
+| B29 | Address confirmation: unknown token | 404 | 11 | error `not_found`: This confirmation link is not valid |
+| L01 | LARGE: own email of 7,900 characters (a long, real-looking order) | 200 | 103 | {"message_id": "U01", "decision": "accepted", "decision_reason": "Accepted with warnings: Advisor picks Carrier E instead of the spreadsheet's Carrier F, a weak lane to the Northeast."} |
+| L02 | LARGE: order intake with 49,000 characters | 400 | 18 | error `guardrail_blocked`: Input longer than 20000 characters ({"flags": ["input_too_long"], "agent_run_id": 11}) |
+| L03 | LARGE: Run all 11 inbox emails in one call | 200 | 682 | 11 emails processed: M01=accepted, M02=on_hold, M05=accepted, M08=accepted, M09=accepted, M10=blocked, M11=needs_review, M12=accepted, M13=accepted, M14=accepted, M17=accepted |
+| L04 | LARGE: 500 example deliveries for one cause (the maximum) | 200 | 84 | 500 deliveries returned |
+
+Server errors (HTTP 5xx): 0

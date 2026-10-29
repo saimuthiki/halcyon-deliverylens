@@ -471,3 +471,18 @@ def test_own_email_runs_the_same_steps_and_replaces_the_previous_one(desk):
 
 def test_own_email_rejects_a_bad_time(desk):
     assert desk.post("/api/desk/own-email", json={"body": "x", "received_time": "25:00"}).status_code == 422
+
+
+@pytest.mark.parametrize("path,payload", [
+    ("/api/desk/own-email", {"body": "   \n\t  "}),
+    ("/api/agents/order-intake", {"email_text": "    "}),
+    ("/api/agents/ask", {"question": "      "}),
+    ("/api/desk/reply/M02", {"text": " \n "}),
+])
+def test_blank_text_is_refused_with_a_readable_message(desk, path, payload):
+    """Text that is only spaces is refused before any AI call, with the same error shape as other bad input."""
+    r = desk.post(path, json=payload)
+    assert r.status_code == 422, r.text
+    err = r.json()["error"]
+    assert err["code"] == "validation_error"
+    assert any("must not be empty or only spaces" in d["msg"] for d in err["details"])

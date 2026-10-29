@@ -7,6 +7,13 @@ from app.analytics.causes import CAUSES
 from app.analytics.late_orders import check_times
 
 
+def _not_blank(v: str) -> str:
+    """Free text must hold something besides spaces and line breaks (else the AI would run on nothing)."""
+    if not v.strip():
+        raise ValueError("must not be empty or only spaces")
+    return v
+
+
 class SimulateRequest(BaseModel):
     fixes: dict[str, float] = Field(default_factory=dict,
                                     description="cause -> effectiveness between 0 and 1",
@@ -45,6 +52,11 @@ class OrderIntakeRequest(BaseModel):
     received_at: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$",
                                     description="Override the received time (YYYY-MM-DD HH:MM)")
 
+    @field_validator("email_text")
+    @classmethod
+    def _reject_blank(cls, v: str) -> str:
+        return _not_blank(v)
+
 
 class DelayAlertRequest(BaseModel):
     delivery_id: str = Field(min_length=1, max_length=20)
@@ -52,6 +64,11 @@ class DelayAlertRequest(BaseModel):
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=2000)
+
+    @field_validator("question")
+    @classmethod
+    def _reject_blank(cls, v: str) -> str:
+        return _not_blank(v)
 
 
 class AccountPlanRequest(BaseModel):
@@ -77,9 +94,19 @@ class OwnEmailRequest(BaseModel):
     received_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$",
                                       description="Received today at HH:MM warehouse time; default now")
 
+    @field_validator("body")
+    @classmethod
+    def _reject_blank(cls, v: str) -> str:
+        return _not_blank(v)
+
 
 class ClientReplyRequest(BaseModel):
     text: str = Field(min_length=1, max_length=5000, description="The client's reply to the address confirmation email")
+
+    @field_validator("text")
+    @classmethod
+    def _reject_blank(cls, v: str) -> str:
+        return _not_blank(v)
 
 
 class CarrierClaimRequest(BaseModel):
