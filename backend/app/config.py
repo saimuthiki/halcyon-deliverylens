@@ -53,6 +53,7 @@ class Settings:
     same_day_hard_stop: str = "10:00"  # then urgent orders only until this time; after it, tomorrow
     weekly_brief_topic_arn: str = ""  # SNS topic for the Monday brief; empty = preview only
     public_site_url: str = "http://localhost:5173"  # the web app, for links in client emails
+    public_api_url: str = ""  # the API, for client pages that must open without the website login (empty = web app)
     # Email (app/email). The backend decides how mail leaves: sns (today), console, memory; smtp is the next stage.
     email_backend: str = "sns"
     email_from_address: str = ""  # must be a sender verified and authenticated with the provider
@@ -98,6 +99,7 @@ def get_settings() -> Settings:
         same_day_hard_stop=os.getenv("SAME_DAY_HARD_STOP", "10:00").strip(),
         weekly_brief_topic_arn=os.getenv("WEEKLY_BRIEF_TOPIC_ARN", "").strip(),
         public_site_url=(os.getenv("PUBLIC_SITE_URL", "").strip() or "http://localhost:5173").rstrip("/"),
+        public_api_url=os.getenv("PUBLIC_API_URL", "").strip().rstrip("/"),
         email_backend=os.getenv("EMAIL_BACKEND", "").strip().lower() or "sns",
         # The sender: EMAIL_FROM_ADDRESS if set, else SMTP_FROM_EMAIL from the runtime secret (production)
         email_from_address=(os.getenv("EMAIL_FROM_ADDRESS", "").strip() or runtime_secret("SMTP_FROM_EMAIL").strip()),

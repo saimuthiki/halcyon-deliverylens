@@ -103,7 +103,11 @@ def learn(client_id: str | None, ship_to: dict, message_id: str) -> None:
 
 # ---------------------------------------------------------------- confirmations
 def confirm_url(token: str) -> str:
-    return f"{get_settings().public_site_url}/confirm-address/{token}"
+    """The client's link. On AWS it opens the API's own page (app/api/client_pages.py): the website has a login."""
+    s = get_settings()
+    if s.public_api_url:
+        return f"{s.public_api_url}/c/confirm-address/{token}"
+    return f"{s.public_site_url}/confirm-address/{token}"
 
 
 def request_confirmation(message_id: str, client_id: str, suggestion: dict, missing: list[str]) -> str:

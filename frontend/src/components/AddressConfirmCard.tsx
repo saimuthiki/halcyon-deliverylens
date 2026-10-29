@@ -33,7 +33,8 @@ export default function AddressConfirmCard({
   const [note, setNote] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null);
   const a = suggestion.address;
   const missing = (r.steps.find((s) => s.key === 'address_check')?.details?.missing as string[] | undefined) ?? [];
-  const confirmPath = `/confirm-address/${suggestion.token}`;
+  // On AWS the link in the email opens the API's own page (no website login); locally, this app's page.
+  const confirmPath = suggestion.confirm_url?.includes('/c/confirm-address/') ? suggestion.confirm_url : `/confirm-address/${suggestion.token}`;
 
   async function sendReply() {
     setSending(true);

@@ -172,6 +172,29 @@ def test_one_click_confirmation_releases_the_order(desk):
     assert desk.get("/api/desk/confirm/not-a-token").status_code == 404
 
 
+def test_client_confirm_page_on_the_api_works_without_the_website(desk):
+    t = desk.post("/api/desk/process/M02").json()
+    token = _address_step(t)["details"]["suggestion"]["token"]
+    page = desk.get(f"/c/confirm-address/{token}")
+    assert page.status_code == 200 and "400 Foundry Road" in page.text and "<script" not in page.text
+    assert "default-src 'none'" in page.headers["content-security-policy"]
+    assert page.headers["referrer-policy"] == "no-referrer"
+    r = desk.post(f"/c/confirm-address/{token}", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == f"/c/confirm-address/{token}"
+    assert "the address is confirmed" in desk.get(f"/c/confirm-address/{token}").text
+    assert desk.get("/c/confirm-address/not-a-token").status_code == 404
+
+
+def test_confirm_link_uses_the_api_host_when_set(monkeypatch):
+    from dataclasses import replace
+
+    from app.desk import address_book
+
+    s = replace(address_book.get_settings(), public_api_url="https://api.example.test")
+    monkeypatch.setattr(address_book, "get_settings", lambda: s)
+    assert address_book.confirm_url("tok") == "https://api.example.test/c/confirm-address/tok"
+
+
 def test_yes_reply_confirms_and_a_correction_must_come_from_the_reply(desk):
     desk.post("/api/desk/process/M02")
     r = desk.post("/api/desk/reply/M02", json={"text": "Yes, that's right. Thanks!"}).json()

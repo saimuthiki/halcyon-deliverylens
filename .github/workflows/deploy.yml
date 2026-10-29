@@ -64,7 +64,9 @@ jobs:
           (umask 077
            aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$SECRET_NAME" --query SecretString \
              --output text | jq -r 'to_entries[] | select(.key | startswith("SMTP_") | not) | "\(.key)=\(.value)"' > app.env.tmp
-           printf 'APP_SECRET_ID=%s\nAPP_SECRET_ACCOUNT=%s\n' "$SECRET_NAME" "${IMAGE%%.*}" >> app.env.tmp)
+           printf 'APP_SECRET_ID=%s\nAPP_SECRET_ACCOUNT=%s\n' "$SECRET_NAME" "${IMAGE%%.*}" >> app.env.tmp
+           # Client links (address confirmation) open the API's own page: the website has a login.
+           printf 'PUBLIC_API_URL=%s\n' "__API_URL__" >> app.env.tmp)
           mv app.env.tmp app.env && chmod 600 app.env && chown ec2-user app.env
           aws ecr get-login-password --region "$AWS_REGION" | sudo -u ec2-user docker login --username AWS --password-stdin "${IMAGE%%/*}"
           sudo -u ec2-user docker compose -f docker-compose.prod.yml pull api
@@ -76,6 +78,7 @@ jobs:
           done
           docker image prune -f
           SH
+          sed -i "s#__API_URL__#$API_URL#" remote.sh
           CMD_ID=$(aws ssm send-command --instance-ids "$EC2_INSTANCE_ID" --document-name AWS-RunShellScript \
             --comment "deploy ${GITHUB_SHA::7}" \
             --parameters "$(jq -n --rawfile s remote.sh '{commands: [$s]}')" \

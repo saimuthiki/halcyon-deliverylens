@@ -1,0 +1,378 @@
+[
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "deploy-workflow_run-fork-pr-head_sha-privileged-deploy",
+    "title": "Deploy workflow can build and deploy code from a fork pull request (workflow_run + head_sha) with the AWS deploy role",
+    "description": "CI (.github/workflows/ci.yml) runs on every pull_request with no branch filter (line 6). 'Deploy to AWS' (.github/workflows/deploy.yml) triggers on workflow_run of CI, types [completed], branches [main] (lines 7-10), with no event-type filter and no job check of github.event.workflow_run.event or head_repository. The api job's only gate is workflow_run.conclusion == 'success' or a manual dispatch (line 34). It checks out github.event.workflow_run.head_sha (line 39), assumes the deploy role via OIDC (lines 40-43; workflow-level id-token: write at line 14), builds backend/Dockerfile from that tree, pushes deliverylens-api:<sha> and :latest (lines 50-52), and runs a root AWS-RunShellScript via SSM on the production instance (line 77) that pulls and restarts the api service (lines 68-69), whose image is ${IMAGE} (infra/docker-compose.prod.yml:5), defaulting to the :latest tag (infra/scripts/07-deploy.sh:5,8). The website job (lines 95-131) also checks out head_sha (line 101) and runs npm ci/npm run build (lines 112-113) with id-token: write before assuming the deploy role and pushing to Amplify. The workflow's own comment intends 'every push to main' (line 3). Under GitHub's documented workflow_run semantics the branches filter matches the triggering run's head_branch (a fork PR from a branch named 'main' would match), and the workflow_run job runs in the base repository's default-branch context, so its OIDC sub would be ...:ref:refs/heads/main, satisfying infra/policies/github-trust.json (lines 9-11). If those semantics hold and the repository accepts fork PR workflow runs, a never-merged PR author could get root code execution on the production EC2 host (instance role: app secret, Bedrock, S3 data bucket, SNS) and replace the live website. The decisive GitHub runtime semantics and repository settings are not source-visible.",
+    "claimed_root_cause": "The privileged workflow_run deploy does not bind the triggering CI run to a trusted push on the base repository (no github.event.workflow_run.event == 'push' or github.event.workflow_run.head_repository.full_name == github.repository check), and it checks out and builds the untrusted github.event.workflow_run.head_sha with id-token: write. The deploy role's OIDC trust condition (sub ...:ref:refs/heads/main) cannot distinguish such a run from a genuine push to main because a workflow_run job runs in the default-branch context.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": ".github/workflows/ci.yml",
+        "line": 6,
+        "scope": "on.pull_request",
+        "description": "CI triggers on any pull_request with no branch or path filter, so a fork PR (attacker-chosen source branch, attacker-controlled tree and tests) produces a CI run."
+      },
+      {
+        "kind": "propagation",
+        "file": ".github/workflows/deploy.yml",
+        "line": 10,
+        "scope": "on.workflow_run.branches",
+        "description": "Deploy fires on completed CI runs filtered only by branches: [main], which per GitHub docs matches the triggering run's head_branch. No event-type or head-repository filter."
+      },
+      {
+        "kind": "propagation",
+        "file": ".github/workflows/deploy.yml",
+        "line": 34,
+        "scope": "jobs.api.if",
+        "description": "Only gate is workflow_dispatch or workflow_run.conclusion == 'success'; the attacker controls the tests."
+      },
+      {
+        "kind": "propagation",
+        "file": ".github/workflows/deploy.yml",
+        "line": 39,
+        "scope": "jobs.api steps checkout ref",
+        "description": "Checks out github.event.workflow_run.head_sha, the PR head commit when triggered from a pull_request."
+      },
+      {
+        "kind": "propagation",
+        "file": ".github/workflows/deploy.yml",
+        "line": 42,
+        "scope": "jobs.api configure-aws-credentials role-to-assume",
+        "description": "Assumes the deploy role with the job's OIDC token (id-token: write at line 14); sub expected to be ref:refs/heads/main."
+      },
+      {
+        "kind": "propagation",
+        "file": ".github/workflows/deploy.yml",
+        "line": 50,
+        "scope": "jobs.api Build and push run",
+        "description": "docker build -f backend/Dockerfile from the checked-out tree; pushed as :<sha> and :latest (lines 51-52)."
+      },
+      {
+        "kind": "sink",
+        "file": ".github/workflows/deploy.yml",
+        "line": 77,
+        "scope": "jobs.api Restart step aws ssm send-command AWS-RunShellScript",
+        "description": "Runs remote.sh as root on the production instance; pulls and starts the api service (lines 68-69) whose image is ${IMAGE} (:latest by default)."
+      }
+    ],
+    "evidence": [
+      {
+        "file": ".github/workflows/deploy.yml",
+        "line": 3,
+        "description": "Comment states the intended behaviour: deploy after CI passes on main, 'every push to main'."
+      },
+      {
+        "file": ".github/workflows/deploy.yml",
+        "line": 7,
+        "description": "on.workflow_run: workflows [CI] (line 8), types [completed] (line 9), branches [main] (line 10); no other filter."
+      },
+      {
+        "file": ".github/workflows/deploy.yml",
+        "line": 14,
+        "description": "Workflow-level id-token: write applies to both jobs; the website job checks out head_sha (line 101), runs npm ci / npm run build (lines 112-113), then assumes the deploy role (line 117) and deploys to Amplify (lines 121-124)."
+      },
+      {
+        "file": "infra/policies/github-trust.json",
+        "line": 9,
+        "description": "Deploy-role trust: StringLike sub in [repo:__GITHUB_REPO__:ref:refs/heads/main, repo:__GITHUB_REPO_IDS__:ref:refs/heads/main] (lines 10-11), rendered by infra/scripts/01-iam.sh; only branch-ref conditions."
+      },
+      {
+        "file": "infra/policies/github-deploy-policy.json",
+        "line": 24,
+        "description": "Deploy role may ssm:SendCommand on project-tagged instances (lines 22-31) with AWS-RunShellScript (lines 33-37), ecr:PutImage (line 16), and Amplify CreateDeployment/StartDeployment (lines 52-53)."
+      },
+      {
+        "file": "infra/docker-compose.prod.yml",
+        "line": 5,
+        "description": "api service image is ${IMAGE}; infra/scripts/07-deploy.sh lines 5 and 8 default it to the :latest tag the workflow overwrites."
+      },
+      {
+        "file": "infra/policies/ec2-app-policy.json",
+        "line": 34,
+        "description": "EC2 instance role can read the app secret (lines 34-40) and use Bedrock, the S3 data bucket and SNS Publish."
+      }
+    ],
+    "blockers": [
+      "GitHub runtime semantics are decisive and not source-visible: (a) a workflow_run 'branches' filter matches the triggering run's head_branch, including a fork PR whose source branch is 'main'; (b) workflow_run jobs run in the base repository's default-branch context even when triggered from a fork pull_request; (c) the OIDC sub for such a job is repo:<owner>/<repo>:ref:refs/heads/main (or the ID-based form). Not observed: nothing could be executed and no network access was allowed.",
+      "Repository visibility, whether forking is allowed, and whether fork pull request workflows run or need maintainer approval are GitHub settings, not source; they change the attacker population and likelihood materially.",
+      "The live trust policy of the deliverylens-github-deploy role and any customised OIDC subject-claim template are not visible; only the template and its renderer are in source."
+    ],
+    "validation_plan": {
+      "deployment": "Owner-only, non-destructive, no audit traffic to the production repo or AWS account. (1) In GitHub settings record repository visibility, whether forking is allowed (org and repo), and the Actions setting for fork pull request workflows. (2) In the Actions history of 'Deploy to AWS', list any run whose triggering workflow_run had event == 'pull_request' or a head_repository different from the base repository, and check what SHA it deployed. (3) In IAM read the current assume-role policy of deliverylens-github-deploy and any OIDC subject-claim customisation; in CloudTrail check the sub of recent AssumeRoleWithWebIdentity events. (4) Optionally confirm semantics (a)-(c) in a separate throwaway repository and account with no AWS trust: copy ci.yml and a deploy.yml whose AWS steps only print github.event.workflow_run.event, head_branch, head_repository.full_name, the checked-out SHA and the decoded OIDC sub, then open a PR from a second account's fork on a branch named 'main'. Fix regardless: gate both jobs on github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'main' (or deploy on push to main directly), and scope the OIDC trust further (environment or job_workflow_ref) if a customised claim is used."
+    }
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "desk-address-book-learned-from-unapproved-unauthenticated-order",
+    "title": "Unapproved order from a spoofed client sender permanently writes that client's delivery-address history, which later orders offer to the client as the 'address on file'",
+    "description": "Candidate: POST /api/desk/own-email lets any caller choose a client identity via the sender (e.g. x@client-NNN.example); if the email reaches decision 'accepted', process_message calls address_book.learn() before approval, storing the attacker's ship-to as a ClientAddress row that suggest() later offers for that client's orders (or that makes suggest() ambiguous). The mechanics are accurate in the working tree (HEAD 3463d98) but cross no security boundary: the same anonymous caller can already change the address on any order awaiting confirmation, approve orders and reset the desk directly. The own-email entrypoint does not exist at 4ca71aa (added in c4ca476).",
+    "claimed_root_cause": "address_book.learn() runs at processing time when decision=='accepted' (backend/app/desk/pipeline.py:486-487) rather than in approve_order; client_id comes from an unauthenticated sender-domain regex (pipeline.py:264-266) and own-email lets the caller set the sender (routes.py:302, schemas.py:74); history() merges ClientAddress rows regardless of approval or source (address_book.py:57-71); only clear() removes them (address_book.py:242-246).",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "backend/app/api/routes.py",
+        "line": 302,
+        "scope": "desk_own_email",
+        "description": "At HEAD 3463d98 the caller's body and from_email are saved as inbox message U01 and processed (line 304). Route added in c4ca476; absent at 4ca71aa."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/desk/pipeline.py",
+        "line": 264,
+        "scope": "_identify",
+        "description": "A regex on from_email picks the client_id; no authentication."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/desk/pipeline.py",
+        "line": 370,
+        "scope": "process_message",
+        "description": "The extracted ship_to becomes the order address (line 371)."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/desk/pipeline.py",
+        "line": 487,
+        "scope": "process_message",
+        "description": "learn() is called with the claimed client_id and caller ship_to when decision=='accepted' (line 486), before approval."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/desk/address_book.py",
+        "line": 99,
+        "scope": "learn",
+        "description": "Inserts a ClientAddress row for the claimed client."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/desk/address_book.py",
+        "line": 61,
+        "scope": "history",
+        "description": "ClientAddress rows are merged into the client's delivery history."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/desk/address_book.py",
+        "line": 82,
+        "scope": "suggest",
+        "description": "A single match is returned; none or several return None (line 83)."
+      },
+      {
+        "kind": "sink",
+        "file": "backend/app/desk/pipeline.py",
+        "line": 416,
+        "scope": "process_message",
+        "description": "request_confirmation stores the suggestion as pending for a later order of that client; one click confirms it."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "backend/app/api/routes.py",
+        "line": 350,
+        "description": "At HEAD, POST /desk/reply/{message_id} sits behind the same AGENT_GUARD and lets any caller replace the suggested address on any pending confirmation directly (address_book.py:185-190, 231-234; reprocess at routes.py:357) - stronger than history poisoning."
+      },
+      {
+        "file": "backend/app/api/routes.py",
+        "line": 320,
+        "description": "approve/{message_id}, approve-all (line 314) and reset (line 368) are anonymous by product design; moving learn() into approve_order would not stop an attacker who can approve their own order."
+      },
+      {
+        "file": "backend/app/api/security.py",
+        "line": 68,
+        "description": "agent_guard applies only a rate limit and an optional shared DEMO_TOKEN to all desk POSTs alike."
+      },
+      {
+        "file": "backend/app/desk/inbox.py",
+        "line": 79,
+        "description": "Besides own-email, messages enter only via load_inbox from the sample manifest; there is no real mail ingestion, so no real client is a victim."
+      },
+      {
+        "file": "backend/app/desk/address_book.py",
+        "line": 242,
+        "description": "clear() deletes ClientAddress rows on desk reset, which any anonymous caller can trigger."
+      },
+      {
+        "file": "backend/app/desk/pipeline.py",
+        "line": 486,
+        "description": "learn() runs only when decision=='accepted', before approve_order (line 639), which does not touch the address book: mechanism confirmed but not a boundary violation."
+      }
+    ],
+    "reason": "Rejected on impact and target. (1) Poisoning only proposes a wrong address for a later order of the claimed client, held until a confirmation click; the same anonymous principal can already set an arbitrary address on any pending-confirmation order via POST /desk/reply/{message_id}, approve orders, and wipe all desk state including ClientAddress rows. It grants no capability, data access or persistence beyond what the open demo already gives that caller. (2) Only seeded sample emails or the caller's own U01 slot can be affected; there is no external mail ingestion, so no real client is a victim; the auto-fill denial variant is weaker than an anonymous reset. (3) At the run's starting commit 4ca71aa, the own-email route, OwnEmailRequest and save_own_email do not exist (added in c4ca476). If real client mail is ever ingested, learn() should move to approval and learned rows should be labelled unverified."
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "desk-reply-by-message-id-bypasses-confirmation-token",
+    "title": "POST /api/desk/reply/{message_id} confirms or rewrites a held order's delivery address without the confirmation token, and the address persists into the client's address book",
+    "description": "Candidate: any anonymous caller can choose a message id and send reply text with a street and ZIP; the mock/LLM Reply Reader returns intent 'correct', the confirmation closes as 'corrected' with the caller's address, the order is reprocessed and can be accepted, and address_book.learn() stores the address. Source at 4ca71aa shows the data flow is real, but the token is not a boundary the reply route crosses: the process trace returns the token to any caller, the public Order desk UI shows the token link to every visitor, and the same UI offers a textarea to 'simulate the client's email reply' and invites a different street or ZIP.",
+    "claimed_root_cause": "read_reply looks up the AddressConfirmation by the public message_id (backend/app/desk/address_book.py:204) and does not bind the reply to the token or the original sender; corrected values are checked only against the caller's own reply text (address_book.py:221); reprocess and learn() then trust the stored final_json (backend/app/desk/pipeline.py:395-399, 486).",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "backend/app/api/routes.py",
+        "line": 335,
+        "scope": "desk_reply",
+        "description": "POST /desk/reply/{message_id} with dependencies=AGENT_GUARD, the same optional DEMO_TOKEN and rate-limit guard as process, approve, confirm and reset. Calls address_book.read_reply (line 339) and _reprocess (line 342). Message ids come from the unguarded GET /desk/inbox (routes.py:261)."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/desk/address_book.py",
+        "line": 204,
+        "scope": "read_reply",
+        "description": "Confirmation selected by message_id with s.get(AddressConfirmation, message_id); no token check."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/desk/address_book.py",
+        "line": 190,
+        "scope": "_read_reply_mock",
+        "description": "The mock reader returns intent 'correct' whenever the ZIP or street regex matches."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/desk/address_book.py",
+        "line": 233,
+        "scope": "read_reply",
+        "description": "_close stores {**suggested, **given} as final_json; the only check (line 221) is that each corrected value appears in the caller's reply text."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/desk/pipeline.py",
+        "line": 399,
+        "scope": "process_message",
+        "description": "On reprocess, confirmed_address() (line 395) supplies final_json and fills ship_to."
+      },
+      {
+        "kind": "sink",
+        "file": "backend/app/desk/pipeline.py",
+        "line": 486,
+        "scope": "process_message",
+        "description": "On accepted, address_book.learn(client_id, ship_to, m.id) saves a ClientAddress row (address_book.py:99)."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "backend/app/desk/pipeline.py",
+        "line": 416,
+        "description": "The process trace returns the confirmation token and confirm_url to whoever calls POST /desk/process or /desk/process-all, which carry the same guard as /desk/reply."
+      },
+      {
+        "file": "frontend/src/components/AddressConfirmCard.tsx",
+        "line": 36,
+        "description": "The public Order desk UI builds /confirm-address/{token} from the trace and links to it for every visitor (line 86)."
+      },
+      {
+        "file": "frontend/src/components/AddressConfirmCard.tsx",
+        "line": 98,
+        "description": "The UI labels the reply box 'Or simulate the client's email reply' and its help text (line 103) suggests trying a different street or ZIP."
+      },
+      {
+        "file": "frontend/src/api/client.ts",
+        "line": 880,
+        "description": "The SPA calls POST /desk/reply/{message_id} with the same agentPost helper as other desk POSTs."
+      },
+      {
+        "file": "backend/app/api/security.py",
+        "line": 68,
+        "description": "The optional X-Demo-Token check applies equally to every guarded desk POST."
+      },
+      {
+        "file": "backend/app/desk/address_book.py",
+        "line": 160,
+        "description": "confirm_by_link looks up by token, but the same anonymous caller can read that token from the process trace or the UI."
+      }
+    ],
+    "reason": "The boundary does not exist in this product design. (1) The confirmation token is not secret from the anonymous caller: pipeline.py:416 returns it in the trace of POST /desk/process[-all], which share AGENT_GUARD with /desk/reply, and the public UI shows the link to every visitor (AddressConfirmCard.tsx:36, 86). (2) The reply route is an intended, publicly offered simulation; the UI invites a different street or ZIP (AddressConfirmCard.tsx:98, 103). (3) Every desk POST shares one optional DEMO_TOKEN guard (security.py:68), so DEMO_TOKEN does not decide the claim. (4) Anonymous callers can already approve orders and reset the desk by design, and seeded data has no real principal to harm. If real client emails are ever sent, bind the reply path to an authenticated inbound channel (e.g. a signed reply-to token)."
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "weekly-brief-send-dedupe-keyed-on-request-week",
+    "title": "Weekly brief 'once a day' send limit is keyed on a caller-chosen week_of, so an anonymous caller can send ~26 brief emails per day to the executive recipients",
+    "description": "Candidate: POST /api/briefs/weekly/send is meant to send once a day, but the dedupe key weekly_brief:{week_of}:{send_date} includes the request's week_of, so an anonymous caller could send one brief per dataset week (~26 Mondays, 2026-03-30..2026-09-21) every day to the fixed brief recipients or SNS subscribers; it also claimed a 10-minute cooldown had been removed in d31cefb. Verified against the audited revision 4ca71aa (the candidate's line numbers matched the later working-tree HEAD 3463d98).",
+    "claimed_root_cause": "The idempotency key that enforces 'once a day' includes a request-controlled dimension (week_of); the route accepts any dataset week, no per-day cap across weeks exists, and the route is open when DEMO_TOKEN is unset.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "backend/app/api/routes.py",
+        "line": 221,
+        "scope": "weekly_brief_send",
+        "description": "POST /api/briefs/weekly/send with AGENT_GUARD; with DEMO_TOKEN unset only the per-IP 30/min limit applies; a non-resend request needs no token (4ca71aa)."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/api/schemas.py",
+        "line": 62,
+        "scope": "WeeklyBriefRequest.week_of",
+        "description": "week_of is an optional caller-chosen YYYY-MM-DD string."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/agents/weekly_brief.py",
+        "line": 86,
+        "scope": "brief_facts",
+        "description": "week_of must be one of available_weeks(ds); otherwise UnknownWeek -> 404."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/agents/weekly_brief.py",
+        "line": 276,
+        "scope": "send_key",
+        "description": "Dedupe key weekly_brief:{week_of}:{send_date()}, one per reporting week per local date."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/agents/weekly_brief.py",
+        "line": 288,
+        "scope": "send_brief",
+        "description": "At 4ca71aa an in-memory global cooldown (SEND_COOLDOWN_S=600) raises TooSoon (429) unless 10 minutes passed since the last send in this process."
+      },
+      {
+        "kind": "propagation",
+        "file": "backend/app/email/dedupe.py",
+        "line": 100,
+        "scope": "claim",
+        "description": "Non-resend claim inserts the base key; an existing sent/sending/unknown row raises AlreadySent (409)."
+      },
+      {
+        "kind": "sink",
+        "file": "backend/app/agents/weekly_brief.py",
+        "line": 290,
+        "scope": "send_brief",
+        "description": "send_email sends to the server-side recipient list or SNS topic subscribers, never to a request-supplied address."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "backend/app/api/routes.py",
+        "line": 223,
+        "description": "Route docstring defines the intended limit: 'Once per reporting week per day; resend sends again on purpose and needs the server's DEMO_TOKEN.'"
+      },
+      {
+        "file": "backend/app/agents/weekly_brief.py",
+        "line": 274,
+        "description": "send_key docstring: 'One brief per reporting week per send date' - including week_of in the key is the documented design."
+      },
+      {
+        "file": "backend/app/agents/weekly_brief.py",
+        "line": 40,
+        "description": "At 4ca71aa SEND_COOLDOWN_S = 600 is enforced at lines 286-289 under _send_lock (per process)."
+      },
+      {
+        "file": "backend/Dockerfile",
+        "line": 30,
+        "description": "uvicorn starts without --workers: one process, so the cooldown is effectively global per container."
+      },
+      {
+        "file": "backend/app/config.py",
+        "line": 65,
+        "description": "weekly_brief_to/cc/bcc come from the environment and are never taken from a web request."
+      },
+      {
+        "file": "backend/app/email/service.py",
+        "line": 129,
+        "description": "EMAIL_TEST_MODE (default on) redirects addressed backends to EMAIL_TEST_RECIPIENTS; SNS ignores message recipients."
+      }
+    ],
+    "reason": "Source refutes the claimed broken invariant. At 4ca71aa the route docstring (routes.py:223) and send_key docstring (weekly_brief.py:274) define the limit as one brief per reporting week per day, so a key including week_of implements the intended behaviour rather than bypassing a once-a-day control. The cooldown-removal claim is wrong for the audited revision: at 4ca71aa a 600-second single-process cooldown (weekly_brief.py:40, 286-289) limits sends to about one per 10 minutes; it was removed only later in d31cefb (after 4ca71aa), whose message states each reporting week is meant to be sendable once a day. Recipients are fixed by server configuration, redirected to test recipients by default, or are SNS subscribers; the caller cannot choose an address. No control is bypassed. Parent note: at the later working-tree HEAD 3463d98 (no cooldown), an anonymous caller can trigger up to one brief per dataset week per day to the fixed recipients; this is the documented design and is listed as a hardening note in REPORT.md, not a finding."
+  }
+]

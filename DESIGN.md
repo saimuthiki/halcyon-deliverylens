@@ -173,7 +173,7 @@ actor badges and step numbers. Icons are Lucide, 16px, at one stroke weight.
   status is Passed, Warning, Blocked or Skipped, and details open inline. A run plays step by step: an
   envelope moves down the rail (`components/DeskAnimation.tsx`), each step's dot fills with its actor colour
   as it finishes, the stock and carrier steps show a small one-shot trip, and the Decision card waits until
-  the run ends.
+  the run ends. A held or blocked order stops the envelope (orange) at the step that held it.
 - **Trip drawings** (`components/TripArt.tsx`): warehouse, client building and a truck that drives a road.
   Teal = the right trip, orange = the problem trip; buildings are neutral.
 - **States:** skeleton blocks while loading (`animate-pulse` on `slate-light`), an inline error with a Retry

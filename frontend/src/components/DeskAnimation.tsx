@@ -37,8 +37,17 @@ const HOP_SKIPPED_MS = 160;
 const DWELL_MS: Record<DeskActor, number> = { 'AI agent': 260, Rule: 100, 'Data lookup': 100, Guardrail: 140 };
 const SETTLE_MS = 100;
 
-/** Where the envelope stops: the first failed step, when nothing after it runs (only skipped or failed steps follow). */
+/**
+ * Where the envelope stops: the step that held or blocked the order. That is the failed or warning step just
+ * before the first skipped step (an on-hold order skips stock, carrier and promise), or else the first failed
+ * step when nothing after it runs.
+ */
 export function stopIndex(steps: DeskStep[]): number {
+  const firstSkip = steps.findIndex((s) => s.status === 'skipped');
+  if (firstSkip > 0) {
+    const held = steps[firstSkip - 1];
+    if (held.status === 'fail' || held.status === 'warn') return firstSkip - 1;
+  }
   const fail = steps.findIndex((s) => s.status === 'fail');
   if (fail < 0) return -1;
   return steps.slice(fail + 1).some((s) => s.status !== 'skipped' && s.status !== 'fail') ? -1 : fail;

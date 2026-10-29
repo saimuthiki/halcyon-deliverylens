@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import errors
+from app.api import client_pages, errors
 from app.api.routes import router
 from app.analytics.late_orders import check_times
 from app.config import get_settings
@@ -46,3 +46,4 @@ app.add_middleware(CORSMiddleware, allow_origins=get_settings().cors_origins, al
                    allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
 errors.install(app)
 app.include_router(router)
+app.include_router(client_pages.router)
