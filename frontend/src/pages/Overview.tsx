@@ -5,6 +5,7 @@ import { useApi } from '../lib/useApi';
 import PageHeader, { SectionTitle } from '../components/PageHeader';
 import DeliveryTrack from '../components/DeliveryTrack';
 import KpiStrip from '../components/KpiStrip';
+import CountUp, { usdIn } from '../components/CountUp';
 import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
 import { dateLabel, monthLabel, num, pct, pts, usd } from '../lib/format';
 import { causeShort } from '../lib/causes';
@@ -79,10 +80,15 @@ export default function Overview() {
 
             <KpiStrip
               items={[
-                { label: 'Late deliveries', value: num(k.late_deliveries), note: `${pct(1 - k.on_time_rate, 0)} of all deliveries in 6 months`, tone: 'late' },
-                { label: 'SLA penalties paid', value: usd(k.sla_penalties_usd), note: 'Last 6 months' },
-                { label: 'Redelivery cost', value: usd(k.redelivery_cost_usd), note: 'Last 6 months' },
-                { label: 'Annual revenue at risk', value: usd(k.at_risk_revenue_usd), note: `${k.at_risk_clients} clients threatening to leave`, tone: 'late' },
+                { label: 'Late deliveries', value: <CountUp value={k.late_deliveries} format={num} />, note: `${pct(1 - k.on_time_rate, 0)} of all deliveries in 6 months`, tone: 'late' },
+                { label: 'SLA penalties paid', value: <CountUp value={k.sla_penalties_usd} format={usd} during={usdIn(k.sla_penalties_usd)} />, note: 'Last 6 months' },
+                { label: 'Redelivery cost', value: <CountUp value={k.redelivery_cost_usd} format={usd} during={usdIn(k.redelivery_cost_usd)} />, note: 'Last 6 months' },
+                {
+                  label: 'Annual revenue at risk',
+                  value: <CountUp value={k.at_risk_revenue_usd} format={usd} during={usdIn(k.at_risk_revenue_usd)} />,
+                  note: `${k.at_risk_clients} clients threatening to leave`,
+                  tone: 'late',
+                },
               ]}
             />
 

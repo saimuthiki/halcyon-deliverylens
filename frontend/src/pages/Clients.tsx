@@ -8,7 +8,12 @@ import { num, pct, usd } from '../lib/format';
 import { BENCHMARK, causeShort } from '../lib/causes';
 import PageHeader, { SectionTitle } from '../components/PageHeader';
 import CauseChip from '../components/CauseChip';
+import CountUp, { usdIn } from '../components/CountUp';
 import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
+
+// The two headline figures in the page introduction (the saved analysis), counted up when the page opens.
+const AT_RISK_REVENUE = 14_200_000;
+const AT_RISK_ON_TIME = 0.71;
 
 export default function Clients() {
   const c = useApi(() => api.atRisk());
@@ -16,7 +21,14 @@ export default function Clients() {
     <>
       <PageHeader
         title="Nine clients are deciding whether to stay"
-        lede="Each of these accounts has told Halcyon it may leave. Together they bring in $14.2M a year, and their deliveries arrive on time about 71% of the time."
+        lede={
+          <>
+            Each of these accounts has told Halcyon it may leave. Together they bring in{' '}
+            <CountUp className="num font-semibold text-ink" value={AT_RISK_REVENUE} format={usd} during={usdIn(AT_RISK_REVENUE)} /> a year, and their
+            deliveries arrive on time about <CountUp className="num font-semibold text-ink" value={AT_RISK_ON_TIME} format={(v) => pct(v, 0)} /> of the
+            time.
+          </>
+        }
         aside={<SourceTag source={c.source} />}
       />
       {c.loading && !c.data ? (

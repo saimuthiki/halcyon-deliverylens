@@ -7,6 +7,7 @@ import { num, pct, usd } from '../lib/format';
 import PageHeader, { SectionTitle } from '../components/PageHeader';
 import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
 import { ActorBadge } from '../components/Actor';
+import CutoffClock from '../components/CutoffClock';
 
 const PICK_LIST_CUTOFF = '08:00';
 
@@ -103,6 +104,8 @@ export default function LateOrders() {
           <ErrorState message={error} onRetry={() => setNonce((n) => n + 1)} />
         </div>
       )}
+
+      <CutoffClock />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
         <Controls times={times} onChange={setTimes} desk={r.order_desk_settings} />

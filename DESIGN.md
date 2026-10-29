@@ -170,8 +170,12 @@ actor badges and step numbers. Icons are Lucide, 16px, at one stroke weight.
 - **Actor badges** (`components/Actor.tsx`): AI agent, Rule, Data lookup and Guardrail, each with its own
   icon and tint. Use them wherever the UI says who did something.
 - **Pipeline trace** (Order desk): a numbered vertical list. The step dot takes the actor colour, the
-  status is Passed, Warning, Blocked or Skipped, and details open inline. Steps rise in one after another
-  (240ms each, 90ms apart) so a run reads in order.
+  status is Passed, Warning, Blocked or Skipped, and details open inline. A run plays step by step: an
+  envelope moves down the rail (`components/DeskAnimation.tsx`), each step's dot fills with its actor colour
+  as it finishes, the stock and carrier steps show a small one-shot trip, and the Decision card waits until
+  the run ends.
+- **Trip drawings** (`components/TripArt.tsx`): warehouse, client building and a truck that drives a road.
+  Teal = the right trip, orange = the problem trip; buildings are neutral.
 - **States:** skeleton blocks while loading (`animate-pulse` on `slate-light`), an inline error with a Retry
   button, and an amber "Sample, API offline" notice whenever offline data stands in for live data.
 - **Help key:** `HelpPanel`, closed by default, remembers being opened, on every page.
@@ -183,7 +187,10 @@ actor badges and step numbers. Icons are Lucide, 16px, at one stroke weight.
 - State the finding in the page title, using the real number.
 - Keep colour semantic: if something is not late, a fix or AI, it is neutral.
 - Label who acted (AI agent, rule, data lookup, guardrail) and show the evidence behind each decision.
-- Keep motion at 150 to 250ms and only for state changes. Respect `prefers-reduced-motion`.
+- Keep routine motion at 150 to 250ms. Longer motion is only for the explainers (How it works journey, Order
+  desk run, Stock & routes trucks, the 08:00 clock): it shows a process, plays when on screen, and can be
+  paused, skipped or replayed. Count-ups and bar growth ease out (`EASE_OUT`). Everything goes through
+  `lib/motion.ts`, so `prefers-reduced-motion` shows the final state with no movement.
 - Mark sample or estimated numbers as such.
 
 **Don't**

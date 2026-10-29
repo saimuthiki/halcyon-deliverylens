@@ -8,6 +8,7 @@ import { BENCHMARK, CAUSE_META, CAUSE_ORDER } from '../lib/causes';
 import { num, pct, pts, usd } from '../lib/format';
 import PageHeader, { SectionTitle } from '../components/PageHeader';
 import Gauge from '../components/Gauge';
+import { useRolling, usdIn } from '../components/CountUp';
 import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
 
 function presets(realistic: FixLevels): { label: string; fixes: FixLevels }[] {
@@ -122,14 +123,18 @@ export default function Simulator() {
 }
 
 export function SimulatorResults({ result, causes, exact }: { result: SimulateResponse; causes: CauseRow[]; exact: boolean }) {
-  const gained = (result.projected_on_time_rate - result.today_on_time_rate) * 100;
+  // Headline numbers roll to their new value when a slider moves, instead of jumping.
+  const projected = useRolling(result.projected_on_time_rate);
+  const lateAvoided = useRolling(result.late_deliveries_avoided);
+  const penaltiesAvoided = useRolling(result.penalties_avoided_usd);
+  const gained = (projected - result.today_on_time_rate) * 100;
   const gap = (BENCHMARK - result.projected_on_time_rate) * 100;
   return (
     <section className="panel panel-pad flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start" aria-labelledby="result-title" aria-live="polite">
       <SectionTitle note={exact ? 'Calculated by the API' : 'Calculated in the browser, same model as the API'}>
         <span id="result-title">Projected result</span>
       </SectionTitle>
-      <Gauge value={result.projected_on_time_rate} baseline={result.today_on_time_rate} benchmark={BENCHMARK} />
+      <Gauge value={projected} baseline={result.today_on_time_rate} benchmark={BENCHMARK} />
       <p className={`rounded-md px-4 py-3 text-[15px] ${result.meets_benchmark ? 'bg-route-tint text-route-dark' : 'bg-paper text-ink'}`} data-testid="verdict">
         {result.meets_benchmark
           ? `Meets the ${pct(BENCHMARK, 0)} benchmark.`
@@ -144,12 +149,12 @@ export function SimulatorResults({ result, causes, exact }: { result: SimulateRe
         </div>
         <div>
           <dt className="text-sm text-ink-soft">Late deliveries avoided</dt>
-          <dd className="num text-[22px] font-bold">{num(result.late_deliveries_avoided)}</dd>
+          <dd className="num text-[22px] font-bold">{num(lateAvoided)}</dd>
         </div>
         <div>
           <dt className="text-sm text-ink-soft">SLA penalties avoided a year</dt>
           <dd className="num text-[22px] font-bold" data-testid="penalties">
-            {usd(result.penalties_avoided_usd)}
+            {penaltiesAvoided === result.penalties_avoided_usd ? usd(penaltiesAvoided) : usdIn(result.penalties_avoided_usd)(penaltiesAvoided)}
           </dd>
         </div>
       </dl>

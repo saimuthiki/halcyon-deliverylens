@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronRight, Mail, PhoneCall } from 'lucide-react';
 import { api } from '../api/client';
@@ -7,6 +7,7 @@ import { useAction, useApi } from '../lib/useApi';
 import { buildWaterfall } from '../lib/calc';
 import { BENCHMARK, CAUSE_META, causeShort } from '../lib/causes';
 import { dateLabel, num, pct, pts, usd } from '../lib/format';
+import { EASE_OUT, useCountUp, useInView, useReducedMotion } from '../lib/motion';
 import PageHeader, { SectionTitle } from '../components/PageHeader';
 import Waterfall from '../components/Waterfall';
 import Drawer from '../components/Drawer';
@@ -92,8 +93,11 @@ export default function WhyLate() {
 }
 
 function CauseTable({ rows, selected, onSelect }: { rows: CauseRow[]; selected: CauseKey | null; onSelect: (c: CauseKey) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { threshold: 0.3 });
+  const max = Math.max(...rows.map((r) => r.fair_share_points), 0);
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" ref={ref}>
       <table className="w-full min-w-[720px] border-collapse text-[15px]">
         <thead>
           <tr className="border-b border-line">
@@ -108,7 +112,7 @@ function CauseTable({ rows, selected, onSelect }: { rows: CauseRow[]; selected: 
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => {
+          {rows.map((r, i) => {
             const active = r.cause === selected;
             const meta = CAUSE_META[r.cause];
             return (
@@ -131,7 +135,9 @@ function CauseTable({ rows, selected, onSelect }: { rows: CauseRow[]; selected: 
                   </button>
                   <div className="text-sm text-slate">{r.label}</div>
                 </td>
-                <td className="td num whitespace-nowrap text-right font-semibold text-route-dark">{pts(r.fair_share_points)}</td>
+                <td className="td w-[180px] text-right">
+                  <PointsLost points={r.fair_share_points} max={max} delay={i * BAR_STAGGER_MS} start={inView} />
+                </td>
                 <td className="td text-ink-soft">
                   {num(r.deliveries)} deliveries had this problem; only{' '}
                   <span className="num font-semibold text-late">{Math.round(r.on_time_rate * 100)} in 100</span> arrived on time.
@@ -147,6 +153,38 @@ function CauseTable({ rows, selected, onSelect }: { rows: CauseRow[]; selected: 
         </tbody>
       </table>
     </div>
+  );
+}
+
+const BAR_MS = 600;
+const BAR_STAGGER_MS = 120;
+
+/** Points lost for one cause, with a bar that grows from the left and a number that counts up, biggest cause first. */
+function PointsLost({ points, max, delay, start }: { points: number; max: number; delay: number; start: boolean }) {
+  const instant = useReducedMotion() || import.meta.env.MODE === 'test';
+  const [go, setGo] = useState(instant);
+  useEffect(() => {
+    if (instant) return setGo(true);
+    if (!start) return;
+    const t = setTimeout(() => setGo(true), delay);
+    return () => clearTimeout(t);
+  }, [instant, start, delay]);
+  const shown = useCountUp(points, { ms: BAR_MS, start: go });
+  return (
+    <>
+      <div className="num whitespace-nowrap font-semibold text-route-dark">{pts(shown)}</div>
+      <div className="ml-auto mt-1.5 h-1.5 w-full max-w-[140px] overflow-hidden rounded-full bg-slate-light" aria-hidden="true">
+        <div
+          className="h-1.5 rounded-full bg-route"
+          style={{
+            width: `${max > 0 ? (points / max) * 100 : 0}%`,
+            transform: `scaleX(${go ? 1 : 0})`,
+            transformOrigin: 'left',
+            transition: instant ? 'none' : `transform ${BAR_MS}ms ${EASE_OUT}`,
+          }}
+        />
+      </div>
+    </>
   );
 }
 

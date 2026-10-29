@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Ban,
@@ -28,6 +28,19 @@ import { ErrorState, LoadingBlock } from '../components/States';
 import { ActorBadge, ACTORS } from '../components/Actor';
 import { aiLabel } from '../components/AiBadge';
 import AddressConfirmCard, { addressSuggestion } from '../components/AddressConfirmCard';
+import {
+  CarrierTrip,
+  Envelope,
+  GrowIn,
+  parseCarrierTrip,
+  parseStockTrip,
+  pendingDotClass,
+  StockTrip,
+  useLightUp,
+  useStepOffsets,
+  useTracePlayback,
+} from '../components/DeskAnimation';
+import { EASE_OUT } from '../lib/motion';
 
 /* ---------- labels and tones ---------- */
 
@@ -145,6 +158,7 @@ export default function OrderDesk() {
   const [selected, setSelected] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, { data: DeskProcessResult; source: DataSource }>>({});
   const [running, setRunning] = useState<string | null>(null);
+  const [traceDone, setTraceDone] = useState(true);
   const [runError, setRunError] = useState<string | null>(null);
   const [batch, setBatch] = useState<{ data: DeskProcessAll; source: DataSource } | null>(null);
   const [batchRunning, setBatchRunning] = useState(false);
@@ -164,10 +178,12 @@ export default function OrderDesk() {
   const offline = inbox.source === 'sample';
   const current = selected ? results[selected] : undefined;
   // Offline, show the pre-computed trace for the selected email straight away (clearly labelled).
+  // Memoised so the preview keeps its identity across re-renders and its playback does not restart.
+  const preview = useMemo(() => (offline && selected ? sampleTrace(selected) : null), [offline, selected]);
   const shown: { data: DeskProcessResult; source: DataSource; preview: boolean } | null = current
     ? { ...current, preview: false }
-    : offline && selected
-      ? { data: sampleTrace(selected), source: 'sample', preview: true }
+    : preview
+      ? { data: preview, source: 'sample', preview: true }
       : null;
 
   const lastLive = Object.values(results).find((r) => r.source === 'live')?.data;
@@ -372,14 +388,19 @@ export default function OrderDesk() {
           {running && running === selected ? (
             <LoadingBlock label="Running the pipeline" rows={6} />
           ) : shown ? (
-            <Trace steps={shown.data.steps} />
+            <Trace steps={shown.data.steps} onDone={setTraceDone} />
           ) : (
             <EmptyTrace message={messages.find((m) => m.id === selected)} />
           )}
         </section>
 
         <div className="flex flex-col gap-6">
-          {shown && !(running && running === selected) ? (
+          {shown && !(running && running === selected) && !traceDone ? (
+            <div className="panel panel-pad border-dashed text-ink-soft" data-testid="decision-pending">
+              <p className="font-semibold text-ink">Deciding…</p>
+              <p className="text-[15px]">The decision and the drafted reply to the client appear when all the steps have run.</p>
+            </div>
+          ) : shown && !(running && running === selected) ? (
             <>
               <DecisionCard
                 r={shown.data}
@@ -617,74 +638,149 @@ function EmptyTrace({ message }: { message?: DeskMessage }) {
   );
 }
 
-/** Delay between trace steps appearing, so a run reads in pipeline order (10 steps ≈ 0.9 s). */
-const STEP_STAGGER_MS = 90;
 let traceRuns = 0;
 
-export function Trace({ steps }: { steps: DeskStep[] }) {
-  // A new result (another email, or the same email run again) gets a new key, so the steps replay.
+export function Trace({ steps, onDone }: { steps: DeskStep[]; onDone?: (done: boolean) => void }) {
+  // A new result (another email, or the same email run again) gets a new key, so the run replays.
   const run = useMemo(() => ++traceRuns, [steps]);
+  return <TraceRun key={run} steps={steps} onDone={onDone} />;
+}
+
+/** One playback of a run: an envelope travels down the steps and each lights up in its actor colour as it finishes. */
+function TraceRun({ steps, onDone }: { steps: DeskStep[]; onDone?: (done: boolean) => void }) {
+  const listRef = useRef<HTMLOListElement>(null);
+  const play = useTracePlayback(steps, listRef);
+  // The decision is revealed only when the envelope reaches the end, so the run is not spoiled.
+  useEffect(() => onDone?.(play.done), [play.done, onDone]);
+  const offsets = useStepOffsets(listRef, [play.revealed, steps]);
+  const stock = steps.find((s) => s.key === 'stock_check' && s.status !== 'skipped');
+  const carrier = steps.find((s) => s.key === 'carrier_choice' && s.status !== 'skipped');
+  const from = stock ? parseStockTrip(stock.details)?.from ?? null : null;
+  const region = carrier ? parseCarrierTrip(carrier.details)?.region ?? null : null;
+  const envelopeY = play.active >= 0 && offsets[play.active] != null ? offsets[play.active] + 2 : null;
   return (
-    <ol key={run} className="flex flex-col" data-testid="trace">
-      {steps.map((s, i) => (
-        <TraceStep key={`${s.step}-${s.key}`} s={s} last={i === steps.length - 1} index={i} />
-      ))}
-    </ol>
+    <div className="relative">
+      {play.animated && (
+        <div className="-mt-1 mb-2 flex justify-end">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-semibold text-route hover:underline"
+            onClick={play.done ? play.replay : play.skip}
+            data-testid="trace-skip"
+          >
+            {play.done ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+            {play.done ? 'Replay the run' : 'Show all steps'}
+          </button>
+        </div>
+      )}
+      <ol ref={listRef} className={`relative flex flex-col ${play.animated ? 'pl-8' : ''}`} data-testid="trace">
+        {play.animated && <Envelope y={envelopeY} hopMs={play.hopMs} late={play.late} visible={!play.done || play.stopped} />}
+        {steps.map((s, i) => (
+          <TraceStep
+            key={`${s.step}-${s.key}`}
+            s={s}
+            last={i === steps.length - 1}
+            lit={i < play.revealed}
+            working={i === play.active && i >= play.revealed}
+            animated={play.animated}
+            tripFrom={from}
+            tripRegion={region}
+          />
+        ))}
+      </ol>
+    </div>
   );
 }
 
-function TraceStep({ s, last, index }: { s: DeskStep; last: boolean; index: number }) {
+function TraceStep({
+  s,
+  last,
+  lit,
+  working,
+  animated,
+  tripFrom,
+  tripRegion,
+}: {
+  s: DeskStep;
+  last: boolean;
+  lit: boolean;
+  working: boolean;
+  animated: boolean;
+  tripFrom: string | null;
+  tripRegion: string | null;
+}) {
   const [open, setOpen] = useState(false);
+  const dot = useRef<HTMLSpanElement>(null);
+  const halo = useRef<HTMLSpanElement>(null);
+  useLightUp(dot, halo, lit, animated);
   const st = STATUS_META[s.status] ?? STATUS_META.pass;
   const actor = ACTORS[s.actor] ?? ACTORS.Rule;
   const StatusIcon = st.icon;
   const hasDetails = Object.keys(s.details ?? {}).length > 0;
+  const skipped = s.status === 'skipped';
+  const stockTrip = lit && !skipped && s.key === 'stock_check' ? parseStockTrip(s.details) : null;
+  const carrierTrip = lit && !skipped && s.key === 'carrier_choice' ? parseCarrierTrip(s.details) : null;
+  const fade = (on: boolean, dim = 0) => ({ opacity: on ? 1 : dim, transition: `opacity 220ms ${EASE_OUT}` });
   return (
-    <li
-      className="relative flex gap-3 pb-4 motion-safe:animate-[rise_240ms_cubic-bezier(0.16,1,0.3,1)_both]"
-      style={{ animationDelay: `${index * STEP_STAGGER_MS}ms` }}
-      data-testid="trace-step"
-      data-status={s.status}
-      data-key={s.key}
-    >
+    <li className="relative flex gap-3 pb-4" data-testid="trace-step" data-status={s.status} data-key={s.key} data-lit={lit ? 'true' : 'false'}>
       <div className="flex flex-col items-center">
-        <span
-          className={`num inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${s.status === 'skipped' ? 'bg-slate/50' : actor.solid}`}
-        >
-          {s.step}
+        <span className="relative inline-flex h-7 w-7 shrink-0">
+          {animated && <span ref={halo} className={`absolute inset-0 rounded-full opacity-0 ${skipped ? 'bg-slate/50' : actor.solid}`} aria-hidden="true" />}
+          <span
+            ref={dot}
+            className={`num relative inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold transition-colors duration-200 ${
+              lit ? `text-white ${skipped ? 'bg-slate/50' : actor.solid}` : pendingDotClass(s.actor, working)
+            }`}
+          >
+            {s.step}
+          </span>
         </span>
         {!last && <span className="mt-1 w-[2px] flex-1 bg-line" aria-hidden="true" />}
       </div>
-      <div className={`min-w-0 flex-1 ${s.status === 'skipped' ? 'opacity-70' : ''}`}>
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+      <div className={`min-w-0 flex-1 ${skipped && lit ? 'opacity-70' : ''}`}>
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1" style={fade(lit || working, 0.45)}>
           <h3 className="text-[15px] font-semibold">{s.title}</h3>
           <ActorBadge actor={s.actor} name={s.agent_name || undefined} />
-          <span className={`inline-flex items-center gap-1 text-sm font-medium ${st.cls}`}>
-            <StatusIcon className="h-4 w-4" aria-hidden="true" />
-            {st.label}
+          {lit ? (
+            <span className={`inline-flex items-center gap-1 text-sm font-medium ${st.cls}`}>
+              <StatusIcon className="h-4 w-4" aria-hidden="true" />
+              {st.label}
+            </span>
+          ) : working ? (
+            <span className="text-sm text-slate">{s.actor === 'AI agent' ? 'Reading…' : 'Checking…'}</span>
+          ) : null}
+          <span className="num ml-auto text-sm text-slate" style={fade(lit)}>
+            {duration(s.duration_ms)}
           </span>
-          <span className="num ml-auto text-sm text-slate">{duration(s.duration_ms)}</span>
         </div>
-        <p className="mt-1 text-[15px] leading-snug text-ink-soft">{s.summary}</p>
-        <SameDayDetails details={s.details} />
-        {hasDetails && (
-          <>
-            <button
-              type="button"
-              className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-route hover:underline"
-              aria-expanded={open}
-              onClick={() => setOpen(!open)}
-            >
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
-              {open ? 'Hide details' : 'Details'}
-            </button>
-            {open && (
-              <div className="mt-2 rounded-md border border-line bg-paper px-3 py-2">
-                <KeyValues value={s.details} />
-              </div>
-            )}
-          </>
-        )}
+        <div style={fade(lit)}>
+          <p className="mt-1 text-[15px] leading-snug text-ink-soft">{s.summary}</p>
+          {(stockTrip || carrierTrip) && (
+            <GrowIn animated={animated}>
+              {stockTrip && <StockTrip info={stockTrip} region={tripRegion} />}
+              {carrierTrip && <CarrierTrip info={carrierTrip} from={tripFrom} />}
+            </GrowIn>
+          )}
+          <SameDayDetails details={s.details} />
+          {hasDetails && (
+            <>
+              <button
+                type="button"
+                className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-route hover:underline"
+                aria-expanded={open}
+                onClick={() => setOpen(!open)}
+              >
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+                {open ? 'Hide details' : 'Details'}
+              </button>
+              {open && (
+                <div className="mt-2 rounded-md border border-line bg-paper px-3 py-2">
+                  <KeyValues value={s.details} />
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </li>
   );

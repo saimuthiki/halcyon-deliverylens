@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import type { RouteDeviation, StockPlacement, WrongWarehouse } from '../api/types';
@@ -6,6 +6,7 @@ import { useApi } from '../lib/useApi';
 import { num, pct, usd } from '../lib/format';
 import PageHeader from '../components/PageHeader';
 import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
+import { Client, Truck, TripMap, Warehouse } from '../components/TripArt';
 
 /**
  * Stock & routes, readable in about 30 seconds: three ways an order takes the long way to the client.
@@ -130,86 +131,6 @@ function OnTimeBars({ normal, normalLabel, problem, problemLabel }: { normal: nu
 }
 
 /* Trip maps: warehouses and a client on one road, with a small truck driving each trip (teal = the right trip, orange = the trip taken). */
-
-const GROUND = 64;
-const MAP_TEXT = 'fill-slate text-[11px]';
-
-/** True when the visitor asked the system for less motion: the trucks then stay hidden and only the roads show. */
-function useReducedMotion() {
-  return useMemo(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches, []);
-}
-
-function Warehouse({ x, label, mark }: { x: number; label: string; mark?: 'empty' | 'stocked' }) {
-  const empty = mark === 'empty';
-  return (
-    <g>
-      <path
-        d={`M${x - 15} ${GROUND} V${GROUND - 15} L${x} ${GROUND - 25} L${x + 15} ${GROUND - 15} V${GROUND} Z`}
-        className={empty ? 'fill-surface stroke-slate' : 'fill-slate-light stroke-slate'}
-        strokeWidth="1.5"
-        strokeDasharray={empty ? '3 2' : undefined}
-        strokeLinejoin="round"
-      />
-      {/* roller door */}
-      <rect x={x - 6} y={GROUND - 11} width={12} height={11} className="fill-surface stroke-slate" strokeWidth="1" />
-      {!empty && <path d={`M${x - 6} ${GROUND - 7.5} h12 M${x - 6} ${GROUND - 4} h12`} className="stroke-slate" strokeWidth="0.8" />}
-      {mark === 'stocked' && (
-        <g className="fill-route">
-          <rect x={x + 8} y={GROUND - 7} width={6} height={6} rx={1} />
-          <rect x={x + 8} y={GROUND - 13} width={6} height={5} rx={1} />
-        </g>
-      )}
-      {empty && <path d={`M${x - 4} ${GROUND - 20} l8 8 M${x + 4} ${GROUND - 20} l-8 8`} className="stroke-late" strokeWidth="2" strokeLinecap="round" />}
-      <text x={x < 60 ? x - 16 : x} y={GROUND + 18} textAnchor={x < 60 ? 'start' : 'middle'} className={MAP_TEXT}>
-        {label}
-      </text>
-    </g>
-  );
-}
-
-/** The client: a small office building with lit windows. */
-function Client({ x }: { x: number }) {
-  return (
-    <g>
-      <rect x={x - 10} y={GROUND - 26} width={20} height={26} rx={1.5} className="fill-ink" />
-      <g className="fill-surface">
-        {[0, 1, 2].map((r) => [0, 1].map((c) => <rect key={`${r}${c}`} x={x - 6 + c * 8} y={GROUND - 22 + r * 6} width={4} height={3} rx={0.5} />))}
-      </g>
-      <text x={x + 12} y={GROUND + 18} textAnchor="end" className={MAP_TEXT}>
-        Client
-      </text>
-    </g>
-  );
-}
-
-/**
- * A small truck that drives `path` and waits at the client until the 6-second loop restarts.
- * `arrive` is the share of the loop the drive takes, so a longer trip visibly arrives later.
- */
-function Truck({ path, arrive, tone }: { path: string; arrive: number; tone: 'route' | 'late' }) {
-  const reduced = useReducedMotion();
-  if (reduced) return null;
-  return (
-    <g className={tone === 'route' ? 'fill-route' : 'fill-late'}>
-      <g transform="translate(0 -8) scale(1.35)">
-        <rect x={-11} y={-6} width={13} height={9} rx={1} />
-        <path d="M3 -3 h4 l3 3 v3 h-7 z" />
-        <circle cx={-6} cy={4} r={2} className="fill-ink" />
-        <circle cx={5} cy={4} r={2} className="fill-ink" />
-      </g>
-      <animateMotion dur="6s" repeatCount="indefinite" path={path} rotate="auto" calcMode="linear" keyPoints="0;1;1" keyTimes={`0;${arrive};1`} />
-    </g>
-  );
-}
-
-function TripMap({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <svg viewBox="0 0 280 86" className="w-full overflow-visible" role="img" aria-label={label}>
-      <line x1={4} x2={276} y1={GROUND + 0.75} y2={GROUND + 0.75} className="stroke-line" strokeWidth="1.5" />
-      {children}
-    </svg>
-  );
-}
 
 const LONG_WAY = 'M38 52 Q140 4 244 52';
 
