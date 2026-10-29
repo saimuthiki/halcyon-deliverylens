@@ -8,7 +8,7 @@ One row per scorecard line: what to open, the evidence, and our honest status.
 **Live:** website https://main.d19tzovsk3zuvo.amplifyapp.com (login: ask the team) ·
 API https://35-175-32-49.sslip.io/api/health · API docs https://35-175-32-49.sslip.io/docs
 
-**Demo video:** <SharePoint link to add> · **Deck:** [deck/DeliveryLens-pitch.pptx](../deck/DeliveryLens-pitch.pptx)
+**Demo video:** SharePoint <link to add> · copy in the repo: [demo-video/DeliveryLens-demo.mp4](../demo-video/DeliveryLens-demo.mp4) (2:36) · **Deck:** [deck/DeliveryLens-pitch.pptx](../deck/DeliveryLens-pitch.pptx)
 
 ## 1. Problem and scope
 
@@ -46,7 +46,7 @@ API https://35-175-32-49.sslip.io/api/health · API docs https://35-175-32-49.ss
 
 | Row | Open this | Status |
 |---|---|---|
-| **6.1 Demo video** (5) | Demo video: <SharePoint link to add> | ⚠️ Being recorded by the team. To reach Excellent it should show one bad input (for example a blank or injected email on the Order desk) and explain the result |
+| **6.1 Demo video** (5) | [demo-video/DeliveryLens-demo.mp4](../demo-video/DeliveryLens-demo.mp4) (2:36, real app); storyboard [video-plan.md](../demo-video/video-plan.md) | ✅ Real running app, main flow end to end (email in → 10 steps → a person approves → WMS), held order + client one-click page; **bad input shown at 1:57**: a prompt-injection email is blocked at the safety screen and an unclear order goes to a person, with the result explained on screen. ⚠️ add the SharePoint link |
 | **6.2 Story and business value** (5) | [deck/DeliveryLens-pitch.pptx](../deck/DeliveryLens-pitch.pptx), [03 What the data says](03-what-the-data-says.md) | ✅ 15 slides, one idea each, with speaker notes: problem (71% vs 94%, $680K tool), five causes, features, AI safety, AWS, before/after with method (71.0 → 90.2%, $1.44M), limits and 10x roadmap |
 | **6.3 Clarity** (3) | Same deck; [00 Start here](00-START-HERE.md) | ✅ Short headlines, one visual per slide, same colours as the app (orange = problem, teal = fix) |
 

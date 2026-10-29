@@ -354,7 +354,7 @@ ${name}`, { x: x + 0.15, y, w: w - 0.3, h, fontSize: 18, bold: true, color: C.wh
   // Right: quality numbers
   txt(s, "Every push to main", { x: 9.55, y: 2.0, w: 3.2, h: 0.4, fontSize: 18, bold: true, color: C.route });
   txt(s, "tests → build → deploy to AWS", { x: 9.55, y: 2.4, w: 3.2, h: 0.4, fontSize: 16, color: C.inkSoft });
-  const q = [["384", "backend tests"], ["60", "frontend tests"], ["30", "browser end-to-end tests"]];
+  const q = [["387", "backend tests"], ["60", "frontend tests"], ["30", "browser end-to-end tests"]];
   q.forEach(([v, l], i) => {
     const y = 3.05 + i * 1.25;
     txt(s, v, { x: 9.55, y, w: 1.5, h: 0.75, fontSize: 40, bold: true, color: C.route, valign: "middle" });

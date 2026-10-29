@@ -1,0 +1,1 @@
+Halcyon Logistics was about to spend $680K on routing software to fix late deliveries. DeliveryLens read all 48,340 deliveries, found that five other causes explain 28 of the 29 lost points, and fixes them in a live app where AI reads, rules decide and a person approves: about 71 → 90 on time, roughly $1.4M a year. Team InfinityStacks · EvoHack 2026.
