@@ -11,7 +11,7 @@ const PAGES: { path: string; heading: RegExp }[] = [
   { path: '/late-orders', heading: /grace period saves [\d,]+ late deliveries a year/ },
   { path: '/carriers', heading: /Carrier D is weak in every region/ },
   { path: '/clients', heading: /./ },
-  { path: '/stock-routes', heading: /Two problems that happen everywhere/ },
+  { path: '/stock-routes', heading: /Why some orders take the long way/ },
   { path: '/ask', heading: /Ask DeliveryLens/ },
   { path: '/activity', heading: /Agent activity/ },
 ];

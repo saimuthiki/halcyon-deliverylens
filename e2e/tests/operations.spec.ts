@@ -34,7 +34,13 @@ test('stock & routes: stock-outs by warehouse, worst clients and route deviation
   expect((await stock).status()).toBe(200);
   expect((await routes).status()).toBe(200);
 
-  await expect(page.getByRole('heading', { level: 1, name: /Two problems that happen everywhere/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /Why some orders take the long way/ })).toBeVisible();
+
+  // Three story cards, then the full tables behind "See the numbers".
+  for (const t of ['The nearest warehouse ran out', 'We picked a far warehouse anyway', 'The driver left the planned road']) {
+    await expect(page.getByRole('heading', { level: 2, name: t })).toBeVisible();
+  }
+  await page.getByText('See the numbers by warehouse, client and carrier').click();
 
   // Five warehouses W1-W5, each with a stock-out rate and on time with vs without stock.
   const wh = page.getByRole('table', { name: 'No stock at the nearest warehouse' });

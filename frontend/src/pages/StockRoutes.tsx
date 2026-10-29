@@ -1,14 +1,16 @@
+import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import type { RouteDeviation, StockPlacement, WrongWarehouse } from '../api/types';
 import { useApi } from '../lib/useApi';
 import { num, pct, usd } from '../lib/format';
-import PageHeader, { SectionTitle } from '../components/PageHeader';
+import PageHeader from '../components/PageHeader';
 import { ErrorState, LoadingBlock, SourceTag } from '../components/States';
 
 /**
- * Stock & routes: the two "fix" views the solution design promised (stock placement, route deviation watch).
- * Each comparison is drawn as a dumbbell: on time when the problem happened vs when it did not.
+ * Stock & routes, readable in about 30 seconds: three ways an order takes the long way to the client.
+ * Each card is one story: a tiny trip map, how often it happens, on time normally vs on that trip, and the fix.
+ * The full tables sit in "See the numbers" below for anyone who wants the detail.
  */
 export default function StockRoutes() {
   const stock = useApi(() => api.stockPlacement());
@@ -16,141 +18,315 @@ export default function StockRoutes() {
 
   const s = stock.data;
   const r = routes.data;
+  const stockOk = !!s && !stock.error;
+  const routesOk = !!r && !routes.error;
 
   return (
     <>
       <PageHeader
-        title="Two problems that happen everywhere: no stock nearby, and drivers going off route"
-        lede="Both happen at every warehouse, with every carrier and in every region, so the fix is a rule for all of them, not one site."
+        title="Why some orders take the long way"
+        lede="Three everyday problems turn a short trip into a long one, and long trips arrive late far more often. Each has a simple fix."
         aside={<SourceTag source={stock.source === 'sample' || routes.source === 'sample' ? 'sample' : stock.source} />}
       />
 
-      <div className="flex flex-col gap-6">
+      <div className="grid gap-4 lg:grid-cols-3">
         {stock.loading && !s ? (
           <LoadingBlock label="Loading stock placement" rows={6} />
-        ) : stock.error || !s ? (
+        ) : !stockOk ? (
           <ErrorState message={stock.error ?? 'No stock data returned.'} onRetry={stock.reload} />
         ) : (
-          <StockSection data={s} />
+          <>
+            <StockOutCard data={s} />
+            {s.wrong_warehouse && s.wrong_warehouse.deliveries > 0 && <WrongWarehouseCard w={s.wrong_warehouse} />}
+          </>
         )}
-
         {routes.loading && !r ? (
           <LoadingBlock label="Loading route deviation" rows={6} />
-        ) : routes.error || !r ? (
+        ) : !routesOk ? (
           <ErrorState message={routes.error ?? 'No route data returned.'} onRetry={routes.reload} />
         ) : (
-          <RouteSection data={r} />
+          <OffRouteCard data={r} />
         )}
       </div>
+
+      <p className="mt-4 max-w-[80ch] text-[15px] text-ink-soft">
+        <span className="font-semibold text-ink">Not one bad site: </span>all three happen at every warehouse and with every carrier, so each fix is a rule for
+        everyone.
+      </p>
+      <p className="mt-2 max-w-[80ch] text-[15px] text-ink-soft">
+        <span className="font-semibold text-ink">Late</span> means it arrived after the promised time; every order is still delivered. Even the teal trips are
+        sometimes late for other reasons: the order came in after the 08:00 cutoff, the address was incomplete, or the carrier is weak on that lane.
+      </p>
+
+      {(stockOk || routesOk) && (
+        <details className="panel mt-6 overflow-hidden">
+          <summary className="panel-pad cursor-pointer font-semibold text-route">See the numbers by warehouse, client and carrier</summary>
+          <div className="flex flex-col gap-6 pb-5">
+            {stockOk && <StockTables data={s} />}
+            {routesOk && <CarrierTable data={r} />}
+          </div>
+        </details>
+      )}
     </>
   );
 }
 
-/** Two big numbers: on time without the problem vs with it. */
-function Compare({ goodLabel, good, badLabel, bad }: { goodLabel: string; good: number; badLabel: string; bad: number }) {
+/* ---------- the three story cards ---------- */
+
+function StoryCard({ n, title, map, often, bars, fix }: { n: number; title: string; map: ReactNode; often: ReactNode; bars: ReactNode; fix: ReactNode }) {
+  const id = `story-${n}`;
   return (
-    <dl className="mt-4 grid max-w-[560px] grid-cols-2 gap-3">
-      <div className="rounded-md border border-line px-4 py-3">
-        <dt className="text-sm text-slate">{goodLabel}</dt>
-        <dd className="num text-2xl font-bold text-route-dark">{Math.round(good * 100)} in 100</dd>
-      </div>
-      <div className="rounded-md border border-late/30 bg-late-tint px-4 py-3">
-        <dt className="text-sm text-slate">{badLabel}</dt>
-        <dd className="num text-2xl font-bold text-late">{Math.round(bad * 100)} in 100</dd>
-      </div>
-    </dl>
+    <section className="panel panel-pad flex flex-col" aria-labelledby={id}>
+      <h2 id={id} className="flex items-start gap-2.5 text-lg font-semibold leading-snug">
+        <span className="num mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-late-tint text-sm font-bold text-late" aria-hidden="true">
+          {n}
+        </span>
+        {title}
+      </h2>
+      <div className="mt-3">{map}</div>
+      <p className="mt-3 text-[15px] text-ink-soft">{often}</p>
+      <div className="mt-3">{bars}</div>
+      <p className="mt-auto border-t border-line pt-3 text-[15px] text-ink-soft">
+        <span className="font-semibold text-route-dark">Fix: </span>
+        {fix}
+      </p>
+    </section>
   );
 }
 
-/* ---------- stock ---------- */
-
-function StockSection({ data }: { data: StockPlacement }) {
-  const overall = stockOverall(data);
+/**
+ * Out of every 100 orders: on time vs late, without the problem (teal) and with it (orange).
+ * Late = arrived after the promised time; every order is still delivered.
+ */
+function OnTimeBars({ normal, normalLabel, problem, problemLabel }: { normal: number; normalLabel: string; problem: number; problemLabel: string }) {
+  const rows = [
+    { label: normalLabel, v: normal, bar: 'bg-route', text: 'text-route-dark' },
+    { label: problemLabel, v: problem, bar: 'bg-late', text: 'text-late' },
+  ];
   return (
-    <div className="flex flex-col gap-6">
-      <section className="panel overflow-hidden" aria-labelledby="wh-title">
-        <div className="panel-pad pb-0 sm:pb-0">
-          <SectionTitle note="The same at every warehouse">
-            <span id="wh-title">No stock at the nearest warehouse</span>
-          </SectionTitle>
-          {overall && (
-            <>
-              <p className="-mt-2 max-w-[72ch] text-[15px] text-ink-soft">
-                About <strong className="text-ink">1 in {Math.round(1 / overall.rate)}</strong> orders find no stock at the warehouse nearest the client, so they
-                ship from further away.
-              </p>
-              <Compare goodLabel="Stock nearby: on time" good={overall.stocked} badLabel="No stock nearby: on time" bad={overall.stockOut} />
-            </>
-          )}
-        </div>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-[15px]" aria-labelledby="wh-title">
-            <thead>
-              <tr className="border-b border-line">
-                <th scope="col" className="th pl-5 sm:pl-6">Warehouse</th>
-                <th scope="col" className="th text-right">Orders with no stock</th>
-                <th scope="col" className="th text-right">On time, no stock</th>
-                <th scope="col" className="th pr-5 text-right sm:pr-6">On time, with stock</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.by_warehouse.map((w) => (
-                <tr key={w.warehouse_id} className="border-b border-line last:border-b-0">
-                  <th scope="row" className="td pl-5 text-left sm:pl-6">
-                    <span className="font-semibold">{w.name}</span>
-                    <span className="ml-2 whitespace-nowrap text-sm font-normal text-slate">
-                      {w.warehouse_id}, {w.region}
-                    </span>
-                  </th>
-                  <td className="td num text-right">{pct(w.stock_out_rate, 0)}</td>
-                  <td className="td num text-right font-semibold text-late">{pct(w.on_time_when_stock_out, 0)}</td>
-                  <td className="td num pr-5 text-right sm:pr-6">{pct(w.on_time_when_stocked, 0)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="panel-pad pt-3 text-[15px] text-ink-soft sm:pt-3">
-          <span className="font-semibold text-ink">The fix: </span>no single warehouse is the problem, so move fast-selling stock to the warehouse nearest each
-          region before it runs out, at all five.{' '}
-          <Link to="/why-late?cause=stock_not_at_nearest" className="font-semibold text-route underline-offset-4 hover:underline">
-            See late deliveries
-          </Link>
-        </p>
-      </section>
-
-      {data.wrong_warehouse && data.wrong_warehouse.deliveries > 0 && <WrongWarehouseSection w={data.wrong_warehouse} />}
-
-      <section className="panel overflow-hidden" aria-labelledby="sc-title">
-        <div className="panel-pad pb-0 sm:pb-0">
-          <SectionTitle note="Most often without stock nearby">
-            <span id="sc-title">Clients hit hardest by stock-outs</span>
-          </SectionTitle>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[400px] border-collapse text-[15px]" aria-labelledby="sc-title">
-            <thead>
-              <tr className="border-b border-line">
-                <th scope="col" className="th pl-5 sm:pl-6">Client</th>
-                <th scope="col" className="th text-right">Orders with no stock</th>
-                <th scope="col" className="th pr-5 text-right sm:pr-6">On time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.worst_clients.slice(0, 5).map((c) => (
-                <tr key={c.client_id} className="border-b border-line last:border-b-0">
-                  <th scope="row" className="td pl-5 text-left font-semibold sm:pl-6">
-                    {c.client_name}
-                  </th>
-                  <td className="td num text-right">{pct(c.stock_out_rate, 0)}</td>
-                  <td className={`td num pr-5 text-right sm:pr-6 ${c.on_time_rate < 0.7 ? 'font-semibold text-late' : ''}`}>{pct(c.on_time_rate, 0)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+    <div className="mb-4">
+      <p className="mb-1.5 text-sm text-slate">Out of every 100 orders</p>
+      <dl className="flex flex-col gap-2.5">
+        {rows.map((row) => {
+          const on = Math.round(row.v * 100);
+          return (
+            <div key={row.label}>
+              <dt className="text-sm text-ink-soft">{row.label}</dt>
+              <dd>
+                <div className="mt-1 flex h-2.5 overflow-hidden rounded-full bg-slate-light" aria-hidden="true">
+                  <div className={`h-full ${row.bar}`} style={{ width: `${on}%` }} />
+                </div>
+                <p className="mt-0.5 text-sm">
+                  <span className={`num font-bold ${row.text}`}>{on} on time</span>
+                  <span className="text-slate"> · {100 - on} late</span>
+                </p>
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
     </div>
+  );
+}
+
+/* Trip maps: warehouses and a client on one road, with a small truck driving each trip (teal = the right trip, orange = the trip taken). */
+
+const GROUND = 64;
+const MAP_TEXT = 'fill-slate text-[11px]';
+
+/** True when the visitor asked the system for less motion: the trucks then stay hidden and only the roads show. */
+function useReducedMotion() {
+  return useMemo(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches, []);
+}
+
+function Warehouse({ x, label, mark }: { x: number; label: string; mark?: 'empty' | 'stocked' }) {
+  const empty = mark === 'empty';
+  return (
+    <g>
+      <path
+        d={`M${x - 15} ${GROUND} V${GROUND - 15} L${x} ${GROUND - 25} L${x + 15} ${GROUND - 15} V${GROUND} Z`}
+        className={empty ? 'fill-surface stroke-slate' : 'fill-slate-light stroke-slate'}
+        strokeWidth="1.5"
+        strokeDasharray={empty ? '3 2' : undefined}
+        strokeLinejoin="round"
+      />
+      {/* roller door */}
+      <rect x={x - 6} y={GROUND - 11} width={12} height={11} className="fill-surface stroke-slate" strokeWidth="1" />
+      {!empty && <path d={`M${x - 6} ${GROUND - 7.5} h12 M${x - 6} ${GROUND - 4} h12`} className="stroke-slate" strokeWidth="0.8" />}
+      {mark === 'stocked' && (
+        <g className="fill-route">
+          <rect x={x + 8} y={GROUND - 7} width={6} height={6} rx={1} />
+          <rect x={x + 8} y={GROUND - 13} width={6} height={5} rx={1} />
+        </g>
+      )}
+      {empty && <path d={`M${x - 4} ${GROUND - 20} l8 8 M${x + 4} ${GROUND - 20} l-8 8`} className="stroke-late" strokeWidth="2" strokeLinecap="round" />}
+      <text x={x < 60 ? x - 16 : x} y={GROUND + 18} textAnchor={x < 60 ? 'start' : 'middle'} className={MAP_TEXT}>
+        {label}
+      </text>
+    </g>
+  );
+}
+
+/** The client: a small office building with lit windows. */
+function Client({ x }: { x: number }) {
+  return (
+    <g>
+      <rect x={x - 10} y={GROUND - 26} width={20} height={26} rx={1.5} className="fill-ink" />
+      <g className="fill-surface">
+        {[0, 1, 2].map((r) => [0, 1].map((c) => <rect key={`${r}${c}`} x={x - 6 + c * 8} y={GROUND - 22 + r * 6} width={4} height={3} rx={0.5} />))}
+      </g>
+      <text x={x + 12} y={GROUND + 18} textAnchor="end" className={MAP_TEXT}>
+        Client
+      </text>
+    </g>
+  );
+}
+
+/**
+ * A small truck that drives `path` and waits at the client until the 6-second loop restarts.
+ * `arrive` is the share of the loop the drive takes, so a longer trip visibly arrives later.
+ */
+function Truck({ path, arrive, tone }: { path: string; arrive: number; tone: 'route' | 'late' }) {
+  const reduced = useReducedMotion();
+  if (reduced) return null;
+  return (
+    <g className={tone === 'route' ? 'fill-route' : 'fill-late'}>
+      <g transform="translate(0 -8) scale(1.35)">
+        <rect x={-11} y={-6} width={13} height={9} rx={1} />
+        <path d="M3 -3 h4 l3 3 v3 h-7 z" />
+        <circle cx={-6} cy={4} r={2} className="fill-ink" />
+        <circle cx={5} cy={4} r={2} className="fill-ink" />
+      </g>
+      <animateMotion dur="6s" repeatCount="indefinite" path={path} rotate="auto" calcMode="linear" keyPoints="0;1;1" keyTimes={`0;${arrive};1`} />
+    </g>
+  );
+}
+
+function TripMap({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <svg viewBox="0 0 280 86" className="w-full overflow-visible" role="img" aria-label={label}>
+      <line x1={4} x2={276} y1={GROUND + 0.75} y2={GROUND + 0.75} className="stroke-line" strokeWidth="1.5" />
+      {children}
+    </svg>
+  );
+}
+
+const LONG_WAY = 'M38 52 Q140 4 244 52';
+
+function StockOutCard({ data }: { data: StockPlacement }) {
+  const o = stockOverall(data);
+  if (!o) return null;
+  return (
+    <StoryCard
+      n={1}
+      title="The nearest warehouse ran out"
+      map={
+        <TripMap label="The nearest warehouse is empty, so a truck drives the long way from a far warehouse to the client.">
+          <path d={LONG_WAY} className="stroke-late" strokeWidth="3" fill="none" strokeLinecap="round" />
+          <Warehouse x={22} label="Far warehouse" />
+          <Warehouse x={140} label="Nearest: empty" mark="empty" />
+          <Client x={258} />
+          <Truck path={LONG_WAY} arrive={0.8} tone="late" />
+        </TripMap>
+      }
+      often={
+        <>
+          About <strong className="text-ink">1 in {Math.round(1 / o.rate)} orders</strong> find the shelf empty at the warehouse nearest the client, so another
+          warehouse further away sends it.
+        </>
+      }
+      bars={<OnTimeBars normal={o.stocked} normalLabel="Nearest warehouse had the stock" problem={o.stockOut} problemLabel="Nearest was empty, sent from further away" />}
+      fix={
+        <>
+          keep fast-selling items stocked near each region before they run out.{' '}
+          <Link to="/why-late?cause=stock_not_at_nearest" className="font-semibold text-route underline-offset-4 hover:underline">
+            See these late orders
+          </Link>
+        </>
+      }
+    />
+  );
+}
+
+function WrongWarehouseCard({ w }: { w: WrongWarehouse }) {
+  const shortWay = 'M155 58 H244';
+  return (
+    <StoryCard
+      n={2}
+      title="We picked a far warehouse anyway"
+      map={
+        <TripMap
+          label={`The nearest warehouse had the stock, about ${num(w.avg_miles_nearest)} miles away, but the order came from about ${num(w.avg_miles)} miles away. The teal truck shows the short trip it should have taken.`}
+        >
+          <path d={shortWay} className="stroke-route" strokeWidth="2.5" strokeDasharray="5 4" fill="none" />
+          <path d={LONG_WAY} className="stroke-late" strokeWidth="3" fill="none" strokeLinecap="round" />
+          <text x={190} y={50} textAnchor="middle" className="fill-route-dark text-[11px] font-semibold">
+            {num(w.avg_miles_nearest)} mi
+          </text>
+          <text x={140} y={20} textAnchor="middle" className="fill-late text-[11px] font-semibold">
+            {num(w.avg_miles)} mi
+          </text>
+          <Warehouse x={22} label="Far warehouse" />
+          <Warehouse x={140} label="Nearest: in stock" mark="stocked" />
+          <Client x={258} />
+          <Truck path={shortWay} arrive={0.25} tone="route" />
+          <Truck path={LONG_WAY} arrive={0.8} tone="late" />
+        </TripMap>
+      }
+      often={
+        <>
+          <strong className="text-ink">{num(w.deliveries)} orders</strong> came from a far warehouse although the nearest one had every item: about{' '}
+          {num(Math.round(w.avg_miles / Math.max(w.avg_miles_nearest, 1)))}× further than needed. Penalties paid:{' '}
+          <strong className="text-ink">{usd(w.sla_penalties_usd)}</strong>.
+        </>
+      }
+      bars={<OnTimeBars normal={w.on_time_nearest} normalLabel="Sent from the nearest warehouse" problem={w.on_time} problemLabel="Sent from a far warehouse instead" />}
+      fix={
+        <>
+          always ship from the nearest warehouse that has every item. The{' '}
+          <Link to="/order-desk" className="font-semibold text-route underline-offset-4 hover:underline">
+            Order desk
+          </Link>{' '}
+          already does.
+        </>
+      }
+    />
+  );
+}
+
+function OffRouteCard({ data }: { data: RouteDeviation }) {
+  const n = data.by_carrier.reduce((t, c) => t + c.deliveries, 0);
+  const off = data.by_carrier.reduce((t, c) => t + c.deliveries * c.deviation_rate, 0);
+  if (!n || !off) return null;
+  const offOnTime = data.by_carrier.reduce((t, c) => t + c.deliveries * c.deviation_rate * c.on_time_with_deviation, 0) / off;
+  const onOnTime = data.by_carrier.reduce((t, c) => t + c.deliveries * (1 - c.deviation_rate) * c.on_time_without_deviation, 0) / (n - off || 1);
+  const planned = 'M38 58 H244';
+  const detour = 'M38 58 C72 58 72 24 106 24 S140 72 174 72 S210 58 244 58';
+  return (
+    <StoryCard
+      n={3}
+      title="The driver left the planned road"
+      map={
+        <TripMap label="Two trucks leave the same warehouse: the teal one keeps to the planned road, the orange one takes a detour more than 20% longer and arrives later.">
+          <path d={planned} className="stroke-route" strokeWidth="2.5" strokeDasharray="5 4" fill="none" />
+          <path d={detour} className="stroke-late" strokeWidth="3" fill="none" strokeLinecap="round" />
+          <text x={200} y={50} textAnchor="middle" className="fill-route-dark text-[11px] font-semibold">
+            planned
+          </text>
+          <Warehouse x={22} label="Warehouse" />
+          <Client x={258} />
+          <Truck path={planned} arrive={0.45} tone="route" />
+          <Truck path={detour} arrive={0.8} tone="late" />
+        </TripMap>
+      }
+      often={
+        <>
+          On about <strong className="text-ink">1 in {Math.round(n / off)} deliveries</strong> the driver drives more than 20% further than the planned route.
+        </>
+      }
+      bars={<OnTimeBars normal={onOnTime} normalLabel="Stayed on the planned route" problem={offOnTime} problemLabel="Drove more than 20% off route" />}
+      fix={<>keep drivers on the planned route. This is the one problem routing software can fix.</>}
+    />
   );
 }
 
@@ -167,98 +343,135 @@ function stockOverall(data: StockPlacement): { rate: number; stockOut: number; s
   return n && out && n > out ? { rate: out / n, stockOut: outOnTime / out, stocked: inOnTime / (n - out) } : null;
 }
 
-/** Far warehouse chosen although the nearest one had the stock. */
-function WrongWarehouseSection({ w }: { w: WrongWarehouse }) {
+/* ---------- detail tables (inside "See the numbers") ---------- */
+
+function TableTitle({ id, children, note }: { id: string; children: ReactNode; note: string }) {
   return (
-    <section className="panel panel-pad" aria-labelledby="ww-title">
-      <SectionTitle note="A choice, not a stock-out">
-        <span id="ww-title">Shipped from far away, although the nearest warehouse had the stock</span>
-      </SectionTitle>
-      <p className="-mt-2 max-w-[72ch] text-[15px] text-ink-soft">
-        <strong className="text-ink">{num(w.deliveries)}</strong> orders went out from a warehouse about {num(w.avg_miles)} miles away instead of about{' '}
-        {num(w.avg_miles_nearest)}, even though the nearest one had everything.
-      </p>
-      <Compare goodLabel="Nearest warehouse: on time" good={w.on_time_nearest} badLabel="Far warehouse: on time" bad={w.on_time} />
-      <p className="mt-4 max-w-[72ch] text-[15px] text-ink-soft" data-testid="wrong-warehouse-explains">
-        {w.late_with_no_other_cause === w.late_with_no_cause_total ? (
-          <>
-            They explain <strong className="text-ink">all {num(w.late_with_no_cause_total)}</strong> late deliveries that had none of the five causes, so every
-            late delivery now has a reason.
-          </>
-        ) : (
-          <>
-            They explain {num(w.late_with_no_other_cause)} of the {num(w.late_with_no_cause_total)} late deliveries that had none of the five causes.
-          </>
-        )}
-        {w.top_client && ` ${w.top_client.client_name} alone had ${num(w.top_client.deliveries)} of them.`} Penalties paid: {usd(w.sla_penalties_usd)}.
-      </p>
-      <p className="mt-3 text-[15px] text-ink-soft">
-        <span className="font-semibold text-ink">The fix: </span>the{' '}
-        <Link to="/order-desk" className="font-semibold text-route underline-offset-4 hover:underline">
-          Order desk
-        </Link>{' '}
-        always ships from the nearest warehouse that has every item, so this cannot happen there.
-      </p>
-    </section>
+    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 pb-2 sm:px-6">
+      <h3 id={id} className="font-semibold">
+        {children}
+      </h3>
+      <p className="text-sm text-slate">{note}</p>
+    </div>
   );
 }
 
-/* ---------- routes ---------- */
-
-function RouteSection({ data }: { data: RouteDeviation }) {
-  const n = data.by_carrier.reduce((t, c) => t + c.deliveries, 0);
-  const off = data.by_carrier.reduce((t, c) => t + c.deliveries * c.deviation_rate, 0);
-  const offOnTime = data.by_carrier.reduce((t, c) => t + c.deliveries * c.deviation_rate * c.on_time_with_deviation, 0) / (off || 1);
-  const onOnTime = data.by_carrier.reduce((t, c) => t + c.deliveries * (1 - c.deviation_rate) * c.on_time_without_deviation, 0) / (n - off || 1);
+function StockTables({ data }: { data: StockPlacement }) {
   return (
-    <section className="panel overflow-hidden" aria-labelledby="rc-title">
-      <div className="panel-pad pb-0 sm:pb-0">
-        <SectionTitle note="The same in every region">
-          <span id="rc-title">Drivers going off route</span>
-        </SectionTitle>
-        {n > 0 && (
-          <>
-            <p className="-mt-2 max-w-[72ch] text-[15px] text-ink-soft">
-              On about <strong className="text-ink">1 in {Math.round(n / off)}</strong> deliveries the driver drives more than 20% further than planned.
-            </p>
-            <Compare goodLabel="On the planned route: on time" good={onOnTime} badLabel="Off route: on time" bad={offOnTime} />
-          </>
-        )}
-      </div>
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[520px] border-collapse text-[15px]" aria-labelledby="rc-title">
+    <>
+      <div className="overflow-x-auto">
+        <TableTitle id="wh-title" note="1 · The same at every warehouse">
+          No stock at the nearest warehouse
+        </TableTitle>
+        <table className="w-full min-w-[520px] border-collapse text-[15px]" aria-labelledby="wh-title">
           <thead>
             <tr className="border-b border-line">
-              <th scope="col" className="th pl-5 sm:pl-6">Carrier</th>
-              <th scope="col" className="th text-right">Deliveries off route</th>
-              <th scope="col" className="th text-right">On time, off route</th>
-              <th scope="col" className="th pr-5 text-right sm:pr-6">On time, on route</th>
+              <th scope="col" className="th pl-5 sm:pl-6">Warehouse</th>
+              <th scope="col" className="th text-right">Orders with no stock</th>
+              <th scope="col" className="th text-right">On time, no stock</th>
+              <th scope="col" className="th pr-5 text-right sm:pr-6">On time, with stock</th>
             </tr>
           </thead>
           <tbody>
-            {[...data.by_carrier]
-              .sort((a, b) => a.carrier_id.localeCompare(b.carrier_id))
-              .map((c) => (
-                <tr key={c.carrier_id} className="border-b border-line last:border-b-0">
-                  <th scope="row" className="td pl-5 text-left font-semibold sm:pl-6">
-                    Carrier {c.carrier_id}
-                  </th>
-                  <td className="td num text-right">{pct(c.deviation_rate, 0)}</td>
-                  <td className="td num text-right font-semibold text-late">{pct(c.on_time_with_deviation, 0)}</td>
-                  <td className="td num pr-5 text-right sm:pr-6">{pct(c.on_time_without_deviation, 0)}</td>
-                </tr>
-              ))}
+            {data.by_warehouse.map((w) => (
+              <tr key={w.warehouse_id} className="border-b border-line last:border-b-0">
+                <th scope="row" className="td pl-5 text-left sm:pl-6">
+                  <span className="font-semibold">{w.name}</span>
+                  <span className="ml-2 whitespace-nowrap text-sm font-normal text-slate">
+                    {w.warehouse_id}, {w.region}
+                  </span>
+                </th>
+                <td className="td num text-right">{pct(w.stock_out_rate, 0)}</td>
+                <td className="td num text-right font-semibold text-late">{pct(w.on_time_when_stock_out, 0)}</td>
+                <td className="td num pr-5 text-right sm:pr-6">{pct(w.on_time_when_stocked, 0)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
-      <p className="panel-pad pt-3 text-[15px] text-ink-soft sm:pt-3">
-        <span className="font-semibold text-ink">The fix: </span>this is the one problem routing software (or route discipline) can fix. Carrier D is slow even on
-        route because of its weak lanes; see{' '}
+
+      <div className="overflow-x-auto">
+        <TableTitle id="sc-title" note="Most often without stock nearby">
+          Clients hit hardest by stock-outs
+        </TableTitle>
+        <table className="w-full min-w-[400px] border-collapse text-[15px]" aria-labelledby="sc-title">
+          <thead>
+            <tr className="border-b border-line">
+              <th scope="col" className="th pl-5 sm:pl-6">Client</th>
+              <th scope="col" className="th text-right">Orders with no stock</th>
+              <th scope="col" className="th pr-5 text-right sm:pr-6">On time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.worst_clients.slice(0, 5).map((c) => (
+              <tr key={c.client_id} className="border-b border-line last:border-b-0">
+                <th scope="row" className="td pl-5 text-left font-semibold sm:pl-6">
+                  {c.client_name}
+                </th>
+                <td className="td num text-right">{pct(c.stock_out_rate, 0)}</td>
+                <td className={`td num pr-5 text-right sm:pr-6 ${c.on_time_rate < 0.7 ? 'font-semibold text-late' : ''}`}>{pct(c.on_time_rate, 0)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {data.wrong_warehouse && data.wrong_warehouse.deliveries > 0 && (
+        <p className="px-5 text-[15px] text-ink-soft sm:px-6" data-testid="wrong-warehouse-explains">
+          <span className="font-semibold text-ink">2 · Far warehouse by choice: </span>
+          {data.wrong_warehouse.late_with_no_other_cause === data.wrong_warehouse.late_with_no_cause_total ? (
+            <>explains all {num(data.wrong_warehouse.late_with_no_cause_total)} late deliveries that had none of the five causes.</>
+          ) : (
+            <>
+              explains {num(data.wrong_warehouse.late_with_no_other_cause)} of the {num(data.wrong_warehouse.late_with_no_cause_total)} late deliveries that had none
+              of the five causes.
+            </>
+          )}
+          {data.wrong_warehouse.top_client &&
+            ` ${data.wrong_warehouse.top_client.client_name} alone had ${num(data.wrong_warehouse.top_client.deliveries)} of these orders.`}
+        </p>
+      )}
+    </>
+  );
+}
+
+function CarrierTable({ data }: { data: RouteDeviation }) {
+  return (
+    <div className="overflow-x-auto">
+      <TableTitle id="rc-title" note="3 · The same with every carrier">
+        Drivers going off route
+      </TableTitle>
+      <table className="w-full min-w-[520px] border-collapse text-[15px]" aria-labelledby="rc-title">
+        <thead>
+          <tr className="border-b border-line">
+            <th scope="col" className="th pl-5 sm:pl-6">Carrier</th>
+            <th scope="col" className="th text-right">Deliveries off route</th>
+            <th scope="col" className="th text-right">On time, off route</th>
+            <th scope="col" className="th pr-5 text-right sm:pr-6">On time, on route</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[...data.by_carrier]
+            .sort((a, b) => a.carrier_id.localeCompare(b.carrier_id))
+            .map((c) => (
+              <tr key={c.carrier_id} className="border-b border-line last:border-b-0">
+                <th scope="row" className="td pl-5 text-left font-semibold sm:pl-6">
+                  Carrier {c.carrier_id}
+                </th>
+                <td className="td num text-right">{pct(c.deviation_rate, 0)}</td>
+                <td className="td num text-right font-semibold text-late">{pct(c.on_time_with_deviation, 0)}</td>
+                <td className="td num pr-5 text-right sm:pr-6">{pct(c.on_time_without_deviation, 0)}</td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+      <p className="mt-3 px-5 text-[15px] text-ink-soft sm:px-6">
+        Carrier D is slow even on route because of its weak lanes; see{' '}
         <Link to="/carriers" className="font-semibold text-route underline-offset-4 hover:underline">
           Carriers
         </Link>
         .
       </p>
-    </section>
+    </div>
   );
 }

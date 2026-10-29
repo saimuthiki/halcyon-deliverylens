@@ -106,9 +106,10 @@ export const HELP: Record<string, HelpContent> = {
   },
   '/stock-routes': {
     items: [
-      { term: 'No stock at the nearest warehouse', text: 'How often the warehouse nearest the client had no stock, and how often those orders still arrived on time.', example: 'About 12% of orders ship from further away; those are on time about 50% of the time.' },
-      { term: 'Worst 10 clients by stock-out', text: 'The clients whose orders most often ship from a further warehouse. Good candidates for moving stock closer.' },
-      { term: 'Drivers going off route', text: 'How often drivers drive more than 20% further than planned, and how often those deliveries still arrive on time. This is the only cause a routing tool fixes.', example: 'Planned 150 km, drove 190 km.' },
+      { term: '1. The nearest warehouse ran out', text: 'The warehouse nearest the client had no stock, so the order shipped from further away and arrived on time far less often.', example: 'About 1 in 8 orders; on time about 50 in 100 instead of 74.' },
+      { term: '2. We picked a far warehouse anyway', text: 'The nearest warehouse had every item, but the order still shipped from a far one. A choice, not a stock-out. The Order desk never does this.' },
+      { term: '3. The driver left the planned road', text: 'The driver drove more than 20% further than planned. This is the only one of the three a routing tool fixes.', example: 'Planned 150 km, drove 190 km.' },
+      { term: 'See the numbers', text: 'Open it for the same facts per warehouse, per client and per carrier.' },
     ],
   },
   '/ask': {

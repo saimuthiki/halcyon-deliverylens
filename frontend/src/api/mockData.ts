@@ -212,7 +212,14 @@ export const mockVendor: VendorAssessment = {
 };
 
 export const mockRoi: RoiResponse = ROI;
-export const mockStock: StockPlacement = STOCK_PLACEMENT;
+// Far warehouse chosen although the nearest had stock: copied from the live /api/stock/placement (the generated snapshot predates it).
+export const mockStock: StockPlacement = {
+  ...STOCK_PLACEMENT,
+  wrong_warehouse: {
+    deliveries: 691, late: 340, on_time: 0.508, on_time_nearest: 0.7437, avg_miles: 1246, avg_miles_nearest: 127, sla_penalties_usd: 20880,
+    late_with_no_other_cause: 213, late_with_no_cause_total: 213, top_client: { client_id: 'C190', client_name: 'Client 190', deliveries: 46 },
+  },
+};
 export const mockRoutes: RouteDeviation = ROUTE_DEVIATION;
 
 /* ---------------- agents (rule-based stand-ins) ---------------- */

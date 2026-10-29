@@ -389,9 +389,10 @@ settings against history. There is no annotated picture yet; the parts, top to b
 
 | # | What it is | What it means |
 |---|---|---|
-| 1 | **Stock-outs by warehouse** | For each warehouse: **Stock-out rate**: how often the nearest warehouse did not have the item. **On time, stock-out** vs **On time, stocked**: on-time % when it had to ship from further away, and when it did not. **Gap**: the difference (about −24 points everywhere). The dot chart shows the same gap: filled dot = stock-out, open dot = stocked. No warehouse stands out, so the fix is one rule for all of them. |
-| 2 | **Clients hit hardest by stock-outs** | The clients whose orders most often ship from a further warehouse. |
-| 3 | **Route deviation** | A delivery "deviates" when the driver goes more than 20% beyond the planned route. The two tables below (by carrier, by region) show the deviation rate and the on-time gap. Deviation is spread evenly, and it is the only cause routing software can fix. |
+| 1 | **Three picture cards** | Each card is one way an order takes the long way: **1. The nearest warehouse ran out** (about 1 in 8 orders), **2. We picked a far warehouse anyway** (691 orders, about 1,246 miles instead of 127), **3. The driver left the planned road** (about 1 in 17 deliveries). The small map shows the trip with moving trucks: teal = the right trip, orange = the trip taken, so the orange truck visibly arrives later. |
+| 2 | **Out of every 100 orders** | Teal = orders where this problem did not happen; orange = orders where it did. Each shows how many arrived on time and how many late (after the promised time; every order is still delivered), e.g. 74 on time / 26 late vs 50 / 50. Teal trips can still be late for the other causes (after the 08:00 cutoff, incomplete address, weak carrier lane). |
+| 3 | **Fix** | One line per card: keep fast sellers stocked near each region; always ship from the nearest warehouse with every item (the Order desk already does); keep drivers on the planned route (the only one routing software fixes). |
+| 4 | **See the numbers** | Opens the detail tables: by warehouse, the clients hit hardest, and by carrier. All three problems are the same everywhere, so each fix is one rule for all. |
 
 ---
 
