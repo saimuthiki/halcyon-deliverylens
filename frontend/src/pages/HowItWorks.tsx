@@ -8,6 +8,7 @@ import { pct, usd } from '../lib/format';
 import PageHeader, { SectionTitle } from '../components/PageHeader';
 import { SourceTag } from '../components/States';
 import { ACTORS, ACTOR_ORDER } from '../components/Actor';
+import DeliveryMap from '../components/DeliveryMap';
 
 type Mode = 'today' | 'with';
 
@@ -145,6 +146,8 @@ const START_HERE: { to: string; title: string; line: string }[] = [
 export default function HowItWorks() {
   const [mode, setMode] = useState<Mode>('today');
   const kpis = useApi(() => api.kpis());
+  const causes = useApi(() => api.causes());
+  const stock = useApi(() => api.stockPlacement());
   const k = kpis.data;
   const onTime = k?.on_time_rate ?? 0.71;
   const bench = k?.benchmark_on_time_rate ?? 0.94;
@@ -248,6 +251,12 @@ export default function HowItWorks() {
             changing the carrier spreadsheet, with no new software.
           </div>
         </section>
+
+        <DeliveryMap
+          stats={{ causes: Object.fromEntries((causes.data?.causes ?? []).map((c) => [c.cause, c])), wrong: stock.data?.wrong_warehouse }}
+          onTimeToday={causes.data?.scenarios.today ?? onTime}
+          onTimeWith={causes.data?.scenarios.realistic ?? 0.902}
+        />
 
         <div className="grid gap-6 lg:grid-cols-2">
           <section className="panel panel-pad" aria-labelledby="legend-title">
