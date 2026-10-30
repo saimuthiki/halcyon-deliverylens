@@ -10,7 +10,7 @@
 | | |
 |---|---|
 | **Scorecard evidence map** | **[docs/SCORECARD-EVIDENCE.md](docs/SCORECARD-EVIDENCE.md)**: every scorecard row, what to open, the evidence, our status |
-| Live website | https://main.d19tzovsk3zuvo.amplifyapp.com (login required: ask the team for the username and password) |
+| Live website | https://main.d19tzovsk3zuvo.amplifyapp.com (login required: username - deliverylens and password - ssd@2001) |
 | Live API | https://35-175-32-49.sslip.io/api/health · API docs https://35-175-32-49.sslip.io/docs |
 | Demo video | SharePoint: <link to add> · full narrated film in the repo: [demo-video/DeliveryLens-demo-full.mp4](demo-video/DeliveryLens-demo-full.mp4) (6:37, subtitles [.srt](demo-video/DeliveryLens-demo-full.srt)) · short teaser: [DeliveryLens-demo.mp4](demo-video/DeliveryLens-demo.mp4) (2:36) |
 | Pitch deck | [deck/DeliveryLens-pitch.pptx](deck/DeliveryLens-pitch.pptx) |
