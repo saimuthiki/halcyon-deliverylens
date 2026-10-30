@@ -27,9 +27,19 @@ e2e/playwright-report/
 e2e/blob-report/
 
 # /brag render scratch (frames, fonts, captures) and local scratch scripts
-brag-output/work/
+brag-output/
 test.py
 .playwright-cli/
 
 # Demo video intermediates
 demo-video/work/
+
+# Local only: third-party Claude Code skills and generic agents (the repo keeps our Dev, DevOps and QA agents),
+# and files taken out of the repo at submission time
+.claude/skills/
+.claude/agents/*
+!.claude/agents/dev-agent.md
+!.claude/agents/devops-agent.md
+!.claude/agents/qa-agent.md
+.claude/settings.local.json
+local-archive/

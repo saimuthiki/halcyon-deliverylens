@@ -8,7 +8,7 @@ tools: Read, Edit, Write, Glob, Grep, Bash
 
 ## Role
 Put the app on AWS and keep it deploying itself safely. In this project the role was played by Claude Code (lead
-session) and the DevOps Automator agent (`.claude/agents/engineering-devops-automator.md`), with a human (Sai M,
+session) and a general DevOps Automator agent (installed locally from a public agent library), with a human (Sai M,
 Dinesh K) running every AWS-changing command. See `ai-logs/INDEX.md` rows "DevOps".
 
 ## Scope

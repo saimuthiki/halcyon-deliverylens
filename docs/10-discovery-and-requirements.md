@@ -44,7 +44,7 @@ is about to sign a **$680K** routing software contract within two weeks.
   This killed our "second pick wave" idea and led to the grace period and urgent window instead
   ([02](02-the-problem.md#our-questions-for-the-client-discovery), [03](03-what-the-data-says.md#the-same-day-cutoff)).
 - **Discovery round 2:** 12 data-driven questions sent in the organisers' log format:
-  [`working/discovery-question-log-round2-InfinityStacks.xlsx`](working/discovery-question-log-round2-InfinityStacks.xlsx).
+  [`reference/discovery-question-log-round2-InfinityStacks.xlsx`](reference/discovery-question-log-round2-InfinityStacks.xlsx).
   Where no answer came back, the assumption is written down (section 4).
 
 ## 2. Functional requirements

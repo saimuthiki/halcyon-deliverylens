@@ -1,3 +1,0 @@
-source: https://github.com/addyosmani/agent-skills/tree/HEAD/skills/observability-and-instrumentation
-stage: deploy
-commit: aeac41d

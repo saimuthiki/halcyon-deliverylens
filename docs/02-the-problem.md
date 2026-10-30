@@ -101,6 +101,6 @@ These are the questions that matter most now that we have the data:
 | 7 | Every late delivery in the data has a $34 redelivery cost. Is that right, or a recording rule? | It affects the cost numbers we show the CFO |
 | 8 | Three carriers have no API (D by portal, E and F by batch file). How quickly do their delivery updates arrive? | 12 of 34 complaints say "nobody told us it would be late" |
 
-Our round-2 questions are in `docs/working/discovery-question-log-round2-InfinityStacks.xlsx`.
+Our round-2 questions are in `docs/reference/discovery-question-log-round2-InfinityStacks.xlsx`.
 **Answers are pending** (due Monday 26 Oct). When they arrive we record them in the same file
 and list what each answer changed in our assumptions.

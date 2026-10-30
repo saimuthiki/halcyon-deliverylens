@@ -44,8 +44,9 @@ flowchart TB
 ```
 
 **What this shows:** three humans, each leading a small group of agents. The humans give the
-direction, review every output, and own the decisions. The agents and skills are stored in
-`.claude/agents/` and `.claude/skills/`, so every team member gets the same setup from git.
+direction, review every output, and own the decisions. Our three role agents are stored in
+`.claude/agents/` (Dev, DevOps, QA), so every team member gets the same setup from git. General-purpose skills
+from public skill libraries were installed on each laptop and are not part of this repository.
 
 ## Where the proof lives
 
@@ -53,7 +54,7 @@ direction, review every output, and own the decisions. The agents and skills are
 |---|---|---|
 | AI usage log per role | `ai-logs/` (index in `ai-logs/INDEX.md`) | `ai-logs/backend-agent-2026-10-23.md`: what the backend agent built, the skills it used, the test results |
 | AI calls made by the product | `agent_runs` table, the "Agent activity" screen, CloudWatch logs | Every Order Intake Agent call: model, time taken, tokens, guardrail flags |
-| Skills and agents available | `.claude/skills/` (95), `.claude/agents/` (43), catalogue in `tools/fde-toolkit/README.md` | `fde-design`, `c4-architecture`, `test-driven-development` |
+| Role agents | `.claude/agents/dev-agent.md`, `devops-agent.md`, `qa-agent.md` | Role, scope, inputs, outputs, guardrails |
 | Reproducible analysis | `analysis/root_cause_analysis.py` → `analysis/output/findings.json` | Re-run it and get exactly the same 71.0% / 90.2% realistic / 99.0% ceiling |
 
 ## Rules we follow when using agents

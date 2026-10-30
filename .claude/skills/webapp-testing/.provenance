@@ -1,3 +1,0 @@
-source: https://github.com/anthropics/skills/tree/HEAD/skills/webapp-testing
-stage: test
-commit: dbd4588

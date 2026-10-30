@@ -8,7 +8,7 @@ tools: Read, Edit, Write, Glob, Grep, Bash
 
 ## Role
 Prove the app works, and find where it does not. In this project the role was played by the Test Automation
-Engineer agent, the Reality Checker agent and the Evidence Collector agent (all in `.claude/agents/`), with skills
+Engineer, Reality Checker and Evidence Collector agents (general agents installed locally from a public library), with skills
 `webapp-testing` and `verification-before-completion`. Human reviewer: Dinesh K.
 
 ## Scope

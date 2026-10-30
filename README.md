@@ -59,11 +59,9 @@ Details: [docs/03-what-the-data-says.md](docs/03-what-the-data-says.md).
 | # | Document | What it covers |
 |---|---|---|
 | 0 | [Start here](docs/00-START-HERE.md) | The problem, the five causes, where the AI is, how to run it with Gemini |
-| 1 | [What the judges want](docs/01-what-the-judges-want.md) | Deadlines, the pass/fail checklist, how the 100 points are split |
 | 2 | [The problem](docs/02-the-problem.md) | Halcyon's story, how an order travels, what the stakeholder said, our questions |
 | 3 | [What the data says](docs/03-what-the-data-says.md) | The five causes, carrier lanes, the 08:00 cutoff, money, data quality |
 | 4 | [Solution and architecture](docs/04-solution-and-architecture.md) | What we build, the C4 diagrams, where each AWS service is used and when |
-| 5 | [The plan to 29 Oct](docs/05-five-day-plan.md) | Gantt chart, who does what, day-by-day tasks |
 | 6 | [AWS setup guide](docs/06-aws-setup-guide.md) | Step-by-step scripts for Monday; placeholders to fill |
 | 7 | [How we work with AI agents](docs/07-how-we-work-with-ai-agents.md) | The agent pipeline across roles, and where the proof lives |
 | 8 | [User guide](docs/08-user-guide.md) | Every screen, every button, every number, the 11 sample emails, blockers |
@@ -75,30 +73,33 @@ Details: [docs/03-what-the-data-says.md](docs/03-what-the-data-says.md).
 | 14 | [Business benefit and innovation](docs/14-business-benefit-and-innovation.md) | Before vs after, with the method, for the KPI and each innovation |
 | ★ | [Scorecard evidence map](docs/SCORECARD-EVIDENCE.md) | Every scorecard row: what to open |
 
-Word versions of every document are in [`docs/downloads/`](docs/downloads/).
-
 ## Repository map
 
 ```mermaid
 flowchart LR
   R["halcyon-deliverylens/"] --> D["data/halcyon-dataset<br/>the stakeholder's dataset"]
   R --> AN["analysis/<br/>root-cause script + findings"]
-  R --> DOC["docs/<br/>7 guides + reference files"]
+  R --> DOC["docs/<br/>guides, decisions, scorecard map"]
   R --> BE["backend/<br/>FastAPI: analytics + AI agents"]
   R --> FE["frontend/<br/>React app (13 screens)"]
+  R --> E2E["e2e/<br/>browser tests"]
   R --> IN["infra/<br/>AWS scripts, Caddy, compose"]
   R --> GH[".github/workflows/<br/>CI + deploy"]
+  R --> EV["evidence/<br/>test, scale, security proof"]
   R --> AI["ai-logs/<br/>AI usage evidence"]
-  R --> CL[".claude/ + tools/<br/>skills and agents"]
+  R --> CL[".claude/agents/<br/>Dev, DevOps, QA agents"]
+  R --> PR["deck/ + demo-video/<br/>slides and films"]
 ```
 
 **What this shows:** where everything lives.
-- `data/`: the original data, unchanged.
+- `data/`: the original data, unchanged, plus the sample order inbox.
 - `analysis/`: how we found the causes.
-- `backend/` and `frontend/`: the app.
-- `infra/`: how it goes onto AWS.
-- `docs/`: the explanations.
-- `ai-logs/`: proof of how we used AI agents.
+- `backend/` and `frontend/`: the app. `e2e/`: the browser tests.
+- `infra/` and `.github/workflows/`: how it goes onto AWS.
+- `docs/`: the explanations; `docs/SCORECARD-EVIDENCE.md` maps every scorecard row to its proof.
+- `evidence/`: test results, bad-input, scalability and security checks.
+- `ai-logs/` and `.claude/agents/`: how we used AI agents.
+- `deck/` and `demo-video/`: the pitch deck and the demo films.
 
 ## Run it on a laptop
 
