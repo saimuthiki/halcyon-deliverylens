@@ -1,0 +1,431 @@
+1
+00:00:03,102 --> 00:00:05,562
+Imagine you run a busy shop.
+
+2
+00:00:05,813 --> 00:00:08,931
+Your stock was promised for this morning.
+
+3
+00:00:09,436 --> 00:00:12,380
+You told your own customers it would be on
+
+4
+00:00:12,400 --> 00:00:14,075
+the shelf by noon.
+
+5
+00:00:14,326 --> 00:00:17,600
+Noon comes. The truck does not.
+
+6
+00:00:17,851 --> 00:00:21,421
+Nobody calls. Nobody explains.
+
+7
+00:00:22,673 --> 00:00:27,266
+At Halcyon Logistics, this happens to 29 of every 100
+
+8
+00:00:27,286 --> 00:00:28,471
+deliveries.
+
+9
+00:00:30,322 --> 00:00:33,813
+Halcyon delivers across the United States.
+
+10
+00:00:34,267 --> 00:00:39,589
+In six months: 48,340 deliveries.
+
+11
+00:00:39,840 --> 00:00:43,369
+Only 71 in 100 arrived on time.
+
+12
+00:00:43,823 --> 00:00:46,786
+The industry benchmark is 94.
+
+13
+00:00:47,038 --> 00:00:51,464
+Late deliveries cost about $1.74 million
+
+14
+00:00:51,484 --> 00:00:53,429
+a year in penalties.
+
+15
+00:00:53,680 --> 00:00:57,616
+The customer success team spends 64% of its
+
+16
+00:00:57,636 --> 00:01:01,703
+week answering complaints. And in 12 of those
+
+17
+00:01:01,723 --> 00:01:04,744
+complaints, the client says the same thing:
+
+18
+00:01:04,764 --> 00:01:06,386
+"nobody told us."
+
+19
+00:01:06,638 --> 00:01:11,631
+9 big clients, worth $14.2 million a year,
+
+20
+00:01:11,651 --> 00:01:13,635
+are thinking of leaving.
+
+21
+00:01:13,886 --> 00:01:17,552
+The plan on the table: buy new routing software,
+
+22
+00:01:17,572 --> 00:01:20,651
+for $680,000.
+
+23
+00:01:20,902 --> 00:01:23,298
+But is the route really the problem?
+
+24
+00:01:26,350 --> 00:01:28,166
+This is DeliveryLens.
+
+25
+00:01:28,417 --> 00:01:31,806
+DeliveryLens finds why deliveries are late.
+
+26
+00:01:32,285 --> 00:01:35,067
+It fixes each cause, every day.
+
+27
+00:01:35,545 --> 00:01:39,268
+And it proves the gain, with Halcyon's own data.
+
+28
+00:01:39,520 --> 00:01:43,580
+Find why. Fix it. Prove it.
+
+29
+00:01:46,431 --> 00:01:49,710
+DeliveryLens read every one of the 48,000
+
+30
+00:01:49,730 --> 00:01:50,902
+deliveries.
+
+31
+00:01:51,153 --> 00:01:55,637
+Five causes explain 28 of the 29 points lost.
+
+32
+00:01:55,888 --> 00:01:58,606
+A weak carrier on certain lanes.
+
+33
+00:01:59,073 --> 00:02:03,073
+An incomplete address. A same-day order that
+
+34
+00:02:03,093 --> 00:02:06,314
+arrives after the 08:00 pick list.
+
+35
+00:02:06,779 --> 00:02:10,154
+Stock that is not at the nearest warehouse.
+
+36
+00:02:10,593 --> 00:02:13,427
+And a driver who leaves the planned route.
+
+37
+00:02:13,679 --> 00:02:16,900
+Here is the same order, played twice.
+
+38
+00:02:17,353 --> 00:02:20,593
+Today, the nearest warehouse is empty,
+
+39
+00:02:20,613 --> 00:02:23,222
+so the truck crosses the country and arrives
+
+40
+00:02:23,242 --> 00:02:27,230
+late. With DeliveryLens, a warehouse that
+
+41
+00:02:27,250 --> 00:02:31,115
+has the stock ships it, and it arrives on time.
+
+42
+00:02:31,367 --> 00:02:34,943
+And here is the surprise. The routing tool
+
+43
+00:02:34,963 --> 00:02:38,378
+alone lifts on-time delivery to about 80.
+
+44
+00:02:38,829 --> 00:02:42,552
+Fixing the five causes lifts it to about 90.
+
+45
+00:02:42,804 --> 00:02:45,787
+You can test any mix of fixes yourself,
+
+46
+00:02:45,807 --> 00:02:47,700
+in the what-if simulator.
+
+47
+00:02:49,552 --> 00:02:54,108
+Now, the daily work. Orders arrive by email,
+
+48
+00:02:54,128 --> 00:02:58,966
+in 14 different layouts. Staff spend 44 hours
+
+49
+00:02:58,986 --> 00:03:00,983
+a week typing them in.
+
+50
+00:03:01,234 --> 00:03:03,495
+On the DeliveryLens Order desk,
+
+51
+00:03:03,515 --> 00:03:06,781
+an email goes in, and a checked warehouse
+
+52
+00:03:06,801 --> 00:03:08,321
+order comes out.
+
+53
+00:03:08,572 --> 00:03:11,600
+A safety screen checks the email first.
+
+54
+00:03:12,066 --> 00:03:14,662
+Then the AI reads it: the client,
+
+55
+00:03:14,682 --> 00:03:17,825
+the items, the address, the deadline.
+
+56
+00:03:18,077 --> 00:03:21,564
+And then the rules decide. Is the address
+
+57
+00:03:21,584 --> 00:03:25,925
+complete? Is the stock at the nearest warehouse?
+
+58
+00:03:26,390 --> 00:03:29,404
+Which carrier is strongest on this lane?
+
+59
+00:03:29,831 --> 00:03:31,647
+Can we keep the promise?
+
+60
+00:03:31,899 --> 00:03:35,559
+The AI reads. The rules decide.
+
+61
+00:03:36,050 --> 00:03:39,238
+And a person approves, before anything reaches
+
+62
+00:03:39,258 --> 00:03:41,022
+the warehouse system.
+
+63
+00:03:41,274 --> 00:03:43,786
+What if the postcode is missing?
+
+64
+00:03:44,227 --> 00:03:46,733
+DeliveryLens finds the one past delivery
+
+65
+00:03:46,753 --> 00:03:49,671
+site that matches, and asks the client to
+
+66
+00:03:49,691 --> 00:03:51,919
+confirm it with one click.
+
+67
+00:03:52,171 --> 00:03:55,546
+The client sees one address and one button.
+
+68
+00:03:56,000 --> 00:04:00,548
+No login. Confirmed, and the order moves on.
+
+69
+00:04:00,799 --> 00:04:04,542
+An order that arrives at 08:05 misses the
+
+70
+00:04:04,562 --> 00:04:08,281
+truck and waits a day. DeliveryLens adds
+
+71
+00:04:08,301 --> 00:04:12,204
+a grace hour, and an urgent window until 10:00.
+
+72
+00:04:12,656 --> 00:04:18,235
+That alone avoids about 729 late deliveries a year.
+
+73
+00:04:18,487 --> 00:04:21,585
+At 08:00 every morning, the risk board ranks
+
+74
+00:04:21,605 --> 00:04:24,382
+today's shipments by how likely they are
+
+75
+00:04:24,402 --> 00:04:27,346
+to be late, and shows the fix that is still
+
+76
+00:04:27,366 --> 00:04:28,409
+possible.
+
+77
+00:04:28,660 --> 00:04:32,215
+We tested it on two months it had never seen.
+
+78
+00:04:32,643 --> 00:04:37,443
+Of its daily top 20, 63% really were late,
+
+79
+00:04:37,463 --> 00:04:40,168
+against 29% overall.
+
+80
+00:04:40,420 --> 00:04:43,840
+Stock and routes shows, in three pictures,
+
+81
+00:04:43,860 --> 00:04:46,642
+why some orders take the long way.
+
+82
+00:04:48,494 --> 00:04:51,503
+DeliveryLens also finds the penalties Halcyon
+
+83
+00:04:51,523 --> 00:04:55,021
+paid where the carrier alone was at fault:
+
+84
+00:04:55,041 --> 00:05:01,736
+$261,900 in six months. The AI drafts the
+
+85
+00:05:01,756 --> 00:05:03,057
+claim letter.
+
+86
+00:05:03,308 --> 00:05:06,175
+For each of the 9 at-risk clients,
+
+87
+00:05:06,195 --> 00:05:08,714
+DeliveryLens writes a save plan:
+
+88
+00:05:08,734 --> 00:05:12,013
+talking points, an agenda, and an email,
+
+89
+00:05:12,033 --> 00:05:14,609
+from that client's own deliveries.
+
+90
+00:05:14,860 --> 00:05:17,495
+Every Monday, the leaders get a one-page
+
+91
+00:05:17,515 --> 00:05:21,440
+brief. Anyone can ask a question in plain
+
+92
+00:05:21,460 --> 00:05:25,306
+English. And every AI call is logged,
+
+93
+00:05:25,326 --> 00:05:28,263
+with its cost and its guardrail checks.
+
+94
+00:05:30,115 --> 00:05:34,271
+What about bad input? This email hides an
+
+95
+00:05:34,291 --> 00:05:38,105
+instruction: "ignore all previous instructions."
+
+96
+00:05:38,356 --> 00:05:41,615
+DeliveryLens blocks it at the safety screen.
+
+97
+00:05:42,031 --> 00:05:44,272
+Nothing reaches the warehouse.
+
+98
+00:05:44,523 --> 00:05:47,757
+And an unclear order is never guessed.
+
+99
+00:05:48,236 --> 00:05:50,001
+It goes to a person.
+
+100
+00:05:51,852 --> 00:05:56,460
+DeliveryLens is live on AWS. Every push runs
+
+101
+00:05:56,480 --> 00:06:01,408
+387 backend tests and 60 frontend tests,
+
+102
+00:06:01,428 --> 00:06:03,335
+then deploys itself.
+
+103
+00:06:05,186 --> 00:06:09,362
+So, back to your shop. The truck arrives.
+
+104
+00:06:09,840 --> 00:06:11,804
+And if it is going to be late,
+
+105
+00:06:11,824 --> 00:06:13,254
+you hear first.
+
+106
+00:06:13,505 --> 00:06:19,672
+From 71 to about 90 on time. About $1.4 million
+
+107
+00:06:19,692 --> 00:06:24,537
+a year. Without the $680,000 tool.
+
+108
+00:06:25,588 --> 00:06:31,375
+DeliveryLens. Find why. Fix it. Prove it.

@@ -1,4 +1,62 @@
-# DeliveryLens demo film: plan
+# DeliveryLens demo films
+
+There are two films:
+- **The full film**, `DeliveryLens-demo-full.mp4`: 6:37, narrated, with subtitles. Use it for the submission and the jury.
+- **The short teaser**, `DeliveryLens-demo.mp4`: 2:36, music only. Use it for social posts.
+
+## The full film (6:37)
+
+**Format:** 1920x1080 at 30 fps, H.264 + AAC. Subtitles are burned in and also in `DeliveryLens-demo-full.srt`, ready to upload to SharePoint.
+
+**Voice:**
+- A narrator explains every scene. The voice is Microsoft's neural Indian English male voice "Prabhat" (`edge-tts`, rate -3%).
+- The script is `narration.md`, 42 lines.
+- The narration is normalised to -16 LUFS.
+
+**Music:** an original calm score written in code (`work/score_long.py`).
+- It sits about 20 dB under the voice and ducks further while the narrator speaks.
+- It swells slightly only in the pauses between chapters.
+
+**Storytelling:**
+- **One hook:** "Imagine…".
+- **Primacy and recency:** "Find why. Fix it. Prove it." comes at 1:40 and again at the end.
+- **Frequency:** the word "DeliveryLens" repeats through every chapter.
+- **Accuracy:** every number comes from the repo's docs.
+
+**Look:** dark cinematic story scenes, drawn in code, with drifting smoke, film grain and a vignette. The app scenes are the real running app, recorded frame by frame, with slow camera moves and a chapter label. The smoke thickens at every change of shot.
+
+| Time | Chapter | Lines | Picture |
+|---|---|---|---|
+| 0:00–0:28 | Hook | 1–5 | The shop's empty loading bay at dawn; the clock reaches 12:00; "No calls. No messages."; 29 of 100 dots turn orange |
+| 0:30–1:24 | The problem | 6–12 | Night map, 48,340 deliveries; 71 vs the 94 benchmark; $1.74M a year in penalties; 64% of the week on complaints and "Nobody told us."; 9 clients, $14.2M; the $680K tag; "Is the route really the problem?" |
+| 1:26–1:44 | Reveal (primacy) | 13–15 | Logo, "DeliveryLens": finds why, fixes each cause, proves the gain; "Find why. Fix it. Prove it." |
+| 1:46–2:47 | Find why | 16–21 | Overview; Why deliveries are late; the five cause cards, named one by one; How it works map (1,700 miles become 160); Vendor decision (about 80 vs about 90); What-if simulator |
+| 2:49–4:46 | Fix it | 22–32 | 14 email layouts, 44 hours a week; Order desk end to end (safety screen, AI reads, rules decide, a person approves, WMS); missing postcode and the client's one-click page; the 08:00 clock and the grace hour (729 a year); Morning risk board (63% vs 29%); Stock & routes |
+| 4:48–5:28 | Money and clients | 33–35 | Carrier penalty recovery ($261,900); AI save plan; Weekly brief, Ask DeliveryLens, Agent activity |
+| 5:30–5:50 | Bad input | 36–38 | A prompt-injection email blocked at the safety screen; an unclear order goes to a person |
+| 5:52–6:03 | Built to go live | 39 | git push, then 387 backend tests and 60 frontend tests, then deploy to AWS; the AWS services |
+| 6:05–6:37 | Close (recency) | 40–42 | Back at the shop: the truck arrives, and a heads-up message comes first; 71 → 90, about $1.4M a year, without the $680K tool; "DeliveryLens. Find why. Fix it. Prove it."; team card |
+
+**Optional Google Flow clips:**
+- Place `flow-01.mp4` … `flow-08.mp4` in `work/flow/` (prompts in `flow-prompts.md`), then run `bash work/build_full.sh`.
+- Each clip replaces the drawn backdrop in its slot, or plays as a short intro before an app scene (05, 06, 07).
+- Without the clips, the drawn scenes are used.
+
+**Rebuild:** run `bash work/build_full.sh` (about 1 to 2 hours of frame rendering).
+
+The script runs these steps, all in `work/`:
+1. `timeline.py`: timing from the voice files, plus the `.srt`.
+2. `prep_flow.py`
+3. `score_long.py`
+4. `mix.sh`
+5. `render2.mjs` over `film.html`, in 4 parallel chunks
+6. ffmpeg encode
+
+To re-record the narration, run `vo.py` (needs `edge-tts`) on `narration.md`.
+
+---
+
+## The short teaser (2:36)
 
 **Length:** 2:36 (156.5 s), 1920x1080, 30 fps, H.264 + AAC.
 **Angle:** a short film about a decision. Halcyon is about to spend $680K on routing software. The data shows routing is not the main problem. DeliveryLens finds the real causes, fixes them in the real app, and proves the gain.
