@@ -10,9 +10,9 @@
 | | |
 |---|---|
 | **Scorecard evidence map** | **[docs/SCORECARD-EVIDENCE.md](docs/SCORECARD-EVIDENCE.md)**: every scorecard row, what to open, the evidence, our status |
-| Live website | https://main.d19tzovsk3zuvo.amplifyapp.com (login required: username - deliverylens and password - ssd@2001) |
+| Live website | https://main.d19tzovsk3zuvo.amplifyapp.com (login required: username - deliverylens and password - ssd@2001 ) |
 | Live API | https://35-175-32-49.sslip.io/api/health · API docs https://35-175-32-49.sslip.io/docs |
-| Demo video | SharePoint: <link to add> · full narrated film in the repo: [demo-video/DeliveryLens-demo-full.mp4](demo-video/DeliveryLens-demo-full.mp4) (6:37, subtitles [.srt](demo-video/DeliveryLens-demo-full.srt)) · short teaser: [DeliveryLens-demo.mp4](demo-video/DeliveryLens-demo.mp4) (2:36) |
+| Demo video | SharePoint: [Infinity Stacks folder][sharepoint-video] · full narrated film in the repo: [demo-video/DeliveryLens-demo-full.mp4](demo-video/DeliveryLens-demo-full.mp4) (6:37, subtitles [.srt](demo-video/DeliveryLens-demo-full.srt)) · short teaser: [DeliveryLens-demo.mp4](demo-video/DeliveryLens-demo.mp4) (2:36) |
 | Pitch deck | [deck/DeliveryLens-pitch.pptx](deck/DeliveryLens-pitch.pptx) |
 | Discovery and requirements | [docs/10-discovery-and-requirements.md](docs/10-discovery-and-requirements.md) |
 | Agent instruction files | [.claude/agents/dev-agent.md](.claude/agents/dev-agent.md), [devops-agent.md](.claude/agents/devops-agent.md), [qa-agent.md](.claude/agents/qa-agent.md) |
@@ -175,4 +175,6 @@ pipeline and security model: [docs/13-environments-and-security.md](docs/13-envi
 - [x] Deployed on AWS since 26 Oct, auto-deploy on every push to `main` (live links in "For the jury")
 - [x] Evidence pack ([evidence/](evidence/README.md)) and AI logs ([ai-logs/](ai-logs/INDEX.md))
 - [x] Discovery document, agent instruction files, scorecard map ([docs/SCORECARD-EVIDENCE.md](docs/SCORECARD-EVIDENCE.md))
-- [ ] Demo video link (add above)
+- [x] Demo video link (SharePoint, in "For the jury")
+
+[sharepoint-video]: https://evokemail.sharepoint.com/:f:/r/sites/LearningandDevelopmentTeam2/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FLearningandDevelopmentTeam2%2FShared%20Documents%2FHackathon%202026%2FProblem%20Statement%202%2FInfinity%20Stacks&p=true&share=cgq678yscdAtRrTilZlSXpIUEgUCWQi868GNb9yfX%2DkVSP%2Ds6Q

@@ -7,7 +7,7 @@
 > 3. Commit it with your changes, so the next person who pulls gets the current state.
 > 4. Never put secrets here (keys, passwords, `.pem` contents, `.env` values).
 
-Last updated: 2026-10-29 by Sai M (with Claude Code).
+Last updated: 2026-10-30 by Dinesh Karasu (with Claude Code).
 
 ## 1. What we are building
 - **Problem 2:** Halcyon Logistics is 71% on time (benchmark 94%), and its leaders were about to buy a $680K routing tool.
@@ -31,7 +31,7 @@ Last updated: 2026-10-29 by Sai M (with Claude Code).
 | API health | https://35-175-32-49.sslip.io/api/health |
 | API docs | https://35-175-32-49.sslip.io/docs |
 
-The **website** now asks for a username and password (Amplify basic auth, set in the AWS console on 2026-10-28; the password is not in the repo, ask the team). The **API** has no login: anyone with its URL can call it. Client address-confirmation links now open a page on the API (`/c/confirm-address/...`, `backend/app/api/client_pages.py`), so clients never see the website password prompt; the deploy sets `PUBLIC_API_URL` on the server. The weekly brief's "Open the full brief" link is for Halcyon staff and still asks for the website login.
+The **website** now asks for a username and password (Amplify basic auth, set in the AWS console on 2026-10-28; the username and password are in the README "For the jury" table for the evaluators). The **API** has no login: anyone with its URL can call it. Client address-confirmation links now open a page on the API (`/c/confirm-address/...`, `backend/app/api/client_pages.py`), so clients never see the website password prompt; the deploy sets `PUBLIC_API_URL` on the server. The weekly brief's "Open the full brief" link is for Halcyon staff and still asks for the website login.
 
 ## 3. Features built (all live and tested on AWS)
 | Feature | Where (frontend page / backend) | Status |
@@ -113,6 +113,7 @@ The **website** now asks for a username and password (Amplify basic auth, set in
 
 ## Change log
 Newest first. One line per session: date, who, what changed.
+- **2026-10-30, Dinesh Karasu + Claude Code:** website login added to the README "For the jury" table for the evaluators; demo video SharePoint link (Hackathon 2026 / Problem Statement 2 / Infinity Stacks folder) added to the README and `docs/SCORECARD-EVIDENCE.md` (rows 6.1 and checklist 4), replacing the placeholders. Still open: revoke the old Gemini key.
 - **2026-10-30, Sai M + Claude Code (20):** repository cleaned for the evaluators (1,120 → 325 tracked files): third-party Claude skills (`.claude/skills/`) and the 43 generic agents are no longer in git (they stay on each laptop, ignored; the repo keeps `dev-agent.md`, `devops-agent.md`, `qa-agent.md`); removed the skills installer `tools/`, the Word copies `docs/downloads/`, old `docs/screenshots/`, the old `brag-output/` video, internal planning docs 01 and 05, `docs/working/` notes, the organisers' webinar/kickoff files and the presentation guide (moved to the ignored `local-archive/` on Sai's laptop). The discovery question log moved to `docs/reference/`. README repository map updated; all Markdown links checked.
 - **2026-10-30, Sai M + Claude Code (19):** full narrated film `demo-video/DeliveryLens-demo-full.mp4` (6:37, Indian English narrator, burned-in subtitles + `.srt`, 8 Google Flow (Veo) clips, the real app; script `demo-video/narration.md`, Flow prompts `demo-video/flow-prompts.md`, plan `demo-video/video-plan.md`); README, scorecard 6.1 and the guide now point to it. Presentation round guide (kept out of the repo, shared in the team; 30-min run sheet, demo + fallback, 25+ jury questions, morning checklist). Still open: SharePoint link, revoke the old Gemini key, use a phone hotspot for the live demo (30 AI calls/min per IP).
 - **2026-10-29, Sai M + Claude Code (18):** submission pack against the jury scorecard: `docs/SCORECARD-EVIDENCE.md` (every row, what to open, status), new docs 10 (discovery and requirements, traceability, 30 edge cases to tests), 11 (decision log), 12 (scalability and roadmap), 13 (environments and security), 14 (business benefit and innovation); Dev, DevOps and QA agent files in `.claude/agents/`; evidence: bad inputs (33 cases, 0 server errors), scalability at 10x (483,400 deliveries), clean-clone setup, fresh test and secrets-scan output. API now rejects blank (only spaces) emails, questions and replies. Pitch deck rebuilt: 15 simple slides with speaker notes. README: For the jury section. Demo film `demo-video/DeliveryLens-demo.mp4` (2:36, cinematic: problem, causes, real app, bad input, impact; storyboard in `demo-video/video-plan.md`). Still open: SharePoint link for the video, revoke the old Gemini key.
