@@ -1,0 +1,3 @@
+source: https://github.com/secondsky/claude-skills/tree/HEAD/plugins/motion/skills/motion
+stage: build
+commit: 88378361

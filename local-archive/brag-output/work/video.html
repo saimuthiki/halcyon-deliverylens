@@ -1,0 +1,271 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: Barlow; font-weight: 400; src: url(fonts/barlow-latin-400-normal.woff2); }
+  @font-face { font-family: Barlow; font-weight: 500; src: url(fonts/barlow-latin-500-normal.woff2); }
+  @font-face { font-family: Barlow; font-weight: 600; src: url(fonts/barlow-latin-600-normal.woff2); }
+  @font-face { font-family: Barlow; font-weight: 700; src: url(fonts/barlow-latin-700-normal.woff2); }
+  @font-face { font-family: Barlow; font-weight: 800; src: url(fonts/barlow-latin-800-normal.woff2); }
+  :root {
+    --ink: #15212B; --ink-soft: #3A4852; --paper: #F3F5F4; --surface: #FFFFFF; --line: #D9DFDD;
+    --slate: #5E6B75; --route: #0E6B63; --route-dark: #0A524C; --route-tint: #E3F1EE;
+    --late: #A84F0B; --late-tint: #FBEEE2; --ai: #5B47B0; --ai-tint: #EEEBF9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--paper); }
+  body { font-family: Barlow, system-ui, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums lining-nums; }
+  .scene { position: absolute; inset: 0; opacity: 0; will-change: opacity, transform; }
+  .abs { position: absolute; }
+  .word { display: inline-block; opacity: 0; }
+  /* background texture: faint route grid */
+  #bg { position: absolute; inset: 0; background-image:
+      linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 96px 96px; opacity: .35; }
+
+  /* 1 hook */
+  #s1 .kicker { left: 0; right: 0; top: 230px; text-align: center; font-size: 34px; font-weight: 600; color: var(--slate); letter-spacing: .14em; text-transform: uppercase; }
+  #price { left: 0; right: 0; top: 300px; text-align: center; font-size: 300px; font-weight: 800; color: var(--late); line-height: 1; letter-spacing: -.02em; }
+  #strike { left: 560px; top: 455px; height: 22px; width: 800px; background: var(--route); border-radius: 11px; transform-origin: left center; }
+  #s1 .sub { left: 0; right: 0; top: 680px; text-align: center; font-size: 64px; font-weight: 600; color: var(--ink); }
+
+  /* 2 reveal */
+  #logo { left: 0; right: 0; top: 270px; margin: 0 auto; width: 200px; height: 200px; }
+  #s2 .name { left: 0; right: 0; top: 500px; text-align: center; font-size: 140px; font-weight: 700; letter-spacing: -.02em; }
+  #s2 .tag { left: 0; right: 0; top: 690px; text-align: center; font-size: 64px; font-weight: 600; color: var(--route); }
+
+  /* 3 why late */
+  #s3 .head { left: 160px; top: 96px; font-size: 76px; font-weight: 700; letter-spacing: -.01em; }
+  #s3 .head b { color: var(--late); font-weight: 800; }
+  #chart { left: 160px; top: 260px; width: 1600px; height: 720px; }
+  .bar { position: absolute; bottom: 0; border-radius: 6px 6px 0 0; transform-origin: bottom; }
+  .bval { position: absolute; width: 100%; text-align: center; font-size: 36px; font-weight: 700; }
+  .blab { position: absolute; top: 650px; width: 100%; text-align: center; font-size: 26px; font-weight: 500; color: var(--slate); line-height: 1.15; }
+  .col { position: absolute; top: 0; height: 640px; width: 190px; }
+  #bench { position: absolute; left: 0; right: 0; height: 0; border-top: 3px dashed var(--slate); }
+  #bench span { position: absolute; left: 0; top: -40px; font-size: 26px; font-weight: 600; color: var(--slate); }
+  #axis { position: absolute; left: 0; right: 0; top: 640px; height: 3px; background: var(--ink-soft); }
+
+  /* 4 order desk */
+  #s4 .l1 { left: 160px; top: 310px; font-size: 74px; font-weight: 700; line-height: 1.05; letter-spacing: -.01em; }
+  #s4 .l2 { left: 160px; top: 540px; font-size: 48px; font-weight: 600; line-height: 1.35; }
+  #s4 .l2 .ai { color: var(--ai); } #s4 .l2 .rule { color: var(--route); }
+  #trace { left: 990px; top: 110px; width: 780px; height: 860px; background: var(--surface); border: 2px solid var(--line); border-radius: 16px; padding: 34px 40px; box-shadow: 0 30px 60px -30px rgba(21,33,43,.25); }
+  #trace .t { font-size: 24px; font-weight: 700; color: var(--slate); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 22px; }
+  #trace img { display: block; width: 700px; opacity: 0; }
+
+  /* 5 carrier */
+  #s5 .head { left: 0; right: 0; top: 110px; text-align: center; font-size: 76px; font-weight: 700; }
+  .card { top: 270px; width: 700px; height: 520px; background: var(--surface); border: 3px solid var(--line); border-radius: 22px; padding: 44px 52px; }
+  .card .lab { font-size: 30px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .card .cn { font-size: 92px; font-weight: 800; margin-top: 10px; line-height: 1; }
+  .card .rate { font-size: 40px; font-weight: 500; color: var(--ink-soft); margin-top: 14px; }
+  .card .pct { font-size: 150px; font-weight: 800; line-height: 1; margin-top: 30px; }
+  .card .pct small { font-size: 44px; font-weight: 600; color: var(--ink-soft); margin-left: 10px; }
+  .chip { display: inline-block; margin-top: 18px; padding: 8px 20px; border-radius: 999px; font-size: 30px; font-weight: 700; }
+  #cardF { left: 210px; } #cardE { left: 1010px; border-color: var(--route); }
+  #cardF .lab, #cardF .pct { color: var(--late); } #cardF .chip { background: var(--late-tint); color: var(--late); }
+  #cardE .lab, #cardE .pct { color: var(--route); } #cardE .chip { background: var(--route-tint); color: var(--route); }
+  #xF { left: 250px; top: 410px; width: 420px; height: 12px; background: var(--late); border-radius: 7px; transform-origin: left; transform: rotate(-5deg) scaleX(0); }
+  #arrow { left: 912px; top: 440px; font-size: 110px; font-weight: 800; color: var(--route); }
+  #s5 .foot { left: 0; right: 0; top: 860px; text-align: center; font-size: 60px; font-weight: 700; }
+  #s5 .foot .g { color: var(--route); }
+
+  /* 6 punchline */
+  #s6 .nums { left: 0; right: 0; top: 170px; text-align: center; font-size: 260px; font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+  #from { color: var(--late); } #to { color: var(--route); } #s6 .arr { color: var(--slate); font-weight: 600; margin: 0 40px; font-size: 180px; }
+  #s6 .ot { left: 0; right: 0; top: 450px; text-align: center; font-size: 56px; font-weight: 600; color: var(--ink-soft); }
+  #s6 .money { left: 0; right: 0; top: 590px; text-align: center; font-size: 84px; font-weight: 700; }
+  #s6 .money .no { color: var(--route); }
+  #sign { left: 0; right: 0; top: 820px; display: flex; justify-content: center; align-items: center; gap: 26px; }
+  #sign svg { width: 88px; height: 88px; }
+  #sign .n { font-size: 56px; font-weight: 700; }
+  #sign .m { font-size: 34px; font-weight: 500; color: var(--slate); border-left: 3px solid var(--line); padding-left: 26px; }
+</style>
+</head>
+<body>
+<div id="bg"></div>
+
+<section class="scene" id="s1">
+  <div class="abs kicker" id="kick">Halcyon Logistics · the plan on the table</div>
+  <div class="abs" id="price">$680K</div>
+  <div class="abs" id="strike"></div>
+  <div class="abs sub" data-words>on routing software, to fix late deliveries.</div>
+</section>
+
+<section class="scene" id="s2">
+  <svg class="abs" id="logo" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#15212B"/>
+    <path d="M7 21h12" stroke="#5E6B75" stroke-width="3" stroke-linecap="round"/>
+    <path id="lgo" d="M7 21h6" stroke="#A84F0B" stroke-width="3" stroke-linecap="round" pathLength="1" stroke-dasharray="1" />
+    <circle id="lgc" cx="23" cy="11" r="4" fill="#0E6B63"/>
+    <path id="lgt" d="M19 21c3 0 4-2 4-6" stroke="#0E6B63" stroke-width="3" fill="none" stroke-linecap="round" pathLength="1" stroke-dasharray="1"/></svg>
+  <div class="abs name">DeliveryLens</div>
+  <div class="abs tag" data-words>found the real problem first.</div>
+</section>
+
+<section class="scene" id="s3">
+  <div class="abs head" data-words>Five causes. <b>28</b> of the <b>29</b> points lost.</div>
+  <div class="abs" id="chart"><div id="bench"><span>Benchmark 94%</span></div><div id="axis"></div></div>
+</section>
+
+<section class="scene" id="s4">
+  <div class="abs l1" data-words>Client email in.<br>Warehouse order out.</div>
+  <div class="abs l2"><span class="ai">AI reads the email.</span><br><span class="rule">Rules make the call.</span></div>
+  <div class="abs" id="trace"><div class="t">Pipeline trace · email M01</div>
+    <img src="ui/step-extract.png"><img src="ui/step-address_check.png"><img src="ui/step-promise_check.png">
+    <img src="ui/step-stock_check.png"><img src="ui/step-carrier_choice.png"><img src="ui/step-decision.png">
+    <img src="ui/step-client_message.png"></div>
+</section>
+
+<section class="scene" id="s5">
+  <div class="abs head">Same order. Better carrier.</div>
+  <div class="abs card" id="cardF"><div class="lab">Spreadsheet pick</div><div class="cn">Carrier F</div>
+    <div class="rate">$10.50 per shipment</div><div class="pct">56%<small>on time</small></div><div class="chip">Weak lane to the Northeast</div></div>
+  <div class="abs" id="xF"></div>
+  <div class="abs" id="arrow">→</div>
+  <div class="abs card" id="cardE"><div class="lab">DeliveryLens pick</div><div class="cn">Carrier E</div>
+    <div class="rate">$12.00 per shipment</div><div class="pct">77%<small>on time</small></div><div class="chip">Reliable lane</div></div>
+  <div class="abs foot"><span class="g">+21 points</span> on time for $1.50 more.</div>
+</section>
+
+<section class="scene" id="s6">
+  <div class="abs nums"><span id="from">71%</span><span class="arr">→</span><span id="to">71%</span></div>
+  <div class="abs ot">on-time delivery, realistic plan</div>
+  <div class="abs money">≈ $1.4M a year. <span class="no">No $680K tool.</span></div>
+  <div class="abs" id="sign">
+    <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#15212B"/><path d="M7 21h12" stroke="#5E6B75" stroke-width="3" stroke-linecap="round"/><path d="M7 21h6" stroke="#A84F0B" stroke-width="3" stroke-linecap="round"/><circle cx="23" cy="11" r="4" fill="#0E6B63"/><path d="M19 21c3 0 4-2 4-6" stroke="#0E6B63" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <div class="n">DeliveryLens</div><div class="m">Team InfinityStacks · EvoHack 2026</div>
+  </div>
+</section>
+
+<script>
+const BEAT = 0.5;
+const SCENES = [ ['s1', 0, 3.5], ['s2', 3.5, 6.0], ['s3', 6.0, 10.0], ['s4', 10.0, 14.5], ['s5', 14.5, 18.0], ['s6', 18.0, 21.5] ];
+const DURATION = 21.5;
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, start, dur) => clamp((t - start) / dur);
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const easeInOut = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const back = (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+
+// split [data-words] into word spans (keeps <b>/<br>)
+document.querySelectorAll('[data-words]').forEach((el) => {
+  const walk = (node) => [...node.childNodes].forEach((n) => {
+    if (n.nodeType === 3) {
+      const frag = document.createDocumentFragment();
+      n.textContent.split(/(\s+)/).forEach((w) => {
+        if (!w) return;
+        if (/^\s+$/.test(w)) frag.appendChild(document.createTextNode(w));
+        else { const s = document.createElement('span'); s.className = 'word'; s.textContent = w; frag.appendChild(s); }
+      });
+      n.replaceWith(frag);
+    } else if (n.nodeType === 1 && n.tagName !== 'BR') walk(n);
+  });
+  walk(el);
+});
+function words(sel, t, start, step = 0.07) {
+  document.querySelectorAll(`${sel} .word`).forEach((w, i) => {
+    const p = easeOut(prog(t, start + i * step, 0.25));
+    w.style.opacity = p; w.style.transform = `translateY(${(1 - p) * 24}px)`;
+  });
+}
+
+// waterfall data straight from the app (Why deliveries are late)
+const BARS = [
+  { label: 'Today', from: 60, to: 71.0, val: '71.0%', c: 'var(--late)' },
+  { label: 'Weak carrier<br>on lane', from: 71.0, to: 78.7, val: '+7.7', c: 'var(--route)' },
+  { label: 'Incomplete<br>address', from: 78.7, to: 85.6, val: '+6.9', c: 'var(--route)' },
+  { label: 'Same-day order<br>after 08:00', from: 85.6, to: 91.0, val: '+5.4', c: 'var(--route)' },
+  { label: 'Stock not at<br>nearest warehouse', from: 91.0, to: 95.9, val: '+4.9', c: 'var(--route)' },
+  { label: 'Route<br>deviation', from: 95.9, to: 99.0, val: '+3.1', c: 'var(--route)' },
+];
+const Y = (pct) => 640 - (pct - 60) / 40 * 640;
+const chart = $('#chart');
+BARS.forEach((b, i) => {
+  const col = document.createElement('div'); col.className = 'col'; col.style.left = `${40 + i * 262}px`;
+  col.innerHTML = `<div class="bar" style="background:${b.c};left:0;right:0;top:${Y(b.to)}px;height:${Y(b.from) - Y(b.to)}px"></div>
+    <div class="bval" style="top:${Y(b.to) - 50}px;color:${i ? 'var(--route-dark)' : 'var(--late)'}">${b.val}</div><div class="blab">${b.label}</div>`;
+  chart.appendChild(col);
+});
+$('#bench').style.top = `${Y(94)}px`;
+const cols = [...document.querySelectorAll('.col')];
+
+window.DURATION = DURATION;
+window.render = (t) => {
+  // scenes: dip through paper (out 0.2s, in 0.25s)
+  for (const [id, a, b] of SCENES) {
+    const el = document.getElementById(id);
+    const last = id === 's6';
+    const o = Math.min(easeOut(prog(t, a, 0.25)), last ? 1 : 1 - prog(t, b - 0.2, 0.2));
+    el.style.opacity = t >= a && t < b + (last ? 1 : 0) ? o : 0;
+    el.style.transform = `translateY(${(1 - easeOut(prog(t, a, 0.35))) * 30}px)`;
+  }
+  $('#bg').style.transform = `translate(${-(t * 14) % 96}px, ${-(t * 6) % 96}px)`;
+
+  // 1 hook: slam on beat 0, words from beat 1, teal strike on beat 5
+  const slam = prog(t, 0, 0.3);
+  $('#price').style.transform = `scale(${1.35 - .35 * back(slam)}) rotate(${(1 - easeOut(prog(t, 0.3, 0.6))) * -2 - 2 * easeOut(prog(t, 1.5, 0.4))}deg)`;
+  $('#price').style.opacity = clamp(slam * 3);
+  $('#kick').style.opacity = easeOut(prog(t, 0.25, 0.3));
+  words('#s1 .sub', t, 0.5, 0.08);
+  $('#strike').style.transform = `rotate(-6deg) scaleX(${easeInOut(prog(t, 2.5, 0.3))})`;
+
+  // 2 reveal: route line draws, name rises, tag words
+  $('#lgo').style.strokeDashoffset = 1 - easeOut(prog(t, 3.6, 0.4));
+  $('#lgt').style.strokeDashoffset = 1 - easeOut(prog(t, 3.9, 0.45));
+  $('#lgc').style.transform = `scale(${back(prog(t, 4.2, 0.3))})`; $('#lgc').style.transformOrigin = '23px 11px';
+  $('#logo').style.transform = `scale(${0.85 + 0.15 * back(prog(t, 3.5, 0.4))})`;
+  const nm = easeOut(prog(t, 3.75, 0.35));
+  $('#s2 .name').style.opacity = nm; $('#s2 .name').style.transform = `translateY(${(1 - nm) * 40}px)`;
+  words('#s2 .tag', t, 4.25, 0.08);
+
+  // 3 why late: headline, then one bar per beat
+  words('#s3 .head', t, 6.1, 0.06);
+  $('#bench').style.opacity = easeOut(prog(t, 6.5, 0.3));
+  cols.forEach((c, i) => {
+    const p = prog(t, 6.5 + i * BEAT, 0.35);
+    c.querySelector('.bar').style.transform = `scaleY(${back(p)})`;
+    c.querySelector('.bar').style.opacity = p > 0 ? 1 : 0;
+    c.querySelector('.bval').style.opacity = easeOut(prog(t, 6.5 + i * BEAT + 0.2, 0.2));
+    c.querySelector('.blab').style.opacity = easeOut(prog(t, 6.5 + i * BEAT, 0.25));
+  });
+
+  // 4 order desk: copy, then one real trace card per beat
+  words('#s4 .l1', t, 10.1, 0.07);
+  const l2 = easeOut(prog(t, 10.6, 0.3));
+  $('#s4 .l2').style.opacity = l2; $('#s4 .l2').style.transform = `translateY(${(1 - l2) * 20}px)`;
+  const tr = easeOut(prog(t, 10.0, 0.4));
+  $('#trace').style.transform = `translateX(${(1 - tr) * 120}px)`;
+  document.querySelectorAll('#trace img').forEach((img, i) => {
+    const p = prog(t, 10.5 + i * BEAT, 0.3);
+    img.style.opacity = easeOut(p); img.style.transform = `translateX(${(1 - back(p)) * 60}px)`;
+  });
+
+  // 5 carrier: F, then E on the next beat, F crossed out, payoff line
+  const f = back(prog(t, 14.6, 0.35)), e = back(prog(t, 15.0, 0.35));
+  $('#cardF').style.opacity = clamp(prog(t, 14.6, 0.2)); $('#cardF').style.transform = `translateY(${(1 - f) * 60}px)`;
+  $('#cardE').style.opacity = clamp(prog(t, 15.0, 0.2)); $('#cardE').style.transform = `translateY(${(1 - e) * 60}px) scale(${1 + 0.03 * easeOut(prog(t, 15.5, 0.3))})`;
+  $('#arrow').style.opacity = easeOut(prog(t, 15.0, 0.25));
+  $('#xF').style.transform = `rotate(-5deg) scaleX(${easeInOut(prog(t, 15.5, 0.3))})`;
+  $('#cardF').style.filter = `saturate(${1 - 0.5 * prog(t, 15.5, 0.3)})`;
+  $('#s5 .head').style.opacity = easeOut(prog(t, 14.55, 0.3));
+  const ft = easeOut(prog(t, 15.5, 0.3));
+  $('#s5 .foot').style.opacity = ft; $('#s5 .foot').style.transform = `translateY(${(1 - ft) * 24}px)`;
+
+  // 6 punchline: count 71 -> 90 over two beats, money, sign-off
+  const c = easeInOut(prog(t, 18.5, 1.0));
+  $('#to').textContent = `${Math.round(71 + 19 * c)}%`;
+  $('#to').style.color = c < 1 ? 'var(--ink)' : 'var(--route)';
+  $('#s6 .ot').style.opacity = easeOut(prog(t, 18.3, 0.3));
+  const m = easeOut(prog(t, 19.5, 0.3));
+  $('#s6 .money').style.opacity = m; $('#s6 .money').style.transform = `translateY(${(1 - m) * 24}px)`;
+  const sg = easeOut(prog(t, 20.0, 0.35));
+  $('#sign').style.opacity = sg; $('#sign').style.transform = `translateY(${(1 - sg) * 30}px)`;
+};
+window.ready = Promise.all([...[400, 500, 600, 700, 800].map((w) => document.fonts.load(`${w} 40px Barlow`)), document.fonts.ready,...[...document.images].map((i) => i.decode().catch(() => {}))]);
+render(0);
+</script>
+</body>
+</html>

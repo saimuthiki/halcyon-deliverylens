@@ -1,0 +1,373 @@
+- generic [ref=f1e3]:
+  - link "Skip to content" [ref=f1e4] [cursor=pointer]:
+    - /url: "#main"
+  - complementary [ref=f1e5]:
+    - generic [ref=f1e6]:
+      - generic [ref=f1e12]:
+        - generic [ref=f1e13]: DeliveryLens
+        - generic [ref=f1e14]: Halcyon Logistics
+      - generic [ref=f1e117]: "AI: Mock (canned)"
+    - navigation "Main" [ref=f1e16]:
+      - generic [ref=f1e17]:
+        - generic [ref=f1e18]: Start here
+        - list [ref=f1e19]:
+          - listitem [ref=f1e20]:
+            - link "How it works" [ref=f1e21] [cursor=pointer]:
+              - /url: /how-it-works
+      - generic [ref=f1e24]:
+        - generic [ref=f1e25]: The decision
+        - list [ref=f1e26]:
+          - listitem [ref=f1e27]:
+            - link "Overview" [ref=f1e28] [cursor=pointer]:
+              - /url: /overview
+          - listitem [ref=f1e31]:
+            - link "Why deliveries are late" [ref=f1e32] [cursor=pointer]:
+              - /url: /why-late
+          - listitem [ref=f1e37]:
+            - link "Vendor decision" [ref=f1e38] [cursor=pointer]:
+              - /url: /vendor
+          - listitem [ref=f1e43]:
+            - link "What-if simulator" [ref=f1e44] [cursor=pointer]:
+              - /url: /what-if
+          - listitem [ref=f1e48]:
+            - link "Late same-day orders" [ref=f1e49] [cursor=pointer]:
+              - /url: /late-orders
+      - generic [ref=f1e53]:
+        - generic [ref=f1e54]: Operations
+        - list [ref=f1e55]:
+          - listitem [ref=f1e56]:
+            - link "Carriers" [ref=f1e57] [cursor=pointer]:
+              - /url: /carriers
+          - listitem [ref=f1e64]:
+            - link "At-risk clients" [ref=f1e65] [cursor=pointer]:
+              - /url: /clients
+          - listitem [ref=f1e70]:
+            - link "Stock & routes" [ref=f1e71] [cursor=pointer]:
+              - /url: /stock-routes
+          - listitem [ref=f1e75]:
+            - link "Morning risk board" [ref=f1e76] [cursor=pointer]:
+              - /url: /risk-board
+      - generic [ref=f1e82]:
+        - generic [ref=f1e83]: AI agents
+        - list [ref=f1e84]:
+          - listitem [ref=f1e85]:
+            - link "Order desk (live)" [ref=f1e86] [cursor=pointer]:
+              - /url: /order-desk
+          - listitem [ref=f1e90]:
+            - link "Order intake agent" [ref=f1e91] [cursor=pointer]:
+              - /url: /order-intake
+          - listitem [ref=f1e95]:
+            - link "Weekly brief (COO, CFO)" [ref=f1e96] [cursor=pointer]:
+              - /url: /weekly-brief
+          - listitem [ref=f1e100]:
+            - link "Ask DeliveryLens" [ref=f1e101] [cursor=pointer]:
+              - /url: /ask
+          - listitem [ref=f1e104]:
+            - link "Agent activity" [ref=f1e105] [cursor=pointer]:
+              - /url: /activity
+    - paragraph [ref=f1e108]: 48,340 deliveries1 Apr – 25 Sep 2026
+  - main [ref=f1e109]:
+    - generic [ref=f1e122]:
+      - heading "Carrier D is weak in every region. E and F are weak on three lanes." [level=1] [ref=f1e123]
+      - paragraph [ref=f1e124]: Carriers A, B and C deliver about 75% on time everywhere. Moving the 7 weak lanes to the best carrier for each region is worth 7.7 points, the largest single cause, and needs no new software.
+    - region "What am I looking at?" [ref=f1e125]:
+      - button "What am I looking at? A plain-English key to this page" [ref=f1e126] [cursor=pointer]:
+        - generic [ref=f1e130]: What am I looking at?
+        - generic [ref=f1e131]: A plain-English key to this page
+    - generic [ref=f1e134]:
+      - region "Where each carrier delivers on time" [ref=f1e135]:
+        - generic [ref=f1e136]:
+          - heading "Where each carrier delivers on time" [level=2] [ref=f1e137]
+          - paragraph [ref=f1e138]: On-time rate by carrier and destination region
+        - table [ref=f1e140]:
+          - rowgroup [ref=f1e141]:
+            - row [ref=f1e142]:
+              - columnheader "Region" [ref=f1e143]
+              - columnheader "Carrier A" [ref=f1e144]
+              - columnheader "Carrier B" [ref=f1e145]
+              - columnheader "Carrier C" [ref=f1e146]
+              - columnheader "Carrier D" [ref=f1e147]
+              - columnheader "Carrier E" [ref=f1e148]
+              - columnheader "Carrier F" [ref=f1e149]
+              - columnheader "Recommended" [ref=f1e150]
+          - rowgroup [ref=f1e151]:
+            - row [ref=f1e152]:
+              - rowheader "Midwest" [ref=f1e153]
+              - cell "75%" [ref=f1e154]
+              - cell "75%" [ref=f1e155]
+              - cell "76% (recommended)" [ref=f1e156]:
+                - text: 76%
+                - generic [ref=f1e157]: (recommended)
+              - cell "53% (weak lane)" [ref=f1e158]:
+                - text: 53%
+                - generic [ref=f1e159]: (weak lane)
+              - cell "75%" [ref=f1e160]
+              - cell "75%" [ref=f1e161]
+              - cell "Carrier C instead of D" [ref=f1e162]:
+                - generic [ref=f1e163]:
+                  - generic [ref=f1e164]: Carrier C
+                  - generic [ref=f1e165]: instead of D
+            - row [ref=f1e166]:
+              - rowheader "Northeast" [ref=f1e167]
+              - cell "76%" [ref=f1e168]
+              - cell "74%" [ref=f1e169]
+              - cell "76%" [ref=f1e170]
+              - cell "67% (weak lane)" [ref=f1e171]:
+                - text: 67%
+                - generic [ref=f1e172]: (weak lane)
+              - cell "77% (recommended)" [ref=f1e173]:
+                - text: 77%
+                - generic [ref=f1e174]: (recommended)
+              - cell "56% (weak lane)" [ref=f1e175]:
+                - text: 56%
+                - generic [ref=f1e176]: (weak lane)
+              - cell "Carrier E instead of F" [ref=f1e177]:
+                - generic [ref=f1e178]:
+                  - generic [ref=f1e179]: Carrier E
+                  - generic [ref=f1e180]: instead of F
+            - row [ref=f1e181]:
+              - rowheader "Southeast" [ref=f1e182]
+              - cell "75%" [ref=f1e183]
+              - cell "76% (recommended)" [ref=f1e184]:
+                - text: 76%
+                - generic [ref=f1e185]: (recommended)
+              - cell "74%" [ref=f1e186]
+              - cell "55% (weak lane)" [ref=f1e187]:
+                - text: 55%
+                - generic [ref=f1e188]: (weak lane)
+              - cell "74%" [ref=f1e189]
+              - cell "53% (weak lane)" [ref=f1e190]:
+                - text: 53%
+                - generic [ref=f1e191]: (weak lane)
+              - cell "Carrier B instead of F" [ref=f1e192]:
+                - generic [ref=f1e193]:
+                  - generic [ref=f1e194]: Carrier B
+                  - generic [ref=f1e195]: instead of F
+            - row [ref=f1e196]:
+              - rowheader "West" [ref=f1e197]
+              - cell "74%" [ref=f1e198]
+              - cell "77% (recommended)" [ref=f1e199]:
+                - text: 77%
+                - generic [ref=f1e200]: (recommended)
+              - cell "74%" [ref=f1e201]
+              - cell "67% (weak lane)" [ref=f1e202]:
+                - text: 67%
+                - generic [ref=f1e203]: (weak lane)
+              - cell "54% (weak lane)" [ref=f1e204]:
+                - text: 54%
+                - generic [ref=f1e205]: (weak lane)
+              - cell "76%" [ref=f1e206]
+              - cell "Carrier B instead of E" [ref=f1e207]:
+                - generic [ref=f1e208]:
+                  - generic [ref=f1e209]: Carrier B
+                  - generic [ref=f1e210]: instead of E
+        - generic [ref=f1e211]:
+          - generic [ref=f1e212]: "Weak lane: well below the other carriers once other causes are taken out"
+          - generic [ref=f1e214]: 60–70%
+          - generic [ref=f1e216]: 70% and above
+          - generic [ref=f1e218]: Best carrier for the region
+      - region "Carrier scorecard" [ref=f1e220]:
+        - generic [ref=f1e222]:
+          - heading "Carrier scorecard" [level=2] [ref=f1e223]
+          - paragraph [ref=f1e224]: All deliveries, 6 months
+        - table [ref=f1e226]:
+          - rowgroup [ref=f1e227]:
+            - row [ref=f1e228]:
+              - columnheader "Carrier" [ref=f1e229]
+              - columnheader "Deliveries" [ref=f1e230]
+              - columnheader "On time" [ref=f1e231]
+              - columnheader "Base rate" [ref=f1e232]
+              - columnheader "Delivery events" [ref=f1e233]
+              - columnheader "Weak regions" [ref=f1e234]
+          - rowgroup [ref=f1e235]:
+            - row [ref=f1e236]:
+              - cell "Carrier A" [ref=f1e237]
+              - cell "10,650" [ref=f1e238]
+              - cell "75.2%" [ref=f1e239]
+              - cell "$14.00" [ref=f1e240]
+              - cell "Live API" [ref=f1e241]
+              - cell "None" [ref=f1e242]
+            - row [ref=f1e243]:
+              - cell "Carrier B" [ref=f1e244]
+              - cell "9,762" [ref=f1e245]
+              - cell "75.3%" [ref=f1e246]
+              - cell "$13.50" [ref=f1e247]
+              - cell "Live API" [ref=f1e248]
+              - cell "None" [ref=f1e249]
+            - row [ref=f1e250]:
+              - cell "Carrier C" [ref=f1e251]
+              - cell "6,745" [ref=f1e252]
+              - cell "75.3%" [ref=f1e253]
+              - cell "$15.00" [ref=f1e254]
+              - cell "Live API" [ref=f1e255]
+              - cell "None" [ref=f1e256]
+            - row [ref=f1e257]:
+              - cell "Carrier D" [ref=f1e258]
+              - cell "8,928" [ref=f1e259]
+              - cell "60.5%" [ref=f1e260]
+              - cell "$11.50" [ref=f1e261]
+              - cell "Portal only" [ref=f1e262]
+              - cell "Midwest, Northeast, Southeast, West" [ref=f1e263]
+            - row [ref=f1e264]:
+              - cell "Carrier E" [ref=f1e265]
+              - cell "5,334" [ref=f1e266]
+              - cell "70.0%" [ref=f1e267]
+              - cell "$12.00" [ref=f1e268]
+              - cell "Batch file" [ref=f1e269]
+              - cell "West" [ref=f1e270]
+            - row [ref=f1e271]:
+              - cell "Carrier FPreferred supplier" [ref=f1e272]
+              - cell "6,921" [ref=f1e273]
+              - cell "68.5%" [ref=f1e274]
+              - cell "$10.50" [ref=f1e275]
+              - cell "Batch file" [ref=f1e276]
+              - cell "Northeast, Southeast" [ref=f1e277]
+        - paragraph [ref=f1e278]: The three weakest carriers are also the cheapest and the only ones without a live delivery-event API, so Halcyon learns about their delays last. Carrier D, weak everywhere, reports delays only through a portal. Carrier F holds the preferred-supplier agreement despite being weak in 2 regions; it can keep the regions where it performs well.
+    - region "Recover penalties the carriers caused" [ref=f1e280]:
+      - generic [ref=f1e281]:
+        - generic [ref=f1e282]:
+          - heading "Recover penalties the carriers caused" [level=2] [ref=f1e283]
+          - paragraph [ref=f1e284]: 2026-04-01 to 2026-09-25
+        - paragraph [ref=f1e285]: "Halcyon paid $872K in SLA penalties. For $262K of it the carrier alone was at fault: Halcyon handed the order over on time with a complete address and stock at the nearest warehouse, and the carrier ran a weak lane or drove well beyond the planned route. Shared-fault deliveries are not claimed."
+      - table [ref=f1e287]:
+        - rowgroup [ref=f1e288]:
+          - row [ref=f1e289]:
+            - columnheader "Carrier" [ref=f1e290]
+            - columnheader "Claimable" [ref=f1e291]
+            - columnheader "Deliveries" [ref=f1e292]
+            - columnheader "Route beyond plan" [ref=f1e293]
+            - columnheader "Shared fault (not claimed)" [ref=f1e294]
+            - columnheader "Claim" [ref=f1e295]
+        - rowgroup [ref=f1e297]:
+          - row [ref=f1e298]:
+            - cell "Carrier D" [ref=f1e299]
+            - cell "$129K" [ref=f1e300]
+            - cell "715" [ref=f1e304]
+            - cell "65" [ref=f1e305]
+            - cell "451 · $81K" [ref=f1e306]
+            - cell [ref=f1e307]:
+              - button "Draft claim" [ref=f1e308] [cursor=pointer]
+          - row [ref=f1e312]:
+            - cell "Carrier F" [ref=f1e313]
+            - cell "$51K" [ref=f1e314]
+            - cell "284" [ref=f1e318]
+            - cell "47" [ref=f1e319]
+            - cell "108 · $19K" [ref=f1e320]
+            - cell [ref=f1e321]:
+              - button "Draft claim" [ref=f1e322] [cursor=pointer]
+          - row [ref=f1e326]:
+            - cell "Carrier E" [ref=f1e327]
+            - cell "$36K" [ref=f1e328]
+            - cell "198" [ref=f1e332]
+            - cell "40" [ref=f1e333]
+            - cell "70 · $13K" [ref=f1e334]
+            - cell [ref=f1e335]:
+              - button "Draft claim" [ref=f1e336] [cursor=pointer]
+          - row [ref=f1e340]:
+            - cell "Carrier A" [ref=f1e341]
+            - cell "$18K" [ref=f1e342]
+            - cell "100" [ref=f1e346]
+            - cell "100" [ref=f1e347]
+            - cell "42 · $7.6K" [ref=f1e348]
+            - cell [ref=f1e349]:
+              - button "Draft claim" [ref=f1e350] [cursor=pointer]
+          - row [ref=f1e354]:
+            - cell "Carrier B" [ref=f1e355]
+            - cell "$16K" [ref=f1e356]
+            - cell "88" [ref=f1e360]
+            - cell "88" [ref=f1e361]
+            - cell "33 · $5.9K" [ref=f1e362]
+            - cell [ref=f1e363]:
+              - button "Draft claim" [ref=f1e364] [cursor=pointer]
+          - row [ref=f1e368]:
+            - cell "Carrier C" [ref=f1e369]
+            - cell "$13K" [ref=f1e370]
+            - cell "70" [ref=f1e374]
+            - cell "70" [ref=f1e375]
+            - cell "22 · $4.0K" [ref=f1e376]
+            - cell [ref=f1e377]:
+              - button "Draft claim" [ref=f1e378] [cursor=pointer]
+      - paragraph [ref=f1e382]: "⚠ Assumption: the carrier contracts let Halcyon pass on SLA penalties caused by the carrier. The data does not show the contract terms; confirm with Halcyon before sending."
+      - 'dialog "Claim: Carrier D" [ref=f1e383]':
+        - generic [active] [ref=f1e385]:
+          - generic [ref=f1e386]:
+            - 'heading "Claim: Carrier D" [level=2] [ref=f1e387]'
+            - button "Close" [ref=f1e388] [cursor=pointer]
+          - generic [ref=f1e392]:
+            - generic [ref=f1e393]:
+              - generic [ref=f1e394]: Claim period
+              - combobox "Claim period" [ref=f1e395]:
+                - option "All six months" [selected]
+                - option "2026-04 (95 deliveries, $17K)"
+                - option "2026-05 (125 deliveries, $23K)"
+                - option "2026-06 (121 deliveries, $22K)"
+                - option "2026-07 (119 deliveries, $21K)"
+                - option "2026-08 (117 deliveries, $21K)"
+                - option "2026-09 (123 deliveries, $22K)"
+                - option "2026-10 (15 deliveries, $2.7K)"
+            - generic [ref=f1e396]:
+              - generic [ref=f1e397]:
+                - generic [ref=f1e398]:
+                  - generic [ref=f1e401]: Carrier Claims Agent
+                  - generic [ref=f1e402]: (AI agent)
+                - generic [ref=f1e403]: Draft for the carrier manager. Nothing is sent.
+              - generic [ref=f1e404]:
+                - generic [ref=f1e405]:
+                  - term [ref=f1e406]: Claim
+                  - definition [ref=f1e407]: $129K
+                - generic [ref=f1e408]:
+                  - term [ref=f1e409]: Deliveries
+                  - definition [ref=f1e410]: "715"
+                - generic [ref=f1e411]:
+                  - term [ref=f1e412]: Days late
+                  - definition [ref=f1e413]: 2,090
+              - generic [ref=f1e414]:
+                - generic [ref=f1e415]: Letter to the carrier, for review
+                - generic [ref=f1e416]: "SLA penalty claim: 715 late deliveries, $128,700"
+                - generic [ref=f1e417]: "Dear Carrier D account team, Between 2026-04-06 and 2026-10-03, 715 deliveries handled by Carrier D arrived late. For each one, Halcyon handed the goods over on the planned day with a complete address and stock from the nearest warehouse, and our client charged us an SLA penalty. In total Halcyon paid $128,700 in penalties for these deliveries (2,090 days late in all; 65 of them with the route driven well beyond plan). Examples: - D007243 (order ORD-43115363): promised 2026-05-01, delivered 2026-05-06, 5 days late, $180 penalty - D010377 (order ORD-45493756): promised 2026-05-09, delivered 2026-05-14, 5 days late, $180 penalty - D021601 (order ORD-53724895): promised 2026-06-23, delivered 2026-06-28, 5 days late, $180 penalty - D000713 (order ORD-30157542): promised 2026-04-07, delivered 2026-04-11, 4 days late, $180 penalty - D000721 (order ORD-59709584): promised 2026-04-07, delivered 2026-04-11, 4 days late, $180 penalty The full list of 715 deliveries is attached. We ask you to credit $128,700, or to contact us within 14 days to review the list together. Kind regards, Carrier management, Halcyon Logistics DRAFT: for the carrier manager to review before anything is sent."
+              - generic [ref=f1e418]:
+                - generic [ref=f1e419]:
+                  - heading "The evidence (715 deliveries)" [level=3] [ref=f1e420]
+                  - button "Download the list (CSV)" [ref=f1e421] [cursor=pointer]
+                - list [ref=f1e425]:
+                  - listitem [ref=f1e426]:
+                    - text: D007243 · promised 2026-05-01, delivered 2026-05-06 ·
+                    - generic [ref=f1e427]: 5 days late
+                    - text: · $180
+                    - generic [ref=f1e428]: "Handed over 2026-04-28 10:09; weak lane: carrier D to the Midwest"
+                  - listitem [ref=f1e429]:
+                    - text: D010377 · promised 2026-05-09, delivered 2026-05-14 ·
+                    - generic [ref=f1e430]: 5 days late
+                    - text: · $180
+                    - generic [ref=f1e431]: "Handed over 2026-05-08 11:40; weak lane: carrier D to the Midwest"
+                  - listitem [ref=f1e432]:
+                    - text: D021601 · promised 2026-06-23, delivered 2026-06-28 ·
+                    - generic [ref=f1e433]: 5 days late
+                    - text: · $180
+                    - generic [ref=f1e434]: "Handed over 2026-06-19 16:40; weak lane: carrier D to the Southeast"
+                  - listitem [ref=f1e435]:
+                    - text: D000713 · promised 2026-04-07, delivered 2026-04-11 ·
+                    - generic [ref=f1e436]: 4 days late
+                    - text: · $180
+                    - generic [ref=f1e437]: "Handed over 2026-04-03 12:12; weak lane: carrier D to the Northeast"
+                  - listitem [ref=f1e438]:
+                    - text: D000721 · promised 2026-04-07, delivered 2026-04-11 ·
+                    - generic [ref=f1e439]: 4 days late
+                    - text: · $180
+                    - generic [ref=f1e440]: "Handed over 2026-04-03 15:53; weak lane: carrier D to the Southeast"
+                  - listitem [ref=f1e441]:
+                    - text: D000778 · promised 2026-04-05, delivered 2026-04-09 ·
+                    - generic [ref=f1e442]: 4 days late
+                    - text: · $180
+                    - generic [ref=f1e443]: "Handed over 2026-04-03 10:19; weak lane: carrier D to the Midwest"
+                  - listitem [ref=f1e444]:
+                    - text: D000817 · promised 2026-04-04, delivered 2026-04-08 ·
+                    - generic [ref=f1e445]: 4 days late
+                    - text: · $180
+                    - generic [ref=f1e446]: "Handed over 2026-04-03 14:50; weak lane: carrier D to the Northeast"
+                  - listitem [ref=f1e447]:
+                    - text: D000840 · promised 2026-04-04, delivered 2026-04-08 ·
+                    - generic [ref=f1e448]: 4 days late
+                    - text: · $180
+                    - generic [ref=f1e449]: "Handed over 2026-04-03 16:01; weak lane: carrier D to the Northeast"
+              - paragraph [ref=f1e450]: "The claim pack (which deliveries, the evidence, the totals) comes from the data and a fixed rule; the AI writes the letter. Any number not in the pack sends it back to the template. Assumption: the carrier contracts let Halcyon pass on SLA penalties caused by the carrier. The data does not show the contract terms; confirm with Halcyon before sending."

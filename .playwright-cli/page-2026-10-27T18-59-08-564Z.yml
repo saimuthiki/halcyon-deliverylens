@@ -1,0 +1,307 @@
+- generic [ref=f3e3]:
+  - link "Skip to content" [ref=f3e4] [cursor=pointer]:
+    - /url: "#main"
+  - complementary [ref=f3e5]:
+    - generic [ref=f3e6]:
+      - generic [ref=f3e12]:
+        - generic [ref=f3e13]: DeliveryLens
+        - generic [ref=f3e14]: Halcyon Logistics
+      - generic [ref=f3e110]: "AI: Mock (canned)"
+    - navigation "Main" [ref=f3e16]:
+      - generic [ref=f3e17]:
+        - generic [ref=f3e18]: Start here
+        - list [ref=f3e19]:
+          - listitem [ref=f3e20]:
+            - link "How it works" [ref=f3e21] [cursor=pointer]:
+              - /url: /how-it-works
+      - generic [ref=f3e24]:
+        - generic [ref=f3e25]: The decision
+        - list [ref=f3e26]:
+          - listitem [ref=f3e27]:
+            - link "Overview" [ref=f3e28] [cursor=pointer]:
+              - /url: /overview
+          - listitem [ref=f3e31]:
+            - link "Why deliveries are late" [ref=f3e32] [cursor=pointer]:
+              - /url: /why-late
+          - listitem [ref=f3e37]:
+            - link "Vendor decision" [ref=f3e38] [cursor=pointer]:
+              - /url: /vendor
+          - listitem [ref=f3e43]:
+            - link "What-if simulator" [ref=f3e44] [cursor=pointer]:
+              - /url: /what-if
+          - listitem [ref=f3e48]:
+            - link "Late same-day orders" [ref=f3e49] [cursor=pointer]:
+              - /url: /late-orders
+      - generic [ref=f3e53]:
+        - generic [ref=f3e54]: Operations
+        - list [ref=f3e55]:
+          - listitem [ref=f3e56]:
+            - link "Carriers" [ref=f3e57] [cursor=pointer]:
+              - /url: /carriers
+          - listitem [ref=f3e63]:
+            - link "At-risk clients" [ref=f3e64] [cursor=pointer]:
+              - /url: /clients
+          - listitem [ref=f3e70]:
+            - link "Stock & routes" [ref=f3e71] [cursor=pointer]:
+              - /url: /stock-routes
+      - generic [ref=f3e75]:
+        - generic [ref=f3e76]: AI agents
+        - list [ref=f3e77]:
+          - listitem [ref=f3e78]:
+            - link "Order desk (live)" [ref=f3e79] [cursor=pointer]:
+              - /url: /order-desk
+          - listitem [ref=f3e83]:
+            - link "Order intake agent" [ref=f3e84] [cursor=pointer]:
+              - /url: /order-intake
+          - listitem [ref=f3e88]:
+            - link "Weekly brief (COO, CFO)" [ref=f3e89] [cursor=pointer]:
+              - /url: /weekly-brief
+          - listitem [ref=f3e93]:
+            - link "Ask DeliveryLens" [ref=f3e94] [cursor=pointer]:
+              - /url: /ask
+          - listitem [ref=f3e97]:
+            - link "Agent activity" [ref=f3e98] [cursor=pointer]:
+              - /url: /activity
+    - paragraph [ref=f3e101]: 48,340 deliveries1 Apr – 25 Sep 2026
+  - main [ref=f3e102]:
+    - generic [ref=f3e115]:
+      - heading "Nine clients are deciding whether to stay" [level=1] [ref=f3e116]
+      - paragraph [ref=f3e117]: Each of these accounts has told Halcyon it may leave. Together they bring in $14.2M a year, and their deliveries arrive on time about 71% of the time.
+    - region "What am I looking at?" [ref=f3e118]:
+      - button "What am I looking at? A plain-English key to this page" [ref=f3e119] [cursor=pointer]:
+        - generic [ref=f3e123]: What am I looking at?
+        - generic [ref=f3e124]: A plain-English key to this page
+    - generic [ref=f3e127]:
+      - region "At-risk accounts" [ref=f3e128]:
+        - generic [ref=f3e130]:
+          - heading "At-risk accounts" [level=2] [ref=f3e131]
+          - paragraph [ref=f3e132]: Sorted by annual revenue
+        - table [ref=f3e134]:
+          - rowgroup [ref=f3e135]:
+            - row [ref=f3e136]:
+              - columnheader "Client" [ref=f3e137]
+              - columnheader "Annual revenue" [ref=f3e138]
+              - columnheader "On time" [ref=f3e139]
+              - columnheader "Penalties, 6 mo" [ref=f3e140]
+              - columnheader "Orders by" [ref=f3e141]
+              - columnheader "Main causes of their late deliveries" [ref=f3e142]
+              - columnheader "Save plan" [ref=f3e143]
+          - rowgroup [ref=f3e145]:
+            - row [ref=f3e146]:
+              - cell "Client 263 Midwest, Tier 1" [ref=f3e147]:
+                - generic [ref=f3e148]: Client 263
+                - generic [ref=f3e149]: Midwest, Tier 1
+              - cell "$2.3M" [ref=f3e150]
+              - cell "74.2%" [ref=f3e154]
+              - cell "$23K" [ref=f3e155]
+              - cell "Email" [ref=f3e156]
+              - cell "Incomplete address Weak carrier on lane" [ref=f3e157]:
+                - generic [ref=f3e158]:
+                  - generic [ref=f3e159]: Incomplete address
+                  - generic [ref=f3e160]: Weak carrier on lane
+              - cell [ref=f3e161]:
+                - button "Save plan" [ref=f3e162] [cursor=pointer]
+            - row [ref=f3e166]:
+              - cell "Client 049 Midwest, Tier 1" [ref=f3e167]:
+                - generic [ref=f3e168]: Client 049
+                - generic [ref=f3e169]: Midwest, Tier 1
+              - cell "$2.1M" [ref=f3e170]
+              - cell "71.1%" [ref=f3e174]
+              - cell "$25K" [ref=f3e175]
+              - cell "EDI" [ref=f3e176]
+              - cell "Weak carrier on lane Stock not at nearest warehouse" [ref=f3e177]:
+                - generic [ref=f3e178]:
+                  - generic [ref=f3e179]: Weak carrier on lane
+                  - generic [ref=f3e180]: Stock not at nearest warehouse
+              - cell [ref=f3e181]:
+                - button "Save plan" [ref=f3e182] [cursor=pointer]
+            - row [ref=f3e186]:
+              - cell "Client 099 West, Tier 1" [ref=f3e187]:
+                - generic [ref=f3e188]: Client 099
+                - generic [ref=f3e189]: West, Tier 1
+              - cell "$2.0M" [ref=f3e190]
+              - cell "69.6%" [ref=f3e194]
+              - cell "$42K" [ref=f3e195]
+              - cell "API" [ref=f3e196]
+              - cell "Weak carrier on lane Stock not at nearest warehouse" [ref=f3e197]:
+                - generic [ref=f3e198]:
+                  - generic [ref=f3e199]: Weak carrier on lane
+                  - generic [ref=f3e200]: Stock not at nearest warehouse
+              - cell [ref=f3e201]:
+                - button "Save plan" [ref=f3e202] [cursor=pointer]
+            - row [ref=f3e206]:
+              - cell "Client 077 Northeast, Tier 1" [ref=f3e207]:
+                - generic [ref=f3e208]: Client 077
+                - generic [ref=f3e209]: Northeast, Tier 1
+              - cell "$1.8M" [ref=f3e210]
+              - cell "73.0%" [ref=f3e214]
+              - cell "$25K" [ref=f3e215]
+              - cell "EDI" [ref=f3e216]
+              - cell "Weak carrier on lane Stock not at nearest warehouse" [ref=f3e217]:
+                - generic [ref=f3e218]:
+                  - generic [ref=f3e219]: Weak carrier on lane
+                  - generic [ref=f3e220]: Stock not at nearest warehouse
+              - cell [ref=f3e221]:
+                - button "Save plan" [ref=f3e222] [cursor=pointer]
+            - row [ref=f3e226]:
+              - cell "Client 033 Southeast, Tier 1" [ref=f3e227]:
+                - generic [ref=f3e228]: Client 033
+                - generic [ref=f3e229]: Southeast, Tier 1
+              - cell "$1.6M" [ref=f3e230]
+              - cell "71.5%" [ref=f3e234]
+              - cell "$0" [ref=f3e235]
+              - cell "API" [ref=f3e236]
+              - cell "Weak carrier on lane Stock not at nearest warehouse" [ref=f3e237]:
+                - generic [ref=f3e238]:
+                  - generic [ref=f3e239]: Weak carrier on lane
+                  - generic [ref=f3e240]: Stock not at nearest warehouse
+              - cell [ref=f3e241]:
+                - button "Save plan" [ref=f3e242] [cursor=pointer]
+            - row [ref=f3e246]:
+              - cell "Client 111 Southeast, Tier 1" [ref=f3e247]:
+                - generic [ref=f3e248]: Client 111
+                - generic [ref=f3e249]: Southeast, Tier 1
+              - cell "$1.4M" [ref=f3e250]
+              - cell "69.8%" [ref=f3e254]
+              - cell "$37K" [ref=f3e255]
+              - cell "API" [ref=f3e256]
+              - cell "Weak carrier on lane Stock not at nearest warehouse" [ref=f3e257]:
+                - generic [ref=f3e258]:
+                  - generic [ref=f3e259]: Weak carrier on lane
+                  - generic [ref=f3e260]: Stock not at nearest warehouse
+              - cell [ref=f3e261]:
+                - button "Save plan" [ref=f3e262] [cursor=pointer]
+            - row [ref=f3e266]:
+              - cell "Client 190 Southeast, Tier 1" [ref=f3e267]:
+                - generic [ref=f3e268]: Client 190
+                - generic [ref=f3e269]: Southeast, Tier 1
+              - cell "$1.3M" [ref=f3e270]
+              - cell "70.0%" [ref=f3e274]
+              - cell "$116K" [ref=f3e275]
+              - cell "Email" [ref=f3e276]
+              - cell "Incomplete address Weak carrier on lane" [ref=f3e277]:
+                - generic [ref=f3e278]:
+                  - generic [ref=f3e279]: Incomplete address
+                  - generic [ref=f3e280]: Weak carrier on lane
+              - cell [ref=f3e281]:
+                - button "Save plan" [ref=f3e282] [cursor=pointer]
+            - row [ref=f3e286]:
+              - cell "Client 022 Midwest, Tier 2" [ref=f3e287]:
+                - generic [ref=f3e288]: Client 022
+                - generic [ref=f3e289]: Midwest, Tier 2
+              - cell "$920K" [ref=f3e290]
+              - cell "70.2%" [ref=f3e294]
+              - cell "$23K" [ref=f3e295]
+              - cell "API" [ref=f3e296]
+              - cell "Weak carrier on lane Stock not at nearest warehouse" [ref=f3e297]:
+                - generic [ref=f3e298]:
+                  - generic [ref=f3e299]: Weak carrier on lane
+                  - generic [ref=f3e300]: Stock not at nearest warehouse
+              - cell [ref=f3e301]:
+                - button "Save plan" [ref=f3e302] [cursor=pointer]
+            - row [ref=f3e306]:
+              - cell "Client 055 Northeast, Tier 2" [ref=f3e307]:
+                - generic [ref=f3e308]: Client 055
+                - generic [ref=f3e309]: Northeast, Tier 2
+              - cell "$780K" [ref=f3e310]
+              - cell "69.9%" [ref=f3e314]
+              - cell "$39K" [ref=f3e315]
+              - cell "Email" [ref=f3e316]
+              - cell "Incomplete address Weak carrier on lane" [ref=f3e317]:
+                - generic [ref=f3e318]:
+                  - generic [ref=f3e319]: Incomplete address
+                  - generic [ref=f3e320]: Weak carrier on lane
+              - cell [ref=f3e321]:
+                - button "Save plan" [ref=f3e322] [cursor=pointer]
+          - rowgroup [ref=f3e326]:
+            - row [ref=f3e327]:
+              - cell "9 clients" [ref=f3e328]
+              - cell "$14.2M" [ref=f3e329]
+              - cell "70.7%" [ref=f3e330]
+              - cell "$330K" [ref=f3e331]
+              - cell "9,547 deliveries in 6 months" [ref=f3e332]
+      - 'dialog "Save plan: Client 263" [ref=f3e334]':
+        - generic [active] [ref=f3e336]:
+          - generic [ref=f3e337]:
+            - 'heading "Save plan: Client 263" [level=2] [ref=f3e338]'
+            - button "Close" [ref=f3e339] [cursor=pointer]
+          - generic [ref=f3e344]:
+            - generic [ref=f3e345]:
+              - generic [ref=f3e346]:
+                - generic [ref=f3e349]: Account Save Agent
+                - generic [ref=f3e350]: (AI agent)
+              - generic [ref=f3e351]: Draft for the account owner. Nothing is sent.
+            - generic [ref=f3e352]:
+              - generic [ref=f3e353]:
+                - term [ref=f3e354]: On time today
+                - definition [ref=f3e355]: 74%
+              - generic [ref=f3e356]:
+                - term [ref=f3e357]: With the fixes
+                - definition [ref=f3e358]: 90%
+              - generic [ref=f3e359]:
+                - term [ref=f3e360]: Penalties paid
+                - definition [ref=f3e361]: $23K
+            - generic [ref=f3e362]:
+              - heading "For the account owner" [level=3] [ref=f3e363]
+              - paragraph [ref=f3e364]: "Client 263 (Tier 1, $2,250,000 a year) received 74% of 747 deliveries on time, against 71% for all clients and the 94% benchmark. Halcyon paid them $23,220 in SLA penalties. The main causes: incomplete address (109 late deliveries); weak carrier lane (64 late deliveries); same-day order after 08:00 (34 late deliveries). With the fixes in place we project 90% on time for them."
+            - generic [ref=f3e365]:
+              - heading "What went wrong, and what changes" [level=3] [ref=f3e366]
+              - list [ref=f3e367]:
+                - listitem [ref=f3e368]:
+                  - generic [ref=f3e369]:
+                    - generic [ref=f3e370]: Incomplete address
+                    - generic [ref=f3e371]: 109 late deliveries
+                  - paragraph [ref=f3e372]:
+                    - text: Every email order will be checked for a full address before picking; a missing detail is filled from your delivery history and you confirm it with one click.
+                    - generic [ref=f3e373]: "Owner: Order desk."
+                - listitem [ref=f3e374]:
+                  - generic [ref=f3e375]:
+                    - generic [ref=f3e376]: Weak carrier on lane
+                    - generic [ref=f3e377]: 64 late deliveries
+                  - paragraph [ref=f3e378]:
+                    - text: Your deliveries will go with the best on-time carrier for your region, never a weak lane.
+                    - generic [ref=f3e379]: "Owner: Carrier manager."
+                - listitem [ref=f3e380]:
+                  - generic [ref=f3e381]:
+                    - generic [ref=f3e382]: Same-day order after 08:00
+                    - generic [ref=f3e383]: 34 late deliveries
+                  - paragraph [ref=f3e384]:
+                    - text: Same-day orders that arrive shortly after 08:00 will still go on that day's pick list, and urgent ones until the hard stop.
+                    - generic [ref=f3e385]: "Owner: Warehouse."
+            - generic [ref=f3e386]:
+              - heading "Talking points" [level=3] [ref=f3e387]
+              - list [ref=f3e388]:
+                - listitem [ref=f3e389]: "Acknowledge it plainly: 193 late deliveries in six months, 3 complaints."
+                - listitem [ref=f3e390]: Their worst month was 2026-09 at 69% on time.
+                - listitem [ref=f3e391]: "Incomplete address: Every email order will be checked for a full address before picking; a missing detail is filled from your delivery history and you confirm it with one click."
+                - listitem [ref=f3e392]: "Weak carrier lane: Your deliveries will go with the best on-time carrier for your region, never a weak lane."
+                - listitem [ref=f3e393]: "Same-day order after 08:00: Same-day orders that arrive shortly after 08:00 will still go on that day's pick list, and urgent ones until the hard stop."
+                - listitem [ref=f3e394]: "Projected on-time rate with the fixes: 90%."
+            - generic [ref=f3e395]:
+              - heading "Meeting agenda" [level=3] [ref=f3e396]
+              - list [ref=f3e397]:
+                - listitem [ref=f3e398]: What went wrong, in their own complaints and our numbers
+                - listitem [ref=f3e399]: The causes we found and what will change for them
+                - listitem [ref=f3e400]: Our commitments for the next 90 days
+                - listitem [ref=f3e401]: How we will report progress every week
+                - listitem [ref=f3e402]: Agree the next review date
+            - generic [ref=f3e403]:
+              - heading "In their own words" [level=3] [ref=f3e404]
+              - list [ref=f3e405]:
+                - listitem [ref=f3e406]:
+                  - generic [ref=f3e407]: “The shipment did not arrive and we had to ask for it to be sent again.”
+                  - generic [ref=f3e408]: 2026-07-28, Redelivery needed
+                - listitem [ref=f3e409]:
+                  - generic [ref=f3e410]: “Nobody told us it would be late. We only found out when we chased.”
+                  - generic [ref=f3e411]: 2026-09-08, Not told about the delay
+                - listitem [ref=f3e412]:
+                  - generic [ref=f3e413]: “Nobody told us it would be late. We only found out when we chased.”
+                  - generic [ref=f3e414]: 2026-09-11, Not told about the delay
+            - generic [ref=f3e415]:
+              - generic [ref=f3e416]: Email to the client, for review
+              - generic [ref=f3e417]: "Your deliveries from Halcyon: what we found and what will change"
+              - generic [ref=f3e418]: "Dear Client 263 team, You have had too many late deliveries from us: 193 of 747 in the last six months. We have looked at every one of them and found the causes. We would like 30 minutes with you to walk through what we found and what will change: - A named Customer Success contact and a weekly on-time report for the next 90 days. - A delay alert from us on any shipment at risk of being late, before you have to chase it. - Every email order will be checked for a full address before picking; a missing detail is filled from your delivery history and you confirm it with one click. - Your deliveries will go with the best on-time carrier for your region, never a weak lane. - Same-day orders that arrive shortly after 08:00 will still go on that day's pick list, and urgent ones until the hard stop. Please reply with a time that suits you this week. Kind regards, Your Halcyon Logistics account team DRAFT: for the account owner to review before anything is sent."
+            - paragraph [ref=f3e419]: Facts, causes, the projected on-time rate and the commitments come from the data and fixed rules; the AI writes the wording. Any number not in the facts sends the plan back to the template.
+      - region [ref=f3e420]:
+        - heading "What these clients have in common" [level=2] [ref=f3e421]
+        - paragraph [ref=f3e422]: Weak carrier on lane is a main cause for 9 of the 9 accounts. These clients also raised 24 of the 34 complaints in the period. Across all clients, 12 complaints were about not being told about a delay. A proactive delay alert costs almost nothing to send and removes that complaint entirely.

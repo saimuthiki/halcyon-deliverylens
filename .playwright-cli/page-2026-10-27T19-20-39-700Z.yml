@@ -1,0 +1,69 @@
+- generic [ref=f1e3]:
+  - link "Skip to content" [ref=f1e4] [cursor=pointer]:
+    - /url: "#main"
+  - complementary [ref=f1e5]:
+    - generic [ref=f1e12]:
+      - generic [ref=f1e13]: DeliveryLens
+      - generic [ref=f1e14]: Halcyon Logistics
+    - navigation "Main" [ref=f1e16]:
+      - generic [ref=f1e17]:
+        - generic [ref=f1e18]: Start here
+        - list [ref=f1e19]:
+          - listitem [ref=f1e20]:
+            - link "How it works" [ref=f1e21] [cursor=pointer]:
+              - /url: /how-it-works
+      - generic [ref=f1e24]:
+        - generic [ref=f1e25]: The decision
+        - list [ref=f1e26]:
+          - listitem [ref=f1e27]:
+            - link "Overview" [ref=f1e28] [cursor=pointer]:
+              - /url: /overview
+          - listitem [ref=f1e31]:
+            - link "Why deliveries are late" [ref=f1e32] [cursor=pointer]:
+              - /url: /why-late
+          - listitem [ref=f1e37]:
+            - link "Vendor decision" [ref=f1e38] [cursor=pointer]:
+              - /url: /vendor
+          - listitem [ref=f1e43]:
+            - link "What-if simulator" [ref=f1e44] [cursor=pointer]:
+              - /url: /what-if
+          - listitem [ref=f1e48]:
+            - link "Late same-day orders" [ref=f1e49] [cursor=pointer]:
+              - /url: /late-orders
+      - generic [ref=f1e53]:
+        - generic [ref=f1e54]: Operations
+        - list [ref=f1e55]:
+          - listitem [ref=f1e56]:
+            - link "Carriers" [ref=f1e57] [cursor=pointer]:
+              - /url: /carriers
+          - listitem [ref=f1e64]:
+            - link "At-risk clients" [ref=f1e65] [cursor=pointer]:
+              - /url: /clients
+          - listitem [ref=f1e70]:
+            - link "Stock & routes" [ref=f1e71] [cursor=pointer]:
+              - /url: /stock-routes
+          - listitem [ref=f1e75]:
+            - link "Morning risk board" [ref=f1e76] [cursor=pointer]:
+              - /url: /risk-board
+      - generic [ref=f1e82]:
+        - generic [ref=f1e83]: AI agents
+        - list [ref=f1e84]:
+          - listitem [ref=f1e85]:
+            - link "Order desk (live)" [ref=f1e86] [cursor=pointer]:
+              - /url: /order-desk
+          - listitem [ref=f1e90]:
+            - link "Order intake agent" [ref=f1e91] [cursor=pointer]:
+              - /url: /order-intake
+          - listitem [ref=f1e95]:
+            - link "Weekly brief (COO, CFO)" [ref=f1e96] [cursor=pointer]:
+              - /url: /weekly-brief
+          - listitem [ref=f1e100]:
+            - link "Ask DeliveryLens" [ref=f1e101] [cursor=pointer]:
+              - /url: /ask
+          - listitem [ref=f1e104]:
+            - link "Agent activity" [ref=f1e105] [cursor=pointer]:
+              - /url: /activity
+    - paragraph [ref=f1e108]: 48,340 deliveries1 Apr – 25 Sep 2026
+  - main [ref=f1e109]:
+    - status [ref=f1e110]:
+      - generic [ref=f1e111]: Loading page

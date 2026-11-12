@@ -1,0 +1,3 @@
+source: https://github.com/microsoft/playwright-cli/tree/HEAD/skills/playwright-cli
+stage: ship
+commit: b1a5903

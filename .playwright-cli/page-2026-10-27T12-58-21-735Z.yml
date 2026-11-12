@@ -1,0 +1,63 @@
+- generic [ref=e3]:
+  - link "Skip to content" [ref=e4] [cursor=pointer]:
+    - /url: "#main"
+  - complementary [ref=e5]:
+    - generic [ref=e12]:
+      - generic [ref=e13]: DeliveryLens
+      - generic [ref=e14]: Halcyon Logistics
+    - navigation "Main" [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: Start here
+        - list [ref=e19]:
+          - listitem [ref=e20]:
+            - link "How it works" [ref=e21] [cursor=pointer]:
+              - /url: /how-it-works
+      - generic [ref=e24]:
+        - generic [ref=e25]: The decision
+        - list [ref=e26]:
+          - listitem [ref=e27]:
+            - link "Overview" [ref=e28] [cursor=pointer]:
+              - /url: /overview
+          - listitem [ref=e31]:
+            - link "Why deliveries are late" [ref=e32] [cursor=pointer]:
+              - /url: /why-late
+          - listitem [ref=e37]:
+            - link "Vendor decision" [ref=e38] [cursor=pointer]:
+              - /url: /vendor
+          - listitem [ref=e43]:
+            - link "What-if simulator" [ref=e44] [cursor=pointer]:
+              - /url: /what-if
+          - listitem [ref=e48]:
+            - link "Late same-day orders" [ref=e49] [cursor=pointer]:
+              - /url: /late-orders
+      - generic [ref=e54]:
+        - generic [ref=e55]: Operations
+        - list [ref=e56]:
+          - listitem [ref=e57]:
+            - link "Carriers" [ref=e58] [cursor=pointer]:
+              - /url: /carriers
+          - listitem [ref=e64]:
+            - link "At-risk clients" [ref=e65] [cursor=pointer]:
+              - /url: /clients
+          - listitem [ref=e70]:
+            - link "Stock & routes" [ref=e71] [cursor=pointer]:
+              - /url: /stock-routes
+      - generic [ref=e75]:
+        - generic [ref=e76]: AI agents
+        - list [ref=e77]:
+          - listitem [ref=e78]:
+            - link "Order desk (live)" [ref=e79] [cursor=pointer]:
+              - /url: /order-desk
+          - listitem [ref=e83]:
+            - link "Order intake agent" [ref=e84] [cursor=pointer]:
+              - /url: /order-intake
+          - listitem [ref=e88]:
+            - link "Ask DeliveryLens" [ref=e89] [cursor=pointer]:
+              - /url: /ask
+          - listitem [ref=e92]:
+            - link "Agent activity" [ref=e93] [cursor=pointer]:
+              - /url: /activity
+    - paragraph [ref=e96]: 48,340 deliveries1 Apr – 25 Sep 2026
+  - main [ref=e97]:
+    - status [ref=e98]:
+      - generic [ref=e99]: Loading page

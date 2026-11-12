@@ -1,0 +1,465 @@
+- generic [ref=f1e3]:
+  - link "Skip to content" [ref=f1e4] [cursor=pointer]:
+    - /url: "#main"
+  - complementary [ref=f1e5]:
+    - generic [ref=f1e6]:
+      - generic [ref=f1e12]:
+        - generic [ref=f1e13]: DeliveryLens
+        - generic [ref=f1e14]: Halcyon Logistics
+      - generic [ref=f1e110]: "AI: Mock (canned)"
+    - navigation "Main" [ref=f1e16]:
+      - generic [ref=f1e17]:
+        - generic [ref=f1e18]: Start here
+        - list [ref=f1e19]:
+          - listitem [ref=f1e20]:
+            - link "How it works" [ref=f1e21] [cursor=pointer]:
+              - /url: /how-it-works
+      - generic [ref=f1e24]:
+        - generic [ref=f1e25]: The decision
+        - list [ref=f1e26]:
+          - listitem [ref=f1e27]:
+            - link "Overview" [ref=f1e28] [cursor=pointer]:
+              - /url: /overview
+          - listitem [ref=f1e31]:
+            - link "Why deliveries are late" [ref=f1e32] [cursor=pointer]:
+              - /url: /why-late
+          - listitem [ref=f1e37]:
+            - link "Vendor decision" [ref=f1e38] [cursor=pointer]:
+              - /url: /vendor
+          - listitem [ref=f1e43]:
+            - link "What-if simulator" [ref=f1e44] [cursor=pointer]:
+              - /url: /what-if
+          - listitem [ref=f1e48]:
+            - link "Late same-day orders" [ref=f1e49] [cursor=pointer]:
+              - /url: /late-orders
+      - generic [ref=f1e53]:
+        - generic [ref=f1e54]: Operations
+        - list [ref=f1e55]:
+          - listitem [ref=f1e56]:
+            - link "Carriers" [ref=f1e57] [cursor=pointer]:
+              - /url: /carriers
+          - listitem [ref=f1e63]:
+            - link "At-risk clients" [ref=f1e64] [cursor=pointer]:
+              - /url: /clients
+          - listitem [ref=f1e69]:
+            - link "Stock & routes" [ref=f1e70] [cursor=pointer]:
+              - /url: /stock-routes
+      - generic [ref=f1e74]:
+        - generic [ref=f1e75]: AI agents
+        - list [ref=f1e76]:
+          - listitem [ref=f1e77]:
+            - link "Order desk (live)" [ref=f1e78] [cursor=pointer]:
+              - /url: /order-desk
+          - listitem [ref=f1e83]:
+            - link "Order intake agent" [ref=f1e84] [cursor=pointer]:
+              - /url: /order-intake
+          - listitem [ref=f1e88]:
+            - link "Weekly brief (COO, CFO)" [ref=f1e89] [cursor=pointer]:
+              - /url: /weekly-brief
+          - listitem [ref=f1e93]:
+            - link "Ask DeliveryLens" [ref=f1e94] [cursor=pointer]:
+              - /url: /ask
+          - listitem [ref=f1e97]:
+            - link "Agent activity" [ref=f1e98] [cursor=pointer]:
+              - /url: /activity
+    - paragraph [ref=f1e101]: 48,340 deliveries1 Apr – 25 Sep 2026
+  - main [ref=f1e102]:
+    - generic [ref=f1e114]:
+      - generic [ref=f1e115]:
+        - 'heading "Order desk: client emails in, warehouse orders out" [level=1] [ref=f1e116]'
+        - paragraph [ref=f1e117]: "Today staff type email orders into the warehouse system (WMS) by hand, and 28% arrive with part of the address missing. Here DeliveryLens does that job: run it on a sample email and watch each step, who did it, and what lands in the WMS."
+      - generic [ref=f1e119]:
+        - generic [ref=f1e120]: Answering now
+        - generic [ref=f1e121]: "AI: Mock (canned)"
+    - region "What am I looking at?" [ref=f1e124]:
+      - button "What am I looking at? A plain-English key to this page" [ref=f1e125] [cursor=pointer]:
+        - generic [ref=f1e129]: What am I looking at?
+        - generic [ref=f1e130]: A plain-English key to this page
+    - generic [ref=f1e133]:
+      - region [ref=f1e134]:
+        - generic [ref=f1e135]:
+          - heading "Inbox (17)" [level=2] [ref=f1e136]:
+            - text: Inbox
+            - generic [ref=f1e137]: (17)
+          - button "Run all 17" [ref=f1e138] [cursor=pointer]
+        - list "Client emails" [ref=f1e142]:
+          - listitem [ref=f1e143]:
+            - 'button "M01 Maria Lopez 07:20 New order - Client 055 - next day Complete order, labelled layout Expect: Accepted New" [ref=f1e144] [cursor=pointer]':
+              - generic [ref=f1e145]:
+                - generic [ref=f1e146]: M01 Maria Lopez
+                - generic [ref=f1e147]: 07:20
+              - generic [ref=f1e148]: New order - Client 055 - next day
+              - generic [ref=f1e150]: Complete order, labelled layout
+              - generic [ref=f1e151]:
+                - generic [ref=f1e152]: "Expect: Accepted"
+                - generic [ref=f1e153]: New
+          - listitem [ref=f1e154]:
+            - 'button "M02 Plant 2 Ops 06:45 PO for Client 263 Missing postcode Expect: On hold Done: On hold" [pressed] [ref=f1e375] [cursor=pointer]':
+              - generic [ref=f1e157]:
+                - generic [ref=f1e158]: M02 Plant 2 Ops
+                - generic [ref=f1e159]: 06:45
+              - generic [ref=f1e160]: PO for Client 263
+              - generic [ref=f1e162]: Missing postcode
+              - generic [ref=f1e163]:
+                - generic [ref=f1e164]: "Expect: On hold"
+                - generic [ref=f1e165]: "Done: On hold"
+          - listitem [ref=f1e166]:
+            - 'button "M03 Dana Whitfield 07:05 Order request Missing street, free-text order line Expect: On hold New" [ref=f1e167] [cursor=pointer]':
+              - generic [ref=f1e168]:
+                - generic [ref=f1e169]: M03 Dana Whitfield
+                - generic [ref=f1e170]: 07:05
+              - generic [ref=f1e171]: Order request
+              - generic [ref=f1e173]: Missing street, free-text order line
+              - generic [ref=f1e174]:
+                - generic [ref=f1e175]: "Expect: On hold"
+                - generic [ref=f1e176]: New
+          - listitem [ref=f1e177]:
+            - 'button "M04 Store Opening Team 09:30 URGENT same day - Client 078 Same-day order received 09:30 Expect: Accepted New" [ref=f1e178] [cursor=pointer]':
+              - generic [ref=f1e179]:
+                - generic [ref=f1e180]: M04 Store Opening Team
+                - generic [ref=f1e181]: 09:30
+              - generic [ref=f1e182]: URGENT same day - Client 078
+              - generic [ref=f1e184]: Same-day order received 09:30
+              - generic [ref=f1e185]:
+                - generic [ref=f1e186]: "Expect: Accepted"
+                - generic [ref=f1e187]: New
+          - listitem [ref=f1e188]:
+            - 'button "M05 Buying Team 07:10 Same day order - Client 003 Same-day order received 07:10 Expect: Accepted New" [ref=f1e189] [cursor=pointer]':
+              - generic [ref=f1e190]:
+                - generic [ref=f1e191]: M05 Buying Team
+                - generic [ref=f1e192]: 07:10
+              - generic [ref=f1e193]: Same day order - Client 003
+              - generic [ref=f1e195]: Same-day order received 07:10
+              - generic [ref=f1e196]:
+                - generic [ref=f1e197]: "Expect: Accepted"
+                - generic [ref=f1e198]: New
+          - listitem [ref=f1e199]:
+            - 'button "M06 Logistics Desk 10:15 Order for Client 101 One-line free-text address Expect: Accepted New" [ref=f1e200] [cursor=pointer]':
+              - generic [ref=f1e201]:
+                - generic [ref=f1e202]: M06 Logistics Desk
+                - generic [ref=f1e203]: 10:15
+              - generic [ref=f1e204]: Order for Client 101
+              - generic [ref=f1e206]: One-line free-text address
+              - generic [ref=f1e207]:
+                - generic [ref=f1e208]: "Expect: Accepted"
+                - generic [ref=f1e209]: New
+          - listitem [ref=f1e210]:
+            - 'button "M07 Replenishment 14:40 Weekly replenishment order 44/2026 Table layout with four lines Expect: Accepted New" [ref=f1e211] [cursor=pointer]':
+              - generic [ref=f1e212]:
+                - generic [ref=f1e213]: M07 Replenishment
+                - generic [ref=f1e214]: 14:40
+              - generic [ref=f1e215]: Weekly replenishment order 44/2026
+              - generic [ref=f1e217]: Table layout with four lines
+              - generic [ref=f1e218]:
+                - generic [ref=f1e219]: "Expect: Accepted"
+                - generic [ref=f1e220]: New
+          - listitem [ref=f1e221]:
+            - 'button "M08 Sam Ortega 13:05 Order - Phoenix site West destination, nearest warehouse out of stock Expect: Accepted New" [ref=f1e222] [cursor=pointer]':
+              - generic [ref=f1e223]:
+                - generic [ref=f1e224]: M08 Sam Ortega
+                - generic [ref=f1e225]: 13:05
+              - generic [ref=f1e226]: Order - Phoenix site
+              - generic [ref=f1e228]: West destination, nearest warehouse out of stock
+              - generic [ref=f1e229]:
+                - generic [ref=f1e230]: "Expect: Accepted"
+                - generic [ref=f1e231]: New
+          - listitem [ref=f1e232]:
+            - 'button "M09 Client 190 Supply Chain 06:30 Re: Atlanta restock - next day Southeast destination, carrier choice Expect: Accepted New" [ref=f1e233] [cursor=pointer]':
+              - generic [ref=f1e234]:
+                - generic [ref=f1e235]: M09 Client 190 Supply Chain
+                - generic [ref=f1e236]: 06:30
+              - generic [ref=f1e237]: "Re: Atlanta restock - next day"
+              - generic [ref=f1e239]: Southeast destination, carrier choice
+              - generic [ref=f1e240]:
+                - generic [ref=f1e241]: "Expect: Accepted"
+                - generic [ref=f1e242]: New
+          - listitem [ref=f1e243]:
+            - 'button "M10 Accounts 07:55 Order and account update Prompt-injection attempt in the body Expect: Blocked New" [ref=f1e244] [cursor=pointer]':
+              - generic [ref=f1e245]:
+                - generic [ref=f1e246]: M10 Accounts
+                - generic [ref=f1e247]: 07:55
+              - generic [ref=f1e248]: Order and account update
+              - generic [ref=f1e250]: Prompt-injection attempt in the body
+              - generic [ref=f1e251]:
+                - generic [ref=f1e252]: "Expect: Blocked"
+                - generic [ref=f1e253]: New
+          - listitem [ref=f1e254]:
+            - 'button "M11 Pat Kim 07:30 usual order Vague quantity Expect: Needs review New" [ref=f1e255] [cursor=pointer]':
+              - generic [ref=f1e256]:
+                - generic [ref=f1e257]: M11 Pat Kim
+                - generic [ref=f1e258]: 07:30
+              - generic [ref=f1e259]: usual order
+              - generic [ref=f1e261]: Vague quantity
+              - generic [ref=f1e262]:
+                - generic [ref=f1e263]: "Expect: Needs review"
+                - generic [ref=f1e264]: New
+          - listitem [ref=f1e265]:
+            - 'button "M12 Procurement 16:20 Has attachment Purchase order PO-209-1147 Order lines in an attached CSV purchase order Expect: Accepted New" [ref=f1e266] [cursor=pointer]':
+              - generic [ref=f1e267]:
+                - generic [ref=f1e268]: M12 Procurement
+                - generic [ref=f1e269]: 16:20
+              - generic [ref=f1e270]:
+                - img "Has attachment" [ref=f1e271]
+                - generic [ref=f1e273]: Purchase order PO-209-1147
+              - generic [ref=f1e274]: Order lines in an attached CSV purchase order
+              - generic [ref=f1e275]:
+                - generic [ref=f1e276]: "Expect: Accepted"
+                - generic [ref=f1e277]: New
+          - listitem [ref=f1e278]:
+            - 'button "M13 Jordan Reyes 09:40 Same day please - Client 076 - parts for Line 3 Same-day order received 09:40, production line stops at 3pm Expect: Accepted New" [ref=f1e279] [cursor=pointer]':
+              - generic [ref=f1e280]:
+                - generic [ref=f1e281]: M13 Jordan Reyes
+                - generic [ref=f1e282]: 09:40
+              - generic [ref=f1e283]: Same day please - Client 076 - parts for Line 3
+              - generic [ref=f1e285]: Same-day order received 09:40, production line stops at 3pm
+              - generic [ref=f1e286]:
+                - generic [ref=f1e287]: "Expect: Accepted"
+                - generic [ref=f1e288]: New
+          - listitem [ref=f1e289]:
+            - 'button "M14 Front Desk 09:15 URGENT!!! order - Client 018 Same-day order received 09:15, \"URGENT!!!\" only Expect: Accepted New" [ref=f1e290] [cursor=pointer]':
+              - generic [ref=f1e291]:
+                - generic [ref=f1e292]: M14 Front Desk
+                - generic [ref=f1e293]: 09:15
+              - generic [ref=f1e294]: URGENT!!! order - Client 018
+              - generic [ref=f1e296]: Same-day order received 09:15, "URGENT!!!" only
+              - generic [ref=f1e297]:
+                - generic [ref=f1e298]: "Expect: Accepted"
+                - generic [ref=f1e299]: New
+          - listitem [ref=f1e300]:
+            - 'button "M15 Buying Team 09:20 URGENT - same-day top-up - Client 003 Same-day order received 09:20, \"URGENT\" from a Tier 1 client Expect: Accepted New" [ref=f1e301] [cursor=pointer]':
+              - generic [ref=f1e302]:
+                - generic [ref=f1e303]: M15 Buying Team
+                - generic [ref=f1e304]: 09:20
+              - generic [ref=f1e305]: URGENT - same-day top-up - Client 003
+              - generic [ref=f1e307]: Same-day order received 09:20, "URGENT" from a Tier 1 client
+              - generic [ref=f1e308]:
+                - generic [ref=f1e309]: "Expect: Accepted"
+                - generic [ref=f1e310]: New
+          - listitem [ref=f1e311]:
+            - 'button "M16 Riley Chen 08:35 Same-day order - Client 051 Same-day order received 08:35, not urgent Expect: Accepted New" [ref=f1e312] [cursor=pointer]':
+              - generic [ref=f1e313]:
+                - generic [ref=f1e314]: M16 Riley Chen
+                - generic [ref=f1e315]: 08:35
+              - generic [ref=f1e316]: Same-day order - Client 051
+              - generic [ref=f1e318]: Same-day order received 08:35, not urgent
+              - generic [ref=f1e319]:
+                - generic [ref=f1e320]: "Expect: Accepted"
+                - generic [ref=f1e321]: New
+          - listitem [ref=f1e322]:
+            - 'button "M17 Client 190 Supply Chain 10:20 Same day needed - Client 190 - line parts Same-day order received 10:20, production line stops Expect: Accepted New" [ref=f1e323] [cursor=pointer]':
+              - generic [ref=f1e324]:
+                - generic [ref=f1e325]: M17 Client 190 Supply Chain
+                - generic [ref=f1e326]: 10:20
+              - generic [ref=f1e327]: Same day needed - Client 190 - line parts
+              - generic [ref=f1e329]: Same-day order received 10:20, production line stops
+              - generic [ref=f1e330]:
+                - generic [ref=f1e331]: "Expect: Accepted"
+                - generic [ref=f1e332]: New
+      - region [ref=f1e333]:
+        - heading "Selected email" [level=2] [ref=f1e334]
+        - generic [ref=f1e335]:
+          - paragraph [ref=f1e336]: PO for Client 263
+          - generic [ref=f1e337]:
+            - term [ref=f1e338]: From
+            - definition [ref=f1e339]:
+              - text: Plant 2 Ops
+              - generic [ref=f1e340]: <ops@client-263.example>
+            - term [ref=f1e341]: Received
+            - definition [ref=f1e342]: Fri, Oct 23, 06:45
+            - term [ref=f1e343]: Client
+            - definition [ref=f1e344]: C263
+          - paragraph [ref=f1e345]:
+            - generic [ref=f1e346]: Missing postcode.
+            - text: "Cause 2 (incomplete address): the order is held before picking and a follow-up asking for the postcode is drafted, instead of shipping and failing at the door."
+        - generic [ref=f1e347]: "Hi, Client 263 needs these sent out: - SKU HX-3300 x 40 - SKU HX-0450 x 8 Ship to: Name: Client 263 Plant 2 Street: 400 Foundry Road City: Dayton State: OH Standard delivery is fine. Regards, Client 263 plant operations"
+        - generic [ref=f1e349]:
+          - button "Run DeliveryLens on this email" [ref=f1e350] [cursor=pointer]
+          - generic [ref=f1e353]: "10 steps: guardrail, AI reading, rules and data checks, decision, reply."
+    - generic [ref=f1e354]:
+      - region [ref=f1e378]:
+        - generic [ref=f1e356]:
+          - heading "Pipeline trace for email M02" [level=2] [ref=f1e379]
+          - paragraph [ref=f1e381]: 10 steps, 70 ms in total
+        - list [ref=f1e382]:
+          - listitem [ref=f1e383]:
+            - generic [ref=f1e384]: "1"
+            - generic [ref=f1e387]:
+              - generic [ref=f1e388]:
+                - heading "Email received" [level=3] [ref=f1e389]
+                - generic [ref=f1e390]: Data lookup
+                - generic [ref=f1e396]: Passed
+                - generic [ref=f1e400]: 0 ms
+              - paragraph [ref=f1e401]: Email from Plant 2 Ops read from the shared order inbox.
+              - button "Details" [ref=f1e402] [cursor=pointer]
+          - listitem [ref=f1e405]:
+            - generic [ref=f1e406]: "2"
+            - generic [ref=f1e409]:
+              - generic [ref=f1e410]:
+                - heading "Safety screen" [level=3] [ref=f1e411]
+                - generic [ref=f1e412]: Guardrail
+                - generic [ref=f1e417]: Passed
+                - generic [ref=f1e421]: 1 ms
+              - paragraph [ref=f1e422]: No prompt-injection patterns found; personal data is masked in the logs.
+              - button "Details" [ref=f1e423] [cursor=pointer]
+          - listitem [ref=f1e426]:
+            - generic [ref=f1e427]: "3"
+            - generic [ref=f1e430]:
+              - generic [ref=f1e431]:
+                - heading "Read the order" [level=3] [ref=f1e432]
+                - generic [ref=f1e433]:
+                  - generic [ref=f1e436]: Order Intake Agent
+                  - generic [ref=f1e437]: (AI agent)
+                - generic [ref=f1e438]: Passed
+                - generic [ref=f1e442]: 29 ms
+              - paragraph [ref=f1e443]: The Order Intake Agent read 2 order lines and the delivery address (confidence 92%).
+              - button "Details" [ref=f1e444] [cursor=pointer]
+          - listitem [ref=f1e447]:
+            - generic [ref=f1e448]: "4"
+            - generic [ref=f1e451]:
+              - generic [ref=f1e452]:
+                - heading "Identify the client" [level=3] [ref=f1e453]
+                - generic [ref=f1e454]: Data lookup
+                - generic [ref=f1e460]: Passed
+                - generic [ref=f1e464]: 2 ms
+              - paragraph [ref=f1e465]: Matched to Client 263 (C263, Tier 1) by sender email domain. It is one of the 9 clients threatening to leave.
+              - button "Details" [ref=f1e466] [cursor=pointer]
+          - listitem [ref=f1e469]:
+            - generic [ref=f1e470]: "5"
+            - generic [ref=f1e473]:
+              - generic [ref=f1e474]:
+                - heading "Check the address" [level=3] [ref=f1e475]
+                - generic [ref=f1e476]: Rule
+                - generic [ref=f1e481]: Warning
+                - generic [ref=f1e484]: 29 ms
+              - paragraph [ref=f1e485]: "Address incomplete: missing postcode (ZIP). Found it in the client's delivery history: 38 past deliveries to 400 Foundry Road, Dayton, OH 45402, the only site on file that matches the city, state, street in the email. Held until the client confirms it with one click or a one-line reply."
+              - button "Details" [ref=f1e486] [cursor=pointer]
+          - listitem [ref=f1e489]:
+            - generic [ref=f1e490]: "6"
+            - generic [ref=f1e493]:
+              - generic [ref=f1e494]:
+                - heading "Check the promise date" [level=3] [ref=f1e495]
+                - generic [ref=f1e496]: Rule
+                - generic [ref=f1e501]: Skipped
+                - generic [ref=f1e504]: 0 ms
+              - paragraph [ref=f1e505]: "Skipped: the order is on hold until the client confirms or sends the missing address details."
+          - listitem [ref=f1e506]:
+            - generic [ref=f1e507]: "7"
+            - generic [ref=f1e510]:
+              - generic [ref=f1e511]:
+                - heading "Check stock" [level=3] [ref=f1e512]
+                - generic [ref=f1e513]: Data lookup
+                - generic [ref=f1e519]: Skipped
+                - generic [ref=f1e522]: 0 ms
+              - paragraph [ref=f1e523]: "Skipped: the order is on hold until the client confirms or sends the missing address details."
+          - listitem [ref=f1e524]:
+            - generic [ref=f1e525]: "8"
+            - generic [ref=f1e528]:
+              - generic [ref=f1e529]:
+                - heading "Choose the carrier" [level=3] [ref=f1e530]
+                - generic [ref=f1e531]: Rule
+                - generic [ref=f1e536]: Skipped
+                - generic [ref=f1e539]: 0 ms
+              - paragraph [ref=f1e540]: "Skipped: the order is on hold until the client confirms or sends the missing address details."
+          - listitem [ref=f1e541]:
+            - generic [ref=f1e542]: "9"
+            - generic [ref=f1e545]:
+              - generic [ref=f1e546]:
+                - heading "Decision" [level=3] [ref=f1e547]
+                - generic [ref=f1e548]: Rule
+                - generic [ref=f1e553]: Warning
+                - generic [ref=f1e556]: 0 ms
+              - paragraph [ref=f1e557]: "On hold: WMS order WMS-M02 waits for the missing address details."
+              - button "Details" [ref=f1e558] [cursor=pointer]
+          - listitem [ref=f1e561]:
+            - generic [ref=f1e562]: "10"
+            - generic [ref=f1e564]:
+              - generic [ref=f1e565]:
+                - heading "Draft the reply" [level=3] [ref=f1e566]
+                - generic [ref=f1e567]:
+                  - generic [ref=f1e570]: Client Reply Agent
+                  - generic [ref=f1e571]: (AI agent)
+                - generic [ref=f1e572]: Passed
+                - generic [ref=f1e576]: 9 ms
+              - paragraph [ref=f1e577]: The Client Reply Agent drafted a one-click request to confirm the address on file; a person approves it before it is sent.
+              - button "Details" [ref=f1e578] [cursor=pointer]
+      - generic [ref=f1e360]:
+        - region [ref=f1e581]:
+          - heading "Decision for email M02" [level=2] [ref=f1e582]
+          - paragraph [ref=f1e583]: On hold
+          - paragraph [ref=f1e586]: Created in the warehouse system but held off the pick list until the client replies.
+          - paragraph [ref=f1e587]: "Address incomplete: missing postcode. Waiting for the client to confirm the address on file."
+          - paragraph [ref=f1e588]: Matches expected
+          - paragraph [ref=f1e591]: WMS order WMS-M02.
+        - region [ref=f1e592]:
+          - generic [ref=f1e593]:
+            - heading "Address found in the client's history" [level=2] [ref=f1e594]
+            - generic [ref=f1e595]: Data lookup
+          - paragraph [ref=f1e601]: The email left out the postcode. This is the only site on file that matches the city, state, street it did give. Nothing ships until the client confirms.
+          - generic [ref=f1e607]:
+            - text: Client 263 Plant 2400 Foundry RoadDayton, OH 45402
+            - generic [ref=f1e608]: 38 past deliveries, last on 2026-09-24
+          - generic [ref=f1e609]:
+            - link "Open the client's one-click link" [ref=f1e610] [cursor=pointer]:
+              - /url: /confirm-address/hxrh34Y2-IA319LsRlT5_AlfBPX6kE6I
+            - button "Confirmed in the other tab? Run again" [ref=f1e615] [cursor=pointer]
+          - generic [ref=f1e616]:
+            - generic [ref=f1e617]:
+              - generic [ref=f1e618]: Or simulate the client's email reply
+              - generic [ref=f1e619]:
+                - generic [ref=f1e622]: Reply Reader Agent
+                - generic [ref=f1e623]: (AI agent)
+            - textbox "Or simulate the client's email reply" [ref=f1e624]: Yes, that's right. Thanks!
+            - paragraph [ref=f1e625]: Try "Yes", a different street or ZIP, or an unclear reply. A corrected detail is used only if it appears in the reply word for word.
+            - button "Send reply" [ref=f1e626] [cursor=pointer]
+        - region [ref=f1e631]:
+          - generic [ref=f1e632]:
+            - heading "Reply to the client" [level=2] [ref=f1e633]
+            - generic [ref=f1e634]: DRAFT — needs approval
+          - generic [ref=f1e635]:
+            - term [ref=f1e636]: To
+            - definition [ref=f1e637]: ops@client-263.example
+            - term [ref=f1e638]: Subject
+            - definition [ref=f1e639]: Please confirm the delivery address for your order
+          - generic [ref=f1e640]: "Hello Client 263, Thank you for your order (PO for Client 263). The email did not include the postcode (ZIP), but we have delivered to this address for you before: Client 263 Plant 2 400 Foundry Road Dayton, OH 45402 If that is right, confirm with one click: http://localhost:5174/confirm-address/hxrh34Y2-IA319LsRlT5_AlfBPX6kE6I or simply reply \"Yes\". If it should go somewhere else, reply with the correct address. Your order goes on the next pick list as soon as you confirm. Kind regards, Halcyon Logistics Customer Success DRAFT: for Customer Success to review and approve before sending."
+          - paragraph [ref=f1e641]: Written by the Order Intake Agent. A person reads and sends it; nothing goes out automatically.
+    - region [ref=f1e364]:
+      - generic [ref=f1e365]:
+        - generic [ref=f1e366]:
+          - heading "Warehouse system (WMS) — orders created" [level=2] [ref=f1e367]
+          - paragraph [ref=f1e368]: What DeliveryLens wrote for the warehouse system. Accepted orders wait for a person to approve them; only orders marked Ready for pick list are picked. The rest wait for the client or a person.
+        - button "Reset demo" [ref=f1e370] [cursor=pointer]
+      - table "WMS orders" [ref=f1e643]:
+        - rowgroup [ref=f1e644]:
+          - row [ref=f1e645]:
+            - columnheader "WMS order" [ref=f1e646]
+            - columnheader "Client" [ref=f1e647]
+            - columnheader "Ship to" [ref=f1e648]
+            - columnheader "Lines" [ref=f1e649]
+            - columnheader "Promise" [ref=f1e650]
+            - columnheader "Warehouse" [ref=f1e651]
+            - columnheader "Carrier" [ref=f1e652]
+            - columnheader "Pick list" [ref=f1e653]
+            - columnheader "Status" [ref=f1e654]
+        - rowgroup [ref=f1e655]:
+          - row [ref=f1e656]:
+            - cell "WMS-M02 Email M02" [ref=f1e657]:
+              - generic [ref=f1e658]: WMS-M02
+              - generic [ref=f1e659]: Email M02
+            - cell "Client 263" [ref=f1e660]
+            - cell "Client 263 Plant 2 400 Foundry Road, Dayton, OH [postcode missing]" [ref=f1e662]:
+              - generic [ref=f1e663]: Client 263 Plant 2
+              - generic [ref=f1e664]:
+                - text: 400 Foundry Road, Dayton, OH
+                - generic [ref=f1e665]: "[postcode missing]"
+            - cell "HX-3300 × 40 HX-0450 × 8" [ref=f1e666]:
+              - generic [ref=f1e667]: HX-3300 × 40
+              - generic [ref=f1e668]: HX-0450 × 8
+            - cell "Standard date not set" [ref=f1e669]:
+              - generic [ref=f1e670]: Standard
+              - generic [ref=f1e671]: date not set
+            - cell "–" [ref=f1e672]
+            - cell "–" [ref=f1e674]
+            - cell "not yet" [ref=f1e676]
+            - cell "On hold missing address" [ref=f1e677]:
+              - generic [ref=f1e678]: On hold
+              - generic [ref=f1e679]: missing address
