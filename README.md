@@ -5,6 +5,37 @@
 > **In one line:** DeliveryLens finds *why* deliveries are late, *fixes* each cause with AI agents
 > (Claude on Amazon Bedrock) and simple rules, and *proves* how much on-time delivery improves.
 
+## My contribution: Sai M (Sai Muthiki)
+
+**Role on Team InfinityStacks:** architecture, AI and AWS lead. I also worked well outside that role:
+data analysis, the website, testing, documentation, the demo film and the pitch.
+Team: Sravan Kumar D (business and pitch), Sai M (architecture, AI, AWS), Dinesh K (full-stack and testing).
+
+**By the numbers (from this repo's git history):** 70 of the 78 commits, 23 Oct to 12 Nov 2026.
+
+### What I built
+
+| Area | What I did | Where |
+|---|---|---|
+| Data analysis | Root-cause analysis of 48,340 deliveries: five causes, fair-share points, holdout check on unseen months (98.9%), realistic vs ceiling vs pilot-target scenarios, ROI against the $680K routing tool | `analysis/`, `docs/03-what-the-data-says.md` |
+| Backend and AI | FastAPI API: KPIs, what-if simulator, vendor case, risk board, and the **9 AI agents** (Claude on Amazon Bedrock) with guardrails, number checking, template fallbacks and a log of every AI call | `backend/app/` |
+| Order desk | Email order → guardrail → AI extraction → fixed rules (address, cutoff, stock, carrier) → person approves → WMS order; one-click client address confirmation | `backend/app/desk/`, `frontend/src/pages/OrderDesk.tsx` |
+| Website | React + TypeScript screens (How it works, Order desk, Why late, Stock & routes, Ask, Weekly brief and more), DESIGN.md, animations | `frontend/` |
+| AWS and DevOps | AWS deploy kit (EC2 + Docker + Caddy, RDS, S3, Bedrock, Secrets Manager, CloudWatch alarms, ECR, Amplify), GitHub Actions CI/CD with OIDC (no stored keys), deploy only after green tests | `infra/`, `.github/workflows/` |
+| Quality and security | Test suites and evidence pack, Playwright E2E, bad-input probes, secrets / bandit / pip-audit scans, security audit report and fixes | `evidence/`, `docs/security/` |
+| AI-agent way of working | Set up the Claude Code toolkit (curated skills from ~50 repos, agent personas), wrote our Dev, DevOps and QA agents and the `/fde-*` stage skills; every session logged | `.claude/`, `ai-logs/`, `NEW-PROJECT-STARTER-PROMPT.md` |
+| Story and pitch | Discovery questions, 14 docs, user guide, narrated demo film (6:37) and teaser (2:36), 15-slide deck with a 20-minute script | `docs/`, `demo-video/`, `deck/` |
+
+### Achievements
+
+- ✅ **Live on AWS**, deployed automatically on every push, for about **$37 a month** plus a small Bedrock charge.
+- ✅ **Changed the business decision:** the data showed routing explains only a small part of the lateness, so the recommendation is to fix five causes instead of buying a $680K routing tool: about **$1.4M a year** net in the cautious case, **95% on time** at the pilot targets (past the 94% industry benchmark).
+- ✅ **9 AI agents** in production, all following "AI reads, rules decide, a person approves".
+- ✅ **447 automated tests** (387 backend, 60 frontend), 30 browser tests repeated 190 times with 0 flaky, 33 bad inputs with 0 crashes, 16 prompt-injection attacks blocked.
+- ✅ **Security:** no secrets in git, bandit 0 medium/high, pip-audit 0 known vulnerabilities, security audit with no confirmed holes.
+- ✅ Learned AWS during the hackathon and set up the whole deployment with AI agents.
+
+
 ## For the jury
 
 | | |
