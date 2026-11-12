@@ -1,0 +1,28 @@
+{
+  "effectiveness": {
+    "weak_carrier_lane": 0.95,
+    "incomplete_address": 0.92,
+    "same_day_after_cutoff": 0.9,
+    "stock_not_at_nearest": 0.8,
+    "route_deviation": 0.7
+  },
+  "on_time_today": 0.71,
+  "steps_points": {
+    "weak_carrier_lane": 7.2,
+    "incomplete_address": 6.2,
+    "same_day_after_cutoff": 4.8,
+    "stock_not_at_nearest": 3.8,
+    "route_deviation": 2.1
+  },
+  "scenario": {
+    "name": "Pilot target",
+    "on_time_rate": 0.951,
+    "points_gained": 24.1,
+    "sla_penalties_avoided_usd": 1455151,
+    "redelivery_avoided_usd": 792129,
+    "late_deliveries_avoided": 23298,
+    "cost_per_year_usd": 359207,
+    "net_benefit_per_year_usd": 1888073,
+    "net_benefit_penalties_only_usd": 1095944
+  }
+}
